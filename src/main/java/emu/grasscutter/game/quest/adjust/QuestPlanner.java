@@ -179,7 +179,7 @@ public final class QuestPlanner {
             var preview = new RewardMailSink();
             for (var step : steps) for (var item : step.rewards()) if (!catalog.isQuestItem(item.id()))
                 preview.record(item.id(), item.count(), new RewardMailSink.Source(step.mainId(), step.subId(), item.source()));
-            var expectedMail = preview.envelopes(id -> catalog.mains().containsKey(id) ? catalog.mains().get(id).name() : "", id -> catalog.subs().get(id).name());
+            var expectedMail = preview.envelopes(catalog);
             var content = List.of(state.hash(), catalog.fingerprint(), policy.fingerprint(), target, new TreeSet<>(overrides), steps, blockers, warnings, coverage, expectedMail);
             return new Plan(UUID.randomUUID().toString(), AdjustJson.hash(content), state.uid(), target, "advance", state.hash(),
                     catalog.fingerprint(), policy.fingerprint(), overrides, List.copyOf(steps), List.copyOf(finished), List.copyOf(blockers),

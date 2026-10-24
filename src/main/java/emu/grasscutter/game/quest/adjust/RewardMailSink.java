@@ -22,25 +22,50 @@ public final class RewardMailSink {
     }
     public synchronized List<Grant> grants() { return List.copyOf(grants); }
     public synchronized List<Envelope> envelopes(IntFunction<String> mainName, IntFunction<String> subName) {
+        return envelopes(mainName, subName, id -> "");
+    }
+    /** 标题用主任务中文名，查不到退回「主任务 N」；正文每行写子任务、物品中文名和数量，物品名查不到退回编号。 */
+    public synchronized List<Envelope> envelopes(IntFunction<String> mainName, IntFunction<String> subName, IntFunction<String> itemName) {
         var grouped = new TreeMap<Integer, List<Grant>>();
         grants.forEach(g -> grouped.computeIfAbsent(g.source.mainId, k -> new ArrayList<>()).add(g));
         var result = new ArrayList<Envelope>();
         grouped.forEach((id, items) -> {
             int pages = (items.size() + ATTACHMENT_LIMIT - 1) / ATTACHMENT_LIMIT;
-            var name = mainName.apply(id); if (name == null || name.isBlank()) name = "主任务 " + id;
+            var name = orElse(mainName.apply(id), "主任务 " + id);
             for (int page = 0; page < pages; page++) {
                 var chunk = List.copyOf(items.subList(page * ATTACHMENT_LIMIT, Math.min(items.size(), (page + 1) * ATTACHMENT_LIMIT)));
-                var body = new StringBuilder("本次由管理后台推进。奖励来源：\n");
-                chunk.forEach(g -> body.append("子任务 ").append(g.source.subId).append(" ").append(subName.apply(g.source.subId))
-                        .append("；").append(g.source.kind).append("：").append(g.itemId).append(" × ").append(g.count).append('\n'));
-                result.add(new Envelope("任务奖励补发：" + name + "（" + id + "）" + (pages > 1 ? " (" + (page + 1) + "/" + pages + ")" : ""), body.toString(), chunk));
+                var body = new StringBuilder("本次由管理后台推进主任务 ").append(id).append("，原本的任务奖励改由邮件补发：\n");
+                chunk.forEach(g -> {
+                    var sub = orElse(subName.apply(g.source.subId), "");
+                    body.append("子任务 ").append(g.source.subId).append(sub.isEmpty() ? "" : " " + sub).append("：")
+                            .append(orElse(itemName.apply(g.itemId), "物品 " + g.itemId)).append(" × ").append(g.count)
+                            .append("（").append(kindLabel(g.source.kind)).append("）\n");
+                });
+                result.add(new Envelope("任务奖励补发：" + name + (pages > 1 ? " (" + (page + 1) + "/" + pages + ")" : ""), body.toString(), chunk));
             }
         });
         return List.copyOf(result);
     }
+    /** 计划单预览和真正发信共用：主任务名先用资源 TextMap，缺了再查 mail-names.json。 */
+    public List<Envelope> envelopes(QuestCatalog catalog) {
+        var names = MailNames.load();
+        IntFunction<String> mainName = id -> {
+            var resource = catalog.mains().containsKey(id) ? catalog.mains().get(id).name() : "";
+            return resource == null || resource.isBlank() ? names.main(id) : resource;
+        };
+        return envelopes(mainName, id -> catalog.subs().containsKey(id) ? catalog.subs().get(id).name() : "", names::item);
+    }
+    private static String orElse(String value, String fallback) { return value == null || value.isBlank() ? fallback : value; }
+    private static String kindLabel(String kind) {
+        if (kind == null) return "任务奖励";
+        if (kind.startsWith("rewardId=")) return "任务奖励 " + kind.substring("rewardId=".length());
+        if (kind.equals("gainItems")) return "子任务获得";
+        if (kind.startsWith("exec:")) return "执行项 " + kind.substring("exec:".length());
+        return kind;
+    }
     public List<String> send(Player player, QuestCatalog catalog, java.util.function.Consumer<Object> journal) {
         var ids = new ArrayList<String>();
-        for (var envelope : envelopes(id -> catalog.mains().containsKey(id) ? catalog.mains().get(id).name() : "", id -> catalog.subs().containsKey(id) ? catalog.subs().get(id).name() : "")) {
+        for (var envelope : envelopes(catalog)) {
             var mail = new Mail(new Mail.MailContent(envelope.title, envelope.content, "任务调整后台"),
                     new ArrayList<>(envelope.grants.stream().map(g -> new Mail.MailItem(g.itemId, g.count, 1)).toList()),
                     Instant.now().getEpochSecond() + SystemMailHelper.DEFAULT_EXPIRE_SECONDS);

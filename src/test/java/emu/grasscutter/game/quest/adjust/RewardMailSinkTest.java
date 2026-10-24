@@ -84,10 +84,12 @@ class RewardMailSinkTest {
     @Test void mailSplitsAtAttachmentLimitAndKeepsTaskAndRewardSources() {
         var sink=new RewardMailSink();
         for(int i=0;i<21;i++)sink.record(100+i,1,new RewardMailSink.Source(352,35205,i%2==0?"gainItems":"rewardId=100352"));
-        var envelopes=sink.envelopes(id->"异常的权柄",id->"触摸神像");
-        assertEquals(3,envelopes.size()); assertTrue(envelopes.get(0).title().contains("异常的权柄（352） (1/3)"));
+        var envelopes=sink.envelopes(id->"异常的权柄",id->"触摸神像",id->id==100?"冒险阅历":"");
+        assertEquals(3,envelopes.size()); assertEquals("任务奖励补发：异常的权柄 (1/3)",envelopes.get(0).title());
         assertEquals(List.of(10,10,1),envelopes.stream().map(e->e.grants().size()).toList());
-        assertTrue(envelopes.get(0).content().contains("35205 触摸神像")); assertTrue(envelopes.get(0).content().contains("rewardId=100352"));
+        var body=envelopes.get(0).content();
+        assertTrue(body.contains("主任务 352")); assertTrue(body.contains("子任务 35205 触摸神像：冒险阅历 × 1（子任务获得）"));
+        assertTrue(body.contains("物品 101 × 1（任务奖励 100352）"));
         assertTrue(sink.envelopes(id->"",id->"").get(0).title().contains("主任务 352"));
     }
     @Test void sharedLedgerRetainsSourceWhenAnAsyncThreadHasNoThreadLocal() throws Exception {
