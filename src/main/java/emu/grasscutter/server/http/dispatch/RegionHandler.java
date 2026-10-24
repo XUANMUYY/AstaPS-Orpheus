@@ -548,8 +548,12 @@ public final class RegionHandler implements Router {
      * @return A {@link QueryCurrRegionHttpRsp} object.
      */
     public static QueryCurrRegionHttpRsp getCurrentRegion() {
-        return Grasscutter.getRunMode() == ServerRunMode.HYBRID
-                ? regions.get("os_usa").getRegionQuery()
-                : null;
+        if (Grasscutter.getRunMode() != ServerRunMode.HYBRID) return null;
+        var configured = emu.grasscutter.config.Configuration.DISPATCH_INFO.regions;
+        if (!configured.isEmpty()) {
+            var region = regions.get(configured.getFirst().Name);
+            if (region != null) return region.getRegionQuery();
+        }
+        return regions.values().stream().findFirst().map(RegionData::getRegionQuery).orElse(null);
     }
 }

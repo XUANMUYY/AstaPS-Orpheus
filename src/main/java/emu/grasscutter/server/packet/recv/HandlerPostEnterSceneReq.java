@@ -48,6 +48,17 @@ public class HandlerPostEnterSceneReq extends PacketHandler {
 
         if (!freshPlayerBootstrap) session.send(new PacketPostEnterSceneRsp(player));
 
+        if (player.isTrialPrologueRepairPending() && questManager.isQuestingEnabled()) {
+            // Repair only the prologue, never enableQuests() or a global login sweep.
+            questManager.startMainQuestIfUnlinked(351);
+            emu.grasscutter.game.quest.QuestChapterBootstrap.startForActiveMainQuests(questManager);
+            if (questManager.getMainQuestById(351) != null) {
+                player.setTrialPrologueRepairPending(false);
+                player.save();
+                emu.grasscutter.Grasscutter.getLogger().info("[trial] Prologue repair completed for uid {}", player.getUid());
+            }
+        }
+
         EscoffierSkillCookHelper.syncToClient(player);
         EntryNotice.sendOnce(player);
         session.send(new PacketGetPlayerFriendListRsp(player));

@@ -151,6 +151,8 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter @Setter private Map<Integer, Set<Integer>> forceLockedScenePoints;
     @Getter @Setter private List<Integer> chatEmojiIdList;
     @Getter @Setter private boolean playedFirstLoginCutscene;
+    /** Explicit, one-shot repair for a player born while quests were disabled. */
+    @Getter @Setter private boolean trialPrologueRepairPending;
 
     /**
      * Whether this player has yet to see the welcome notice.
@@ -1228,7 +1230,9 @@ public class Player implements PlayerHook, FieldFetch {
     }
 
     public void sendPacket(BasePacket packet) {
-        this.getSession().send(packet);
+        // Offline administrative mutations persist data without a network session.
+        var session = this.getSession();
+        if (session != null) session.send(packet);
     }
 
     public OnlinePlayerInfo getOnlinePlayerInfo() {

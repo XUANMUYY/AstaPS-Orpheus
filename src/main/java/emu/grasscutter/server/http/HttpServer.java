@@ -51,6 +51,10 @@ public final class HttpServer {
 
         });
 
+        // Local trial diagnostics: paths only, never credential bodies or query tokens.
+        this.javalin.after(ctx -> Grasscutter.getLogger().info(
+                "LOCAL_HTTP {} {} status={}", ctx.method(), ctx.path(), ctx.status()));
+
         this.javalin.exception(Exception.class, (exception, ctx) -> {
             ctx.status(500).result("Internal server error. %s"
                 .formatted(exception.getMessage()));
