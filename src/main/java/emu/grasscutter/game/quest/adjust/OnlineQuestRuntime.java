@@ -158,7 +158,17 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
                 journal.accept(Map.of("action", "remove_forced_marker", "mainId", main.getParentQuestId()));
         }
     }
-    @Override public void disconnect() { if (player.getSession() != null) player.getSession().close(); }
+    @Override public void disconnect() { forceRelogin(player); }
+    /**
+     * 强制客户端回到登录界面。只 close 会话时，客户端会当作网络断开，拿缓存的 combo token 静默重连，
+     * 带着重放前的界面状态进场景，卡在元素读条（2026-10-25 测试号 2，Player.log 里 GeneralMarkData 空指针）。
+     * 先换掉 token，静默重连就过不了 GetPlayerTokenReq 的校验，只能重新登录；正常登录每次都会发新 token。
+     */
+    static void forceRelogin(Player player) {
+        var account = player.getAccount();
+        if (account != null) account.generateLoginToken();
+        if (player.getSession() != null) player.getSession().close();
+    }
     @Override public boolean beyondTarget(int subId, QuestPlanner.Step target) {
         var sub = catalog.subs().get(subId);
         return sub != null && sub.mainId() == target.mainId() && sub.order() > target.order();

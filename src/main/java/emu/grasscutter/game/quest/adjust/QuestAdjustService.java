@@ -111,7 +111,7 @@ public final class QuestAdjustService {
             AdjustJson.writeNew(saved.directory().resolve("report.json"), job);
         } catch (Exception e) {
             job.status = "failed"; job.error = e.toString();
-            if (job.backupId != null && player.getSession() != null) player.getSession().close();
+            if (job.backupId != null) OnlineQuestRuntime.forceRelogin(player);
         } finally { locks.remove(job.uid, job.id); }
     }
     public Object job(String id) throws IOException {
