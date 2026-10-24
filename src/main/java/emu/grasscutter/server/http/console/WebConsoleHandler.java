@@ -29,6 +29,7 @@ public final class WebConsoleHandler implements Router {
 
     private final WebConsole options = HTTP_INFO.webConsole;
     private final WebConsoleAuth auth = new WebConsoleAuth(options);
+    private volatile emu.grasscutter.game.quest.adjust.QuestAdjustService questAdjust;
 
     @Override
     public void applyRoutes(Javalin javalin) {
@@ -50,6 +51,48 @@ public final class WebConsoleHandler implements Router {
         javalin.get("/console/api/logs", this::logs);
         javalin.get("/console/api/players", this::players);
         javalin.post("/console/api/command", this::command);
+        javalin.get("/console/api/quest/tree", ctx -> quest(ctx, "tree"));
+        javalin.post("/console/api/quest/plan", ctx -> quest(ctx, "plan"));
+        javalin.post("/console/api/quest/apply", ctx -> quest(ctx, "apply"));
+        javalin.get("/console/api/quest/job", ctx -> quest(ctx, "job"));
+        javalin.post("/console/api/quest/undo", ctx -> quest(ctx, "undo"));
+        javalin.get("/console/api/quest/backups", ctx -> quest(ctx, "backups"));
+    }
+
+    private synchronized emu.grasscutter.game.quest.adjust.QuestAdjustService questAdjust() throws java.io.IOException {
+        if (questAdjust == null) questAdjust = new emu.grasscutter.game.quest.adjust.QuestAdjustService();
+        return questAdjust;
+    }
+
+    private void quest(Context ctx, String operation) {
+        if (!authorized(ctx)) return;
+        try {
+            var service = questAdjust();
+            Object response;
+            if (operation.equals("tree")) response = service.tree(Integer.parseInt(ctx.queryParam("uid")));
+            else if (operation.equals("backups")) response = service.backups(Integer.parseInt(ctx.queryParam("uid")));
+            else if (operation.equals("job")) response = service.job(ctx.queryParam("id"));
+            else {
+                var body = JsonParser.parseString(ctx.body()).getAsJsonObject();
+                int uid = body.get("uid").getAsInt();
+                var overrides = new java.util.HashSet<String>();
+                if (body.has("overrides")) body.getAsJsonArray("overrides").forEach(e -> overrides.add(e.getAsString()));
+                response = switch (operation) {
+                    case "plan" -> service.plan(uid, body.get("targetSubId").getAsInt(), body.has("mode") ? body.get("mode").getAsString() : "advance", overrides);
+                    case "apply" -> service.apply(uid, body.get("planId").getAsString(), overrides);
+                    case "undo" -> service.undo(uid, body.get("jobId").getAsString());
+                    default -> throw new IllegalArgumentException("未知操作");
+                };
+            }
+            json(ctx, 200, response);
+        } catch (IllegalStateException e) {
+            json(ctx, 409, Map.of("error", e.getMessage()));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            json(ctx, 400, Map.of("error", e.getMessage() == null ? "请求参数缺失或格式不正确" : e.getMessage()));
+        } catch (Exception e) {
+            Grasscutter.getLogger().warn("Quest adjustment {} failed", operation, e);
+            json(ctx, 500, Map.of("error", "任务调整失败，请查看服务端日志；没有自动恢复整档"));
+        }
     }
 
     private void page(Context ctx) {

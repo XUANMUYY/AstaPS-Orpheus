@@ -123,6 +123,8 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
         if (count <= 0) {
             return false;
         }
+        if (emu.grasscutter.game.quest.adjust.RewardMailSink.intercept(
+                getPlayer(), itemId, count, itemData, reason)) return true;
         ItemType type = itemData.getItemType();
         if ((type == ItemType.ITEM_WEAPON || type == ItemType.ITEM_RELIQUARY
                         || type == ItemType.ITEM_TPS_WEAPON)
@@ -196,6 +198,9 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
 
     public synchronized InventoryAddResult addItems(
             Collection<GameItem> items, ActionReason reason, InventoryAddPolicy policy) {
+        if (emu.grasscutter.game.quest.adjust.RewardMailSink.allRedirectable(getPlayer(), items, reason)) {
+            return addItemsInternal(items, reason, false, false);
+        }
         if (policy == InventoryAddPolicy.BEST_EFFORT) {
             return addItemsInternal(items, reason, false, false);
         }
@@ -213,6 +218,9 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
             InventoryAddPolicy policy,
             BooleanSupplier authorize,
             Runnable confirmed) {
+        if (emu.grasscutter.game.quest.adjust.RewardMailSink.deferPointReward(getPlayer(), reason)) {
+            return InventoryAddResult.rejected(items, InventoryAddResult.Status.AUTHORIZATION_FAILED);
+        }
         if (policy != InventoryAddPolicy.ALL_OR_NOTHING) {
             throw new IllegalArgumentException("Authorized grant requires ALL_OR_NOTHING");
         }
@@ -232,6 +240,9 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
             ActionReason reason,
             boolean notifyAvatarCard,
             boolean allowCurrencyFallback) {
+        if (emu.grasscutter.game.quest.adjust.RewardMailSink.deferPointReward(getPlayer(), reason)) {
+            return InventoryAddResult.rejected(items, InventoryAddResult.Status.AUTHORIZATION_FAILED);
+        }
         if (items == null || items.isEmpty()) {
             return new InventoryAddResult(List.of());
         }
@@ -241,8 +252,14 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
         List<InventoryAddResult.Entry> outcome = new ArrayList<>();
 
         for (GameItem item : items) {
+            boolean duplicate = item != null && !seen.add(item);
+            if (!duplicate && emu.grasscutter.game.quest.adjust.RewardMailSink.intercept(getPlayer(), item, reason)) {
+                outcome.add(new InventoryAddResult.Entry(
+                        item.getItemId(), item.getCount(), item.getCount(), InventoryAddResult.Status.EFFECT_APPLIED));
+                continue;
+            }
             InsertResult inserted =
-                    item != null && !seen.add(item)
+                    duplicate
                             ? InsertResult.refused(InventoryAddResult.Status.INVALID_ITEM)
                             : putItem(item);
             int itemId = item == null ? 0 : item.getItemId();

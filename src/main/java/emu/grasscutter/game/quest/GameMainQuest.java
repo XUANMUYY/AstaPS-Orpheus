@@ -191,9 +191,16 @@ public class GameMainQuest {
                     continue;
                 }
 
+                try (var source = emu.grasscutter.game.quest.adjust.ReplayContext.source(
+                        this.getOwner().getUid(), new emu.grasscutter.game.quest.adjust.RewardMailSink.Source(
+                                this.getParentQuestId(),
+                                emu.grasscutter.game.quest.adjust.ReplayContext.source(this.getOwner().getUid()) == null ? 0
+                                        : emu.grasscutter.game.quest.adjust.ReplayContext.source(this.getOwner().getUid()).subId(),
+                                "rewardId=" + rewardId))) {
                 this.getOwner()
                         .getInventory()
                         .addItemParamDatas(rewardData.getRewardItemList(), ActionReason.QuestReward);
+                }
             }
         }
 
@@ -536,7 +543,12 @@ public class GameMainQuest {
                                             .collect(Collectors.joining(", ")));
                 }
 
-                if (shouldFinish) subQuestWithCond.finish();
+                if (shouldFinish) {
+                    try (var source = emu.grasscutter.game.quest.adjust.ReplayContext.source(
+                            subQuestWithCond, "gainItems")) {
+                        subQuestWithCond.finish();
+                    }
+                }
             }
         } catch (Exception e) {
             Grasscutter.getLogger().debug("An error occurred while trying to finish quest.", e);

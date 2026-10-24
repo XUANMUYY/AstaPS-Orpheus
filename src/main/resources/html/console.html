@@ -525,6 +525,82 @@
     const out = $("cmd-output"); out.scrollTop = out.scrollHeight;
   });
 
+  // Quest adjustment UI deliberately uses only authenticated JSON APIs.
+  let questPlan = null, questJob = null;
+  const questPanel = document.createElement("div");
+  questPanel.className = "panel";
+  questPanel.innerHTML = `<div class="panel-head"><h2>任务进度调整</h2></div>
+    <div style="padding:14px;display:grid;gap:10px">
+      <p>选择在线玩家并生成只读计划。执行期间请站在自己的大世界中保持不动，结束后将强制下线。任务道具进背包，其余奖励发邮件。</p>
+      <div><button id="qa-players" type="button">刷新玩家</button> <label>玩家 <select id="qa-player"><option value="">请选择</option></select></label>
+      <button id="qa-tree" type="button">加载任务树</button></div>
+      <label>搜索子任务 <input id="qa-search" type="search" placeholder="任务ID或名称"></label>
+      <label>目标子任务 <select id="qa-target"><option value="35205">35205 · 风神像</option></select></label>
+      <div><button id="qa-plan" type="button">生成计划（dry-run）</button> <button id="qa-apply" type="button" disabled>确认执行计划</button>
+      <button id="qa-job" type="button" disabled>刷新报告</button> <button id="qa-backups" type="button">备份列表</button></div>
+      <div id="qa-overrides"></div>
+      <div><label>撤销任务 ID / 备份 ID <input id="qa-undo-id" type="text"></label> <button id="qa-undo" type="button">撤销该次调整</button></div>
+      <p>撤销前玩家须离线；已领取奖励、成就等 watcher、旅行者元素和已解锁角色默认保留。与调整后正常进度冲突的字段会保留并报告。</p>
+      <pre id="qa-report" tabindex="0" style="max-height:420px;overflow:auto;white-space:pre-wrap" aria-live="polite">尚未生成计划</pre>
+    </div>`;
+  $("app").querySelector("main").appendChild(questPanel);
+  let questRows = [];
+  const qaUid = () => { const uid = Number($("qa-player").value); if (!Number.isSafeInteger(uid) || uid <= 0) throw new Error("请先选择玩家"); return uid; };
+  const qaShow = value => { const report = $("qa-report"); report.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    report.style.color = value && typeof value === "object" && (value.status === "failed" || (value.report?.sideEffects || []).some(e => e.beyondTarget)) ? "#b42318" : ""; };
+  const qaCall = async (path, data) => {
+    const response = await api("/console/api/quest/" + path, data ? { method: "POST", body: JSON.stringify(data) } : {});
+    const body = await response.json(); if (!response.ok) throw new Error(body.error || response.status); return body;
+  };
+  const qaRun = fn => async () => { try { await fn(); } catch (e) { qaShow(e.message); } };
+  const invalidatePlan = () => { questPlan = null; $("qa-apply").disabled = true; };
+  const qaOverrides = () => [...$("qa-overrides").querySelectorAll("input:checked")].map(e => e.value);
+  $("qa-player").addEventListener("change", () => { invalidatePlan(); questRows = []; $("qa-target").replaceChildren(); });
+  $("qa-target").addEventListener("change", invalidatePlan);
+  $("qa-players").onclick = qaRun(async () => {
+    const data = await (await api("/console/api/players")).json(); const select = $("qa-player"), old = select.value; select.replaceChildren(new Option("请选择", ""));
+    for (const p of data.players || []) select.add(new Option(`${p.uid} · ${p.nickname} · 场景 ${p.sceneId}`, p.uid));
+    if (old && ![...select.options].some(o => o.value === old)) select.add(new Option(`${old} · 当前离线（仅可撤销）`, old));
+    select.value = old; invalidatePlan();
+  });
+  function qaTargets() {
+    const term = $("qa-search").value.trim().toLowerCase(), select = $("qa-target"), old = select.value;
+    select.replaceChildren();
+    for (const q of questRows.filter(q => `${q.subId} ${q.name}`.toLowerCase().includes(term)).slice(0, 500))
+      select.add(new Option(`${q.subId} · ${q.name || "无名称"} · 状态 ${q.state}${q.forcedOnly ? " · 仅父标记" : ""}`, q.subId));
+    if ([...select.options].some(o => o.value === old)) select.value = old;
+    invalidatePlan();
+  }
+  $("qa-search").oninput = qaTargets;
+  $("qa-tree").onclick = qaRun(async () => {
+    const data = await qaCall("tree?uid=" + qaUid()); questRows = data.mains.flatMap(m => m.children.map(q => ({ ...q, forcedOnly: m.forcedOnly })));
+    qaTargets(); qaShow({ 子任务数: questRows.length, 缺资源的强制父任务: data.forcedWithoutResource });
+  });
+  $("qa-plan").onclick = qaRun(async () => {
+    invalidatePlan(); const data = await qaCall("plan", { uid: qaUid(), targetSubId: Number($("qa-target").value), mode: "advance", overrides: qaOverrides() });
+    questPlan = data; qaShow(data); $("qa-apply").disabled = !data.executionAvailable || data.blockers.length > 0 || data.steps.length === 0;
+    $("qa-apply").title = data.executionAvailable ? "" : "本批执行接入尚未完成范围确认；目前仅可生成计划";
+    const choices = $("qa-overrides"); choices.replaceChildren();
+    for (const type of new Set(data.blockers.filter(b => b.type.startsWith("QUEST_EXEC_")).map(b => b.type))) {
+      const label = document.createElement("label"), input = document.createElement("input"); input.type = "checkbox"; input.value = type;
+      input.onchange = invalidatePlan; label.append(input, document.createTextNode(" 本次跳过 " + type + "（勾选后重新生成计划）")); choices.append(label, document.createElement("br"));
+    }
+    for (const type of data.overrides || []) { const input = document.createElement("input"); input.type = "checkbox"; input.checked = true; input.value = type; input.onchange = invalidatePlan; const label = document.createElement("label"); label.append(input, document.createTextNode(" 已确认跳过 " + type)); choices.append(label); }
+  });
+  $("qa-apply").onclick = qaRun(async () => {
+    if (!questPlan) throw new Error("请重新生成计划");
+    if (!window.confirm(`确认对 ${questPlan.uid} 执行 ${questPlan.steps.length} 步到 ${questPlan.targetSubId}？结束后强制下线。`)) return;
+    const job = await qaCall("apply", { uid: qaUid(), planId: questPlan.planId, overrides: questPlan.overrides }); questJob = job.id;
+    $("qa-undo-id").value = job.id; $("qa-job").disabled = false; invalidatePlan(); qaShow(job);
+  });
+  $("qa-job").onclick = qaRun(async () => { if (questJob) { const job = await qaCall("job?id=" + encodeURIComponent(questJob)); qaShow(job); if (job.backupId) $("qa-undo-id").value = job.backupId; } });
+  $("qa-backups").onclick = qaRun(async () => qaShow(await qaCall("backups?uid=" + qaUid())));
+  $("qa-undo").onclick = qaRun(async () => {
+    const uid = qaUid(), jobId = $("qa-undo-id").value.trim(); if (!jobId) throw new Error("请填写要撤销的任务 ID");
+    if (!window.confirm(`确认撤销 ${uid} 的这次调整？不可回退项将保留。`)) return;
+    const job = await qaCall("undo", { uid, jobId }); questJob = job.id; $("qa-job").disabled = false; invalidatePlan(); qaShow(job);
+  });
+
   applyLanguage();
   if (token) showApp(); else showLogin();
 })();

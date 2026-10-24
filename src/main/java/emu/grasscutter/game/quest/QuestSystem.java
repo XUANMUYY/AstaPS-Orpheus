@@ -67,6 +67,19 @@ public final class QuestSystem extends BaseGameSystem {
 
     // TODO make cleaner
 
+    /** Read-only registration inventory for adjustment preflight; never exposes mutable maps. */
+    public java.util.Set<Integer> getRegisteredExecTypes() {
+        return java.util.Set.copyOf(this.execHandlers.keySet());
+    }
+
+    public java.util.Set<Integer> getRegisteredConditionTypes() {
+        return java.util.Set.copyOf(this.condHandlers.keySet());
+    }
+
+    public java.util.Set<Integer> getRegisteredContentTypes() {
+        return java.util.Set.copyOf(this.contHandlers.keySet());
+    }
+
     public boolean triggerCondition(
             Player owner,
             QuestData questData,
@@ -102,6 +115,11 @@ public final class QuestSystem extends BaseGameSystem {
 
     public void triggerExec(GameQuest quest, QuestExecParam execParam, String... params) {
         QuestExecHandler handler = execHandlers.get(execParam.getType().getValue());
+
+        // 只在后台任务重放上下文内生效：按 exec-policy 跳过/阻断并记录结果；平时直接返回 false。
+        if (emu.grasscutter.game.quest.adjust.ReplayContext.dispatch(
+                quest, execParam, handler != null && quest.getQuestData() != null,
+                () -> handler.execute(quest, execParam, params))) return;
 
         if (handler == null || quest.getQuestData() == null) {
             Grasscutter.getLogger()
