@@ -353,6 +353,14 @@ public class Player implements PlayerHook, FieldFetch {
         setPhlogistonValue(100);
     }
 
+    /** 新号默认的风之翼与名片。名片只给「原神·印象」，其余靠好感、成就、纪行等各自解锁。 */
+    void grantStartingCollections() {
+        this.getFlyCloakList().add(140001);
+        this.getNameCardList().add(STARTING_NAME_CARD_ID);
+    }
+
+    public static final int STARTING_NAME_CARD_ID = 210001;
+
     public Player(GameSession session) {
         this();
 
@@ -367,8 +375,7 @@ public class Player implements PlayerHook, FieldFetch {
 
         this.applyProperties();
         this.applyStartingSceneTags();
-        this.getFlyCloakList().add(140001);
-        for (int __nc = 210001; __nc <= 210100; __nc++) { this.getNameCardList().add(__nc); }
+        this.grantStartingCollections();
         setPhlogistonValue(100);
         for(int t=0; t < 20; t++){
             this.getTraceEffectList().add(215001+t);

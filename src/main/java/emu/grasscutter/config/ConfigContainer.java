@@ -330,6 +330,12 @@ public class ConfigContainer {
         public ConsoleAccount serverAccount = new ConsoleAccount();
         /** Appearance of the DPS commander account in the friend list. */
         public ConsoleAccount dpsAccount = defaultDpsAccount();
+        /**
+         * Lists the built-in bots (console UID 99, DPS UID 97) as friends. The official game has
+         * neither, so this is opt-in; when on, chat the console bot for GM commands and the DPS bot
+         * for damage tests.
+         */
+        public boolean showBotFriends = false;
 
         public VisionOptions[] visionOptions = new VisionOptions[] {
             new VisionOptions("VISION_LEVEL_NORMAL"         , 80    , 20),
@@ -669,6 +675,8 @@ public class ConfigContainer {
     public static class JoinOptions {
         /** Opt-in server-bot greeting; normal story play starts without unsolicited chat. */
         public boolean sendWelcomeMessages = false;
+        /** Mail sent once a new account picks its Traveler. The official game sends none. */
+        public boolean sendWelcomeMail = false;
         public int[] welcomeEmotes = {2007, 1002, 4010};
         public String welcomeMessage = "Welcome to the Chiori test server";
         public JoinOptions.Mail welcomeMail = new JoinOptions.Mail();

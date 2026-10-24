@@ -30,8 +30,9 @@ public class HandlerAvatarFetterLevelRewardReq extends PacketHandler {
                         : avatar.getAvatarData().getFetterRewards().get(fetterLevel);
         var reward = GameData.getRewardDataMap().get(rewardId);
         if (avatar == null || reward == null || avatar.getFetterLevel() < fetterLevel) {
+            // Info, not debug: the client only shows a generic server error for this.
             Grasscutter.getLogger()
-                    .debug(
+                    .info(
                             "[Fetter] uid={} cannot claim level {} reward of avatar guid {}"
                                     + " (reward {}, level {})",
                             player.getUid(),
@@ -54,7 +55,7 @@ public class HandlerAvatarFetterLevelRewardReq extends PacketHandler {
             var added = player.getInventory().addItems(items, ActionReason.FetterLevelReward);
             if (!added.allAccepted()) {
                 Grasscutter.getLogger()
-                        .debug(
+                        .info(
                                 "[Fetter] uid={} level {} reward {} of avatar {} not admitted: {}",
                                 player.getUid(),
                                 fetterLevel,

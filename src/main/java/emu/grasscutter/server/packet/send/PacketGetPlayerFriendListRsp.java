@@ -19,9 +19,12 @@ public class PacketGetPlayerFriendListRsp extends BasePacket {
         super(PacketOpcodes.GetPlayerFriendListRsp);
 
         GetPlayerFriendListRsp.Builder proto = GetPlayerFriendListRsp.newBuilder();
-        // Both are added, neither replaces the other: Chiori and DPS.
-        proto.addFriendList(buildBotFriend(GameConstants.SERVER_CONSOLE_UID, GAME_INFO.serverAccount));
-        proto.addFriendList(buildBotFriend(GameConstants.SERVER_DPS_UID, resolveDpsAccount()));
+        // Both are added, neither replaces the other: Chiori and DPS. Opt-in, see showBotFriends.
+        if (GAME_INFO.showBotFriends) {
+            proto.addFriendList(
+                    buildBotFriend(GameConstants.SERVER_CONSOLE_UID, GAME_INFO.serverAccount));
+            proto.addFriendList(buildBotFriend(GameConstants.SERVER_DPS_UID, resolveDpsAccount()));
+        }
 
         for (Friendship friendship : player.getFriendsList().getFriends().values()) {
             proto.addFriendList(friendship.toProto());
