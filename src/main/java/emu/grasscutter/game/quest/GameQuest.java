@@ -64,6 +64,9 @@ public class GameQuest {
         this.startTime = this.acceptTime;
         this.startGameDay = getOwner().getWorld().getTotalGameTimeDays();
         this.state = QuestState.QUEST_STATE_UNFINISHED;
+        // A really accepted child outranks a forged "parent finished" flag (see ForcedQuests.notify);
+        // keeping both makes the client NRE on quest map marks at the next login.
+        getOwner().getForcedFinishedQuests().remove(this.getMainQuestId());
 
         val triggerCond =
                 questData.getFinishCond().stream()
