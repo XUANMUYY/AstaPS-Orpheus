@@ -8,7 +8,9 @@ import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.AvatarFetterLevelRewardReqOuterClass.AvatarFetterLevelRewardReq;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.*;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import java.util.ArrayList;
+import java.util.Set;
 
 /**
  * Claims a friendship reward. Besides the level 10 name card, some avatars have an earlier one
@@ -16,14 +18,43 @@ import java.util.ArrayList;
  */
 @Opcodes(PacketOpcodes.AvatarFetterLevelRewardReq)
 public class HandlerAvatarFetterLevelRewardReq extends PacketHandler {
+    /**
+     * The level to claim. A request without one (level 0) means the next reward the avatar has
+     * reached and not yet claimed, lowest level first; 0 when there is none.
+     */
+    static int resolveLevel(
+            int requested, int currentLevel, Int2IntMap rewards, Set<Integer> rewarded) {
+        if (requested > 0) return requested;
+        return rewards.keySet().intStream()
+                .filter(level -> level > 0 && level <= currentLevel && !rewarded.contains(level))
+                .min()
+                .orElse(0);
+    }
     @Override
     public void handle(GameSession session, byte[] header, byte[] payload) throws Exception {
         AvatarFetterLevelRewardReq req = AvatarFetterLevelRewardReq.parseFrom(payload);
         var player = session.getPlayer();
         long avatarGuid = req.getAvatarGuid();
-        int fetterLevel = req.getFetterLevel();
+        int requestedLevel = req.getFetterLevel();
 
         var avatar = player.getAvatars().getAvatarByGuid(avatarGuid);
+        int fetterLevel =
+                avatar == null || avatar.getAvatarData() == null
+                        ? requestedLevel
+                        : resolveLevel(
+                                requestedLevel,
+                                avatar.getFetterLevel(),
+                                avatar.getAvatarData().getFetterRewards(),
+                                avatar.getRewardedFetterLevels());
+        if (requestedLevel == 0) {
+            // The CN 7.1 chest sends no fetter_level in field 3; keep its real fields for mapping.
+            Grasscutter.getLogger()
+                    .info(
+                            "[Fetter] uid={} request without level, resolved to {}; unknown fields: {}",
+                            player.getUid(),
+                            fetterLevel,
+                            req.getUnknownFields().toString().replace('\n', ' '));
+        }
         int rewardId =
                 avatar == null || avatar.getAvatarData() == null
                         ? 0
