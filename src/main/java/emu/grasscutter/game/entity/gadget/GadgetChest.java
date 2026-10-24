@@ -9,6 +9,7 @@ import emu.grasscutter.game.entity.EntityGadget;
 import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.entity.gadget.chest.BossChestInteractHandler;
 import emu.grasscutter.game.entity.gadget.chest.ChestInteractHandler;
+import emu.grasscutter.game.entity.gadget.chest.ChestTypeResolver;
 import emu.grasscutter.game.entity.gadget.chest.WorldChestLootHelper;
 import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.player.Player;
@@ -292,15 +293,30 @@ public class GadgetChest extends GadgetContent {
         return allClaimed;
     }
 
+    /**
+     * Whether the group's own chest_drop_id decides the loot. Configured chest rules cover only
+     * the chest kinds ChestTypeResolver knows; anything else with a native drop table (investigation
+     * points, "SearchPoint" 70210101/70210102) used to throw and leave the F prompt dead.
+     */
+    static boolean usesNativeDrop(
+            SceneType sceneType, int groupId, boolean questItemDrop, String chestType) {
+        return sceneType == SceneType.SCENE_DUNGEON
+                || groupId == 0
+                || questItemDrop
+                || chestType == null;
+    }
+
     private boolean grantOrdinaryChestLoot(Player player) {
         EntityGadget gadget = getGadget();
         SceneGadget meta = resolveChestMeta();
         if (meta != null && meta.chest_drop_id > 0) {
             DropSystem dropSystem = player.getServer().getDropSystem();
             // Quest-created chests have no Lua group; scripted quest chests are identified by loot.
-            if ((gadget.getScene().getSceneType() == SceneType.SCENE_DUNGEON
-                            || gadget.getGroupId() == 0
-                            || dropSystem.hasQuestItemDrop(meta.chest_drop_id))
+            if (usesNativeDrop(
+                            gadget.getScene().getSceneType(),
+                            gadget.getGroupId(),
+                            dropSystem.hasQuestItemDrop(meta.chest_drop_id),
+                            ChestTypeResolver.resolve(gadget))
                     && dropSystem.handleChestDrop(
                             meta.chest_drop_id, Math.max(1, meta.drop_count), gadget)) {
                 ordinaryClaimed = true;
