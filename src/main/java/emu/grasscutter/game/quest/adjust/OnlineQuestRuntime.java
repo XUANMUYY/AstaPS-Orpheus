@@ -157,6 +157,13 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
                     && player.getForcedFinishedQuests().remove(main.getParentQuestId()))
                 journal.accept(Map.of("action", "remove_forced_marker", "mainId", main.getParentQuestId()));
         }
+        // 重放顺带接取的后续任务（如 35301 / 36301）所在主任务若仍挂着强制完成标记，客户端会把
+        // 「已完成的主任务里有进行中的子任务」当成异常，地图标记空指针卡读条。真实进度优先，去掉标记。
+        for (var main : player.getQuestManager().getMainQuests().values()) {
+            int id = main.getParentQuestId();
+            if (!main.getActiveQuests().isEmpty() && player.getForcedFinishedQuests().remove(id))
+                journal.accept(Map.of("action", "remove_forced_marker", "mainId", id, "reason", "active_child"));
+        }
     }
     @Override public void disconnect() { forceRelogin(player); }
     /**

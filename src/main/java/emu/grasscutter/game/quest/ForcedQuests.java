@@ -55,6 +55,10 @@ public final class ForcedQuests {
     public static void notify(Player player, Collection<Integer> questIds) {
         var batch = new ArrayList<Integer>(BATCH);
         for (var id : questIds) {
+            // A real in-progress child outranks the forged flag. Telling the client the parent is
+            // finished while one of its children is active breaks its quest map marks
+            // (GeneralMarkData NRE every frame, stuck on the loading screen - test account 2, 2026-10-25).
+            if (hasActiveChild(player, id)) continue;
             batch.add(id);
             if (batch.size() == BATCH) {
                 send(player, batch);
@@ -62,6 +66,14 @@ public final class ForcedQuests {
             }
         }
         if (!batch.isEmpty()) send(player, batch);
+    }
+
+    /** Whether the server holds a real main quest with this id that has an accepted, unfinished child. */
+    public static boolean hasActiveChild(Player player, int mainQuestId) {
+        var questManager = player.getQuestManager();
+        if (questManager == null) return false;
+        var main = questManager.getMainQuestById(mainQuestId);
+        return main != null && !main.getActiveQuests().isEmpty();
     }
 
     /** Marks them finished, remembers it, and tells the client. Survives a relog. */
