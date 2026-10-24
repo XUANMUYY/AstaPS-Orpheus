@@ -561,11 +561,12 @@ public class ConfigContainer {
         }
 
         public static class ResinOptions {
-            public boolean resinUsage = false;
-            /* Natural recharge stops at this value (was 200 official). */
-            public int cap = 1600;
-            /* Seconds per +1 resin (180 = 3 minutes). */
-            public int rechargeTime = 180;
+            /* Resin is spent as in the official game. Off fills it to the cap at every login. */
+            public boolean resinUsage = true;
+            /* Natural recharge stops at this value (official: 200). */
+            public int cap = 200;
+            /* Seconds per +1 resin (official: 480 = 8 minutes). */
+            public int rechargeTime = 480;
         }
 
         public static class Questing {
