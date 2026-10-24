@@ -11,9 +11,30 @@ class BannersConfigTest {
     private static final long NOW_71_SECOND_HALF = 1792000000L; // 2026-10-14 左右
 
     private List<GachaBanner> load() throws Exception {
+        var available = DataLoader.loadBundledList("GachaPrefabAvailable.json", String.class);
+        return load(available);
+    }
+
+    private List<GachaBanner> load(List<String> available) throws Exception {
         var list = DataLoader.loadBundledTableToList("Banners", GachaBanner.class);
+        list.forEach(b -> b.applyPrefabAvailability(available));
         list.forEach(GachaBanner::onLoad);
         return list;
+    }
+
+    @Test
+    void unavailablePrefabFallsBackAndAvailableOneIsKept() throws Exception {
+        var std = (java.util.function.Predicate<GachaBanner>) b -> b.getScheduleId() == 1004;
+        var borrowed = load().stream().filter(std).findFirst().orElseThrow();
+        assertEquals("GachaShowPanel_A280", borrowed.getPrefabPath());
+        assertEquals("UI_Tab_GachaShowPanel_A280", borrowed.getPreviewPrefabPath());
+        var confirmed =
+                load(List.of("GachaShowPanel_A280", "GachaShowPanel_A008")).stream()
+                        .filter(std)
+                        .findFirst()
+                        .orElseThrow();
+        assertEquals("GachaShowPanel_A008", confirmed.getPrefabPath());
+        assertEquals("UI_Tab_GachaShowPanel_A008", confirmed.getPreviewPrefabPath());
     }
 
     @Test

@@ -44,6 +44,8 @@ public class GachaBanner {
     @Getter int sortId = -1;
     @Getter private int gachaType = -1;
     @Getter private String prefabPath;
+    // 客户端没有 prefabPath 对应资源时借用的界面，见 applyPrefabAvailability
+    private String fallbackPrefabPath;
     @Getter private String previewPrefabPath;
     @Getter private String titlePath;
     private int costItemId = 0;
@@ -169,6 +171,20 @@ public class GachaBanner {
         } else if (this.isCharacterFocusedPool()) {
             this.fallbackItems4Pool2 = EMPTY_POOL;
         }
+    }
+
+    /**
+     * 按「已确认客户端存在的 prefab」名单决定实际下发的界面：prefabPath 不在名单里就改用
+     * fallbackPrefabPath。名单为空表示不限制。要启用某个原版 prefab，只需把它加进
+     * GachaPrefabAvailable.json，不用逐个改卡池。必须在 onLoad() 之前调用。
+     */
+    public void applyPrefabAvailability(java.util.Collection<String> available) {
+        if (available == null || available.isEmpty() || prefabPath == null) return;
+        if (available.contains(prefabPath)) return;
+        if (fallbackPrefabPath == null || fallbackPrefabPath.isEmpty()) return;
+        if (previewPrefabPath != null && previewPrefabPath.equals("UI_Tab_" + prefabPath))
+            previewPrefabPath = null;
+        prefabPath = fallbackPrefabPath;
     }
 
     /** 卡池是否在 [beginTime, endTime] 内（Unix 秒）。排期上下架用，后台接入前靠 Banners.json 配置。 */

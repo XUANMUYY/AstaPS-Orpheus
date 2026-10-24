@@ -29,11 +29,12 @@
     ]
   },
   {
-    "comment": "莓色香颂（爱可菲 UP）。来源：国服 7.1 下半官方预告（ys.mihoyo.com news 166763/166659/166637/166638）；prefab 借用 A280（截图实测过的唯一 A 系列界面：集录池选丝柯克时的皮肤）；原计划 prefab 为 A281（按名称推断，客户端是否有资源未证实，核实后改回）",
+    "comment": "莓色香颂（爱可菲 UP）。来源：国服 7.1 下半官方预告（ys.mihoyo.com news 166763/166659/166637/166638）；prefab 为原版名称，客户端未确认时借用 fallbackPrefabPath（见 GachaPrefabAvailable.json）；原版 prefab 为 A281（按名称推断，客户端是否有资源未证实，核实后改回）",
     "bannerType": "CHARACTER2",
     "scheduleId": 1002,
     "sortId": 1001,
-    "prefabPath": "GachaShowPanel_A280",
+    "prefabPath": "GachaShowPanel_A281",
+    "fallbackPrefabPath": "GachaShowPanel_A280",
     "titlePath": "UI_GACHA_SHOW_PANEL_A281_TITLE",
     "costItemId": 223,
     "beginTime": 1791885600,
@@ -58,11 +59,12 @@
     ]
   },
   {
-    "comment": "神铸赋形（苍耀/香韵奏者 UP）。来源：国服 7.1 下半官方预告（ys.mihoyo.com news 166763/166659/166637/166638）；prefab 借用 A280（截图实测过的唯一 A 系列界面：集录池选丝柯克时的皮肤）；原计划 prefab 为 A282（按名称推断，客户端是否有资源未证实，核实后改回）",
+    "comment": "神铸赋形（苍耀/香韵奏者 UP）。来源：国服 7.1 下半官方预告（ys.mihoyo.com news 166763/166659/166637/166638）；prefab 为原版名称，客户端未确认时借用 fallbackPrefabPath（见 GachaPrefabAvailable.json）；原版 prefab 为 A282（按名称推断，客户端是否有资源未证实，核实后改回）",
     "bannerType": "WEAPON",
     "scheduleId": 1003,
     "sortId": 1002,
-    "prefabPath": "GachaShowPanel_A280",
+    "prefabPath": "GachaShowPanel_A282",
+    "fallbackPrefabPath": "GachaShowPanel_A280",
     "titlePath": "UI_GACHA_SHOW_PANEL_A282_TITLE",
     "costItemId": 223,
     "beginTime": 1791885600,
@@ -80,11 +82,12 @@
     ]
   },
   {
-    "comment": "奔行世间（常驻，全程开放；5 星名单按 Wiki：琴、迪卢克、七七、莫娜、刻晴、提纳里、迪希雅、梦见月瑞希）；prefab 借用 A280（截图实测过的唯一 A 系列界面：集录池选丝柯克时的皮肤）；原计划 prefab 为 A008（按名称推断，客户端是否有资源未证实，核实后改回）",
+    "comment": "奔行世间（常驻，全程开放；5 星名单按 Wiki：琴、迪卢克、七七、莫娜、刻晴、提纳里、迪希雅、梦见月瑞希）；prefab 为原版名称，客户端未确认时借用 fallbackPrefabPath（见 GachaPrefabAvailable.json）；原版 prefab 为 A008（按名称推断，客户端是否有资源未证实，核实后改回）",
     "bannerType": "STANDARD",
     "scheduleId": 1004,
     "sortId": 9990,
-    "prefabPath": "GachaShowPanel_A280",
+    "prefabPath": "GachaShowPanel_A008",
+    "fallbackPrefabPath": "GachaShowPanel_A280",
     "titlePath": "UI_GACHA_SHOW_PANEL_A008_TITLE",
     "costItemId": 224,
     "fallbackItems5Pool1": [

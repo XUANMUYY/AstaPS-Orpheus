@@ -71,7 +71,9 @@ public class GachaSystem extends BaseGameSystem {
         try {
             var banners = DataLoader.loadBundledTableToList("Banners", GachaBanner.class);
             if (!banners.isEmpty()) {
+                var availablePrefabs = loadAvailablePrefabs();
                 for (var banner : banners) {
+                    banner.applyPrefabAvailability(availablePrefabs);
                     banner.onLoad();
                     if (banner.isDeprecated()) {
                         Grasscutter.getLogger()
@@ -98,6 +100,15 @@ public class GachaSystem extends BaseGameSystem {
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
+        }
+    }
+
+    private static List<String> loadAvailablePrefabs() {
+        try {
+            return DataLoader.loadBundledList("GachaPrefabAvailable.json", String.class);
+        } catch (Exception e) {
+            Grasscutter.getLogger().warn("[Gacha] GachaPrefabAvailable.json unreadable, no prefab fallback.");
+            return List.of();
         }
     }
 
