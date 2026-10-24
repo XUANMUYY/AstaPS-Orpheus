@@ -154,6 +154,9 @@ public class SotSManager extends BasePlayerManager {
                         "Statue region entered by proximity uid={} scene={} point={} dist={}",
                         player.getUid(), sceneId, nearestId, String.format("%.1f", nearest));
                 nearbyStatuePointId = nearestId;
+                // Activation and completed-parent flags do not themselves load the NPC suite.
+                // Refresh only unlocked statues; the progress manager preserves story gates.
+                player.getProgressManager().refreshStatueGoddessInteractions(sceneId, nearestId);
                 handleEnterTransPointRegionNotify();
             }
         } else if (nearest <= PROXIMITY_LOG_RADIUS) {

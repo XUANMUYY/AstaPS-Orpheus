@@ -12,6 +12,16 @@ public class PacketGetActivityInfoRsp extends BasePacket {
 
         var proto = GetActivityInfoRsp.newBuilder();
 
+        // Native-born clients can request activities before onLogin finishes.
+        if (activityManager == null && !activityIdList.isEmpty()) {
+            proto.setRetcode(emu.grasscutter.net.proto.RetcodeOuterClass.Retcode.RET_FAIL.getNumber());
+            this.setData(proto);
+            return;
+        }
+        if (activityIdList.isEmpty()) {
+            this.setData(proto);
+            return;
+        }
         activityIdList.stream()
                 .map(activityManager::getInfoProtoByActivityId)
                 .filter(Objects::nonNull)

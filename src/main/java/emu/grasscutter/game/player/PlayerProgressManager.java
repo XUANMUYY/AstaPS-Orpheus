@@ -455,7 +455,7 @@ public final class PlayerProgressManager extends BasePlayerDataManager {
                         new emu.grasscutter.server.packet.send.PacketGroupSuiteNotify(
                                 born.getGroupId(), suite));
                 emu.grasscutter.Grasscutter.getLogger()
-                        .debug(
+                        .info(
                                 "Force goddess suite uid={} point={} group={} npc={} suite={}",
                                 this.player.getUid(),
                                 pointId,

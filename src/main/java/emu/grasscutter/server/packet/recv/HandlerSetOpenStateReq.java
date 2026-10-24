@@ -13,5 +13,8 @@ public class HandlerSetOpenStateReq extends PacketHandler {
         int value = req.getValue();
 
         session.getPlayer().getProgressManager().setOpenStateFromClient(openState, value);
+        emu.grasscutter.Grasscutter.getLogger().info(
+                "Guide state request uid={} key={} requested={} stored={}", session.getPlayer().getUid(),
+                openState, value, session.getPlayer().getOpenStates().getOrDefault(openState, 0));
     }
 }

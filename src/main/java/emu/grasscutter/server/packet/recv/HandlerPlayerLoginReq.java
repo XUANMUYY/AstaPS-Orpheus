@@ -24,6 +24,13 @@ public class HandlerPlayerLoginReq extends PacketHandler {
         }
 
         Player player = session.getPlayer();
+        if (player == null || !java.util.Objects.equals(player.getAccountId(), session.getAccount().getId())) {
+            Grasscutter.getLogger().error("Login rejected: session account and player do not match");
+            session.close();
+            return;
+        }
+        Grasscutter.getLogger().info("Login identity account={} uid={} session={}",
+                session.getAccount().getId(), player.getUid(), session.getAddress());
         var intro = GAME_OPTIONS.newAccountIntro;
         boolean freshAccount = player.getAvatars().getAvatarCount() == 0;
 

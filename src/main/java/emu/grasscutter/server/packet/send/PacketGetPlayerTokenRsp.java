@@ -115,6 +115,8 @@ public class PacketGetPlayerTokenRsp extends BasePacket {
         var player = session.getPlayer();
         if (player != null) {
             p.setUid(player.getUid());
+            emu.grasscutter.Grasscutter.getLogger().info("Token identity account={} uid={} session={}",
+                    account == null ? null : account.getId(), player.getUid(), session.getAddress());
             p.setIsProficientPlayer(player.getNickname() != null && !player.getNickname().isEmpty());
         }
 

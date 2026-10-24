@@ -7,7 +7,6 @@ import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.SceneInitFinishReqOuterClass.SceneInitFinishReq;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.*;
-import emu.grasscutter.utils.LuaShell;
 
 @Opcodes(PacketOpcodes.SceneInitFinishReq)
 public class HandlerSceneInitFinishReq extends PacketHandler {
@@ -17,6 +16,12 @@ public class HandlerSceneInitFinishReq extends PacketHandler {
         SceneInitFinishReq req = SceneInitFinishReq.parseFrom(payload);
 
         var player = session.getPlayer();
+        // GroupSuiteNotify is client scene state, not a permanent player unlock.
+        // Several Mondstadt statues share one group; a previous scene's delivery
+        // must not suppress reloading it after teleport/respawn.
+        player.getGoddessSuiteNotified().clear();
+        emu.grasscutter.Grasscutter.getLogger().info("Scene init received uid={} scene={} token={}",
+                player.getUid(), player.getSceneId(), player.getEnterSceneToken());
         var world = player.getWorld();
 
         // Preload follower-pet embryos before team AbilityControlBlock is sent
@@ -60,8 +65,7 @@ public class HandlerSceneInitFinishReq extends PacketHandler {
         WidgetPetHelper.syncEquippedWidget(player);
 
         session.send(new PacketSceneInitFinishRsp(player));
-        // The built-in LuaShell chunk rewrites only the "UID:" prefix, so the UID stays on screen.
-        session.send(new PacketWindSeedClientNotify(LuaShell.getLuaShell()));
+        // Keep the client-native UID label and color. Windy remains an explicit admin action.
 
         player.setSceneLoadState(SceneLoadState.INIT);
 

@@ -3,13 +3,10 @@ package emu.grasscutter.game.player;
 import static emu.grasscutter.config.Configuration.GAME_INFO;
 
 import emu.grasscutter.BuildConfig;
-import emu.grasscutter.server.packet.send.PacketAntiAddictNotify;
 import java.util.Objects;
 
 /**
- * The message box shown once the player is in the world: a welcome the first time, and afterwards
- * a notice when the server has been rebuilt since the player was last in. The live announcements
- * follow once, 30 seconds later.
+ * Non-modal announcements sent once per login, 30 seconds after entering the world.
  *
  * <p>The client only renders an AntiAddictNotify once it is fully in the world; sent during the
  * login handshake it is swallowed. It used to hang off TowerAllDataReq, whose 7.1 CmdId is not
@@ -24,19 +21,16 @@ public final class EntryNotice {
     public static void sendOnce(Player player) {
         if (player == null || player.isEntryNoticeChecked()) return;
         player.setEntryNoticeChecked(true);
+        boolean updated = !player.isPendingWelcomeNotice()
+                && !Objects.equals(player.getLastSeenBuildHash(), BuildConfig.GIT_HASH);
 
         if (player.isPendingWelcomeNotice()) {
             // The first world entry includes the 7.1 birth cinematic. A modal
             // AntiAddictNotify here interrupts the client-controlled intro.
             // Keep update notices and non-modal announcements on later logins.
             player.setPendingWelcomeNotice(false);
-        } else if (!Objects.equals(player.getLastSeenBuildHash(), BuildConfig.GIT_HASH)) {
-            player.sendPacket(
-                    new PacketAntiAddictNotify(
-                            1, "The server has been updated and restarted since you were last online."));
         }
-
-        player.setLastSeenBuildHash(BuildConfig.GIT_HASH);
+        if (!updated) player.setLastSeenBuildHash(BuildConfig.GIT_HASH);
 
         // The welcome banner goes out once per login, half a minute after the player is in.
         var server = player.getServer();
@@ -45,7 +39,13 @@ public final class EntryNotice {
             server.getScheduler()
                     .scheduleDelayedTask(
                             () -> {
-                                if (player.isOnline()) server.getAnnouncementSystem().sendActive(player);
+                                if (!player.isOnline()) return;
+                                if (updated) {
+                                    server.getAnnouncementSystem().sendTemporary(
+                                            player, "服务器已更新并重启，本次登录已使用更新后的版本。");
+                                    player.setLastSeenBuildHash(BuildConfig.GIT_HASH);
+                                }
+                                server.getAnnouncementSystem().sendActive(player);
                             },
                             Math.max(1, ticks));
         }

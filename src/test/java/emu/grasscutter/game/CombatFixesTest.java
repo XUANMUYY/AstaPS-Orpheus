@@ -123,6 +123,27 @@ class CombatFixesTest {
     }
 
     @Test
+    void environmentalDeathPreservesDrowningCauseAndIsIdempotent() throws Exception {
+        var f = fixture();
+        var session = allocate(CapturingSession.class);
+        session.packets = f.scene.packets;
+        set(f.entity.getAvatar().getSkillDepot(), AvatarSkillDepotData.class, "energySkillData", new AvatarSkillData());
+        f.stamina.killForReal(session, f.entity, PlayerDieType.PlayerDieType_PLAYER_DIE_DRAWN);
+        assertTrue(f.entity.isDead());
+        assertEquals(0, f.entity.getFightProperty(FightProperty.FIGHT_PROP_CUR_HP));
+        assertEquals(PlayerDieType.PlayerDieType_PLAYER_DIE_DRAWN, f.entity.getKilledType());
+        var deaths = f.scene.packets.stream()
+                .filter(p -> p instanceof emu.grasscutter.server.packet.send.PacketLifeStateChangeNotify).toList();
+        assertEquals(1, deaths.size());
+        var notification = emu.grasscutter.net.proto.LifeStateChangeNotifyOuterClass.LifeStateChangeNotify
+                .parseFrom(deaths.get(0).getData());
+        assertEquals(PlayerDieType.PlayerDieType_PLAYER_DIE_DRAWN, notification.getDieType());
+        int sent = f.scene.packets.size();
+        f.stamina.killForReal(session, f.entity, PlayerDieType.PlayerDieType_PLAYER_DIE_DRAWN);
+        assertEquals(sent, f.scene.packets.size());
+    }
+
+    @Test
     void canSwitchToAnAvatarWithHpEvenIfItsDeadFlagIsStale() throws Exception {
         var f = fixture();
         var revived = avatar(f, 2);
@@ -355,6 +376,12 @@ class CombatFixesTest {
         @Override public void broadcastPacket(BasePacket packet) { packets.add(packet); }
     }
 
+    static class CapturingSession extends GameSession {
+        List<BasePacket> packets;
+        CapturingSession() { super(null); }
+        @Override public void send(BasePacket packet) { packets.add(packet); }
+    }
+
     static class TestScene extends Scene {
         List<BasePacket> packets;
         Map<Integer, GameEntity> entities;
@@ -365,6 +392,7 @@ class CombatFixesTest {
         @Override public List<Player> getPlayers() { return players; }
         @Override public GameEntity getEntityById(int id) { return entities.get(id); }
         @Override public Map<Integer, GameEntity> getEntities() { return entities; }
+        @Override public void removeEntity(GameEntity entity) { entities.remove(entity.getId()); }
         @Override public synchronized void replaceEntity(EntityAvatar oldEntity, EntityAvatar newEntity) {}
         @Override public void broadcastPacket(BasePacket packet) { packets.add(packet); }
         @Override public void handleAttack(AttackResult attack) {
@@ -389,6 +417,7 @@ class CombatFixesTest {
         @Override public int getCurrentCharacterStamina() { return 0; }
         @Override public int getMaxCharacterStamina() { return 24000; }
         @Override public void killAvatar(GameSession session, GameEntity entity, PlayerDieType reason) { killed = entity; }
+        void killForReal(GameSession session, GameEntity entity, PlayerDieType reason) { super.killAvatar(session, entity, reason); }
         @Override public void startSustainedStaminaHandler() {}
     }
 }

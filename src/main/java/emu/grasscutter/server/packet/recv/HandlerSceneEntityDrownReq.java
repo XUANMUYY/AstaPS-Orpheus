@@ -2,6 +2,8 @@ package emu.grasscutter.server.packet.recv;
 
 import emu.grasscutter.game.entity.*;
 import emu.grasscutter.game.props.FightProperty;
+import emu.grasscutter.Grasscutter;
+import emu.grasscutter.net.proto.PlayerDieTypeOuterClass.PlayerDieType;
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.SceneEntityDrownReqOuterClass.SceneEntityDrownReq;
 import emu.grasscutter.server.game.GameSession;
@@ -15,6 +17,22 @@ public class HandlerSceneEntityDrownReq extends PacketHandler {
         SceneEntityDrownReq req = SceneEntityDrownReq.parseFrom(payload);
 
         GameEntity entity = session.getPlayer().getScene().getEntityById(req.getEntityId());
+        Grasscutter.getLogger().info("Drown request uid={} entity={} found={}",
+                session.getPlayer().getUid(), req.getEntityId(), entity != null);
+
+        // A stamina tick may already have removed our avatar. Still acknowledge the request.
+        if (entity == null) {
+            session.send(new PacketSceneEntityDrownRsp(req.getEntityId()));
+            return;
+        }
+
+        if (entity instanceof EntityAvatar avatar) {
+            if (avatar.getPlayer() != session.getPlayer()) return;
+            session.getPlayer().getStaminaManager().killAvatar(
+                    session, avatar, PlayerDieType.PlayerDieType_PLAYER_DIE_DRAWN);
+            session.send(new PacketSceneEntityDrownRsp(req.getEntityId()));
+            return;
+        }
 
         if (entity == null || !(entity instanceof EntityMonster || entity instanceof EntityAvatar)) {
             return;

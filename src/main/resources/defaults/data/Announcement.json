@@ -1,12 +1,1 @@
-[
-  {
-    "templateId": 1,
-    "type": "CENTER",
-    "frequency": 1,
-    "content": "<color=#ff7ac8>W</color><color=#ff79c9>e</color><color=#fe78cb>l</color><color=#fe77cc>c</color><color=#fd76ce>o</color><color=#fd75cf>m</color><color=#fc74d1>e</color> <color=#fc72d4>t</color><color=#fb71d6>o</color> <color=#fa6fd9>A</color><color=#fa6edb>s</color><color=#f96ddc>t</color><color=#f96cde>a</color><color=#f86be0>P</color><color=#f86ae1>S</color> <color=#f669e5>-</color> <color=#f567e8>t</color><color=#f566ea>h</color><color=#f465eb>i</color><color=#f464ed>s</color> <color=#f263f0>s</color><color=#f262f2>e</color><color=#ef61f1>r</color><color=#ec60f1>v</color><color=#e95ff0>e</color><color=#e65eef>r</color> <color=#e05dee>i</color><color=#dd5ced>s</color> <color=#d75bec>f</color><color=#d45aeb>r</color><color=#d159ea>e</color><color=#ce58ea>e</color> <color=#c857e8>a</color><color=#c556e7>n</color><color=#c256e7>d</color> <color=#bb54e5>o</color><color=#b854e4>p</color><color=#b553e4>e</color><color=#b252e3>n</color> <color=#ac51e1>s</color><color=#a950e0>o</color><color=#a650e0>u</color><color=#a34fdf>r</color><color=#a04fde>c</color><color=#9d4edd>e</color>",
-    "beginTime": "2020-01-01T00:00:00+08:00",
-    "endTime": "2040-01-01T00:00:00+08:00",
-    "tick": false,
-    "interval": 5
-  }
-]
+[]

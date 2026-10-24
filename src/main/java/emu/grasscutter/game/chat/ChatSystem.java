@@ -266,7 +266,7 @@ public class ChatSystem implements ChatSystemHandler {
      */
     public void ensureServerConversation(Player player) {
         var serverHistory = copyHistory(player.getUid(), GameConstants.SERVER_CONSOLE_UID);
-        if (serverHistory.isEmpty()) {
+        if (serverHistory.isEmpty() && GAME_INFO.joinOptions.sendWelcomeMessages) {
             this.sendServerWelcomeMessages(player);
             serverHistory = copyHistory(player.getUid(), GameConstants.SERVER_CONSOLE_UID);
         }

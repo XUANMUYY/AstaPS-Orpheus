@@ -10,10 +10,10 @@ import org.junit.jupiter.api.Test;
 
 class PlayerUidReservationTest {
     @Test
-    void sequentialAllocationStartsAtOne() {
+    void sequentialAllocationStartsAtNineDigits() {
         var store = new FakeStore();
-        assertEquals(1, PlayerUidReservation.next(0, store));
-        assertEquals(2, PlayerUidReservation.next(0, store));
+        assertEquals(100_000_001, PlayerUidReservation.next(0, store));
+        assertEquals(100_000_002, PlayerUidReservation.next(0, store));
     }
 
     @Test
@@ -60,7 +60,7 @@ class PlayerUidReservationTest {
         var releaseFirst = new CountDownLatch(1);
         store.afterCounterReservation =
                 value -> {
-                    if (value == 1) {
+                    if (value == 100_000_001) {
                         firstReserved.countDown();
                         try {
                             releaseFirst.await();
@@ -75,9 +75,9 @@ class PlayerUidReservationTest {
             var first = executor.submit(() -> PlayerUidReservation.next(0, store));
             assertTrue(firstReserved.await(2, TimeUnit.SECONDS));
             var second = executor.submit(() -> PlayerUidReservation.next(0, store));
-            assertTimeoutPreemptively(Duration.ofSeconds(2), () -> assertEquals(2, second.get()));
+            assertTimeoutPreemptively(Duration.ofSeconds(2), () -> assertEquals(100_000_002, second.get()));
             releaseFirst.countDown();
-            assertEquals(1, first.get(2, TimeUnit.SECONDS));
+            assertEquals(100_000_001, first.get(2, TimeUnit.SECONDS));
         } finally {
             releaseFirst.countDown();
         }

@@ -3,6 +3,7 @@ package emu.grasscutter.database;
 /** Pure allocation policy; the store supplies the database-level atomic operations. */
 final class PlayerUidReservation {
     static final int FIRST_UID = 1;
+    static final int AUTOMATIC_UID_FLOOR = 100_000_000;
     private static final int MAX_PROBES = 10_000;
 
     interface Store {
@@ -25,7 +26,7 @@ final class PlayerUidReservation {
             return requestedUid;
         }
 
-        int floor = Math.max(0, store.highestUid());
+        int floor = Math.max(AUTOMATIC_UID_FLOOR, store.highestUid());
         for (int probe = 0; probe < MAX_PROBES; probe++) {
             int candidate = store.reserveNext(floor);
             floor = Math.max(floor, candidate);

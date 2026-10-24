@@ -327,13 +327,14 @@ public class StaminaManager extends BasePlayerManager {
 
     // Kills avatar, removes entity and sends notification.
     // TODO: Probably move this to Avatar class? since other components may also need to kill avatar.
-    public void killAvatar(GameSession session, GameEntity entity, PlayerDieType dieType) {
-        session.send(new PacketAvatarLifeStateChangeNotify(player.getTeamManager().getCurrentAvatarEntity().getAvatar(),
-            LifeState.LIFE_DEAD, dieType));
-        session.send(new PacketLifeStateChangeNotify(entity, LifeState.LIFE_DEAD, dieType));
+    public synchronized void killAvatar(GameSession session, GameEntity entity, PlayerDieType dieType) {
+        if (!(entity instanceof EntityAvatar avatar) || avatar.getPlayer() != player || !entity.isAlive()) return;
+        logger.info("Environmental death uid={} entity={} cause={} stamina={} motion={}",
+                player.getUid(), entity.getId(), dieType, getCurrentCharacterStamina(), currentState);
         entity.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP, 0);
+        session.send(new PacketAvatarLifeStateChangeNotify(avatar.getAvatar(), LifeState.LIFE_DEAD, dieType));
         entity.getWorld().broadcastPacket(new PacketEntityFightPropUpdateNotify(entity, FightProperty.FIGHT_PROP_CUR_HP));
-        entity.getWorld().broadcastPacket(new PacketLifeStateChangeNotify(0, entity, LifeState.LIFE_DEAD));
+        player.getScene().broadcastPacket(new PacketLifeStateChangeNotify(entity, LifeState.LIFE_DEAD, dieType));
 
         // Barbara C6: the death above already played, so revive to full HP immediately without removing
         // the entity from the scene.
@@ -353,8 +354,8 @@ public class StaminaManager extends BasePlayerManager {
 
         player.getScene().removeEntity(entity);
 
-        if (entity instanceof EntityAvatar avatar)
-            avatar.onDeath(dieType, 0);
+        avatar.onDeath(dieType, 0);
+        logger.info("Environmental death completed uid={} entity={} cause={}", player.getUid(), entity.getId(), dieType);
     }
 
     public void startSustainedStaminaHandler() {

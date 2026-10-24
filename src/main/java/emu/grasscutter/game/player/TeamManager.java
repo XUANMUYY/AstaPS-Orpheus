@@ -1141,33 +1141,15 @@ public final class TeamManager extends BasePlayerDataManager {
             this.getPlayer().sendPacket(new PacketAvatarLifeStateChangeNotify(entity.getAvatar()));
         }
 
-        try {
-            Position reviveAt = this.getRespawnPosition();
-            this.getPlayer()
-                .sendPacket(
-                    new PacketPlayerEnterSceneNotify(
-                        this.getPlayer(),
-                        EnterType.EnterType_ENTER_SELF,
-                        EnterReason.Revival,
-                        this.getPlayer().getSceneId(),
-                        reviveAt));
-            this.getPlayer().sendPacket(new PacketEnterScenePeerNotify(this.getPlayer()));
-            this.getPlayer().getPosition().set(reviveAt);
-        } catch (Exception e) {
-            // Stay near the death position - never dump the player on the world-start beach.
-            Grasscutter.getLogger()
-                    .warn("respawnTeam notify failed uid={}: {}", this.getPlayer().getUid(), e.toString());
-            Position fallback = this.getPlayer().getPosition().clone();
-            this.getPlayer()
-                .sendPacket(
-                    new PacketPlayerEnterSceneNotify(
-                        this.getPlayer(),
-                        EnterType.EnterType_ENTER_SELF,
-                        EnterReason.Revival,
-                        this.getPlayer().getSceneId(),
-                        fallback));
-            this.getPlayer().sendPacket(new PacketEnterScenePeerNotify(this.getPlayer()));
-            this.getPlayer().getPosition().set(fallback);
+        Position reviveAt = this.getRespawnPosition();
+        // Revival is an in-world transition, not a second login. Rebuild scene entities
+        // through the common lifecycle before the ready/init handshake.
+        boolean transferred = this.getPlayer().getWorld().transferPlayerToScene(
+                this.getPlayer(), RespawnPositionHelper.revivalTransition(
+                        this.getPlayer().getSceneId(), reviveAt));
+        if (!transferred) {
+            Grasscutter.getLogger().warn("Revival scene transfer rejected uid={} scene={}",
+                    this.getPlayer().getUid(), this.getPlayer().getSceneId());
         }
         // HandlerWorldPlayerReviveReq sends the one WorldPlayerReviveRsp after this returns.
     }

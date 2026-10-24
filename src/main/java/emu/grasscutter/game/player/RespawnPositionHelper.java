@@ -13,6 +13,15 @@ import java.util.Set;
 public final class RespawnPositionHelper {
     private RespawnPositionHelper() {}
 
+    static emu.grasscutter.game.world.data.TeleportProperties revivalTransition(int sceneId, Position position) {
+        return emu.grasscutter.game.world.data.TeleportProperties.builder()
+                .sceneId(sceneId).teleportTo(position.clone())
+                .teleportType(emu.grasscutter.server.event.player.PlayerTeleportEvent.TeleportType.INTERNAL)
+                .enterReason(emu.grasscutter.game.props.EnterReason.Revival)
+                .enterType(emu.grasscutter.net.proto.EnterTypeOuterClass.EnterType.EnterType_ENTER_GOTO)
+                .build();
+    }
+
     public static Position find(Player player) {
         if (player == null) {
             return GameConstants.START_POSITION.clone();

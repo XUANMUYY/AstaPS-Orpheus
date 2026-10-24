@@ -667,6 +667,8 @@ public class ConfigContainer {
     }
 
     public static class JoinOptions {
+        /** Opt-in server-bot greeting; normal story play starts without unsolicited chat. */
+        public boolean sendWelcomeMessages = false;
         public int[] welcomeEmotes = {2007, 1002, 4010};
         public String welcomeMessage = "Welcome to the Chiori test server";
         public JoinOptions.Mail welcomeMail = new JoinOptions.Mail();

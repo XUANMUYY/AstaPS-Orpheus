@@ -83,6 +83,12 @@ public class AnnouncementSystem extends BaseGameSystem {
         return id;
     }
 
+    /** Send a non-modal temporary notice only to the player who needs it. */
+    public void sendTemporary(Player player, String text) {
+        int id = temporaryIds.issue(new HashSet<>(announceConfigItemMap.keySet()));
+        player.sendPacket(new PacketServerAnnounceNotify(text, id));
+    }
+
     /** Revoke a configured template or a currently live temporary announcement. */
     public boolean revokeKnown(int id) {
         boolean temporary = temporaryIds.revoke(id);
