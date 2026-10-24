@@ -16,6 +16,16 @@ The plan is to replay the main story from a fresh save, identify and fix bugs en
 
 Upstream changes will be merged regularly. Conflicts will be reviewed individually to preserve useful local changes while incorporating upstream fixes; builds and gameplay checks are required before deployment.
 
+### Playtesting and maintenance environment
+
+The maintainer plays and maintains this fork using the Chinese mainland (CN) PC client, with the following hardware:
+
+- GPU: NVIDIA GeForce RTX 5090 D, 32 GB VRAM
+- CPU: AMD Ryzen 9 9950X3D
+- RAM: 192 GB
+
+This high-end setup may mask performance problems, so some performance issues may go unnoticed during playtesting. Smooth gameplay on this machine does not establish equivalent performance or resource usage on lower-spec systems. Reports from other hardware configurations are welcome; please include your configuration and reproduction steps.
+
 ### Current local changes
 
 - Skip packet delivery when an administrative operation targets an offline player without a session.
