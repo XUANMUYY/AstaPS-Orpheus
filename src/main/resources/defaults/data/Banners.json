@@ -1,13 +1,117 @@
 [
   {
-    "comment": "晨风之诗",
+    "comment": "虚星临渡（丝柯克 UP）。来源：国服 7.1 下半官方预告（ys.mihoyo.com news 166763/166659/166637/166638）；prefab 对应按名称推断",
+    "bannerType": "CHARACTER",
+    "scheduleId": 1001,
+    "sortId": 1000,
+    "prefabPath": "GachaShowPanel_A280",
+    "previewPrefabPath": "UI_Tab_GachaShowPanel_A280",
+    "titlePath": "UI_GACHA_SHOW_PANEL_A280_TITLE",
+    "costItemId": 223,
+    "beginTime": 1791885600,
+    "endTime": 1793689199,
+    "rateUpItems5": [
+      1114
+    ],
+    "rateUpItems4": [
+      1115,
+      1072,
+      1080
+    ],
+    "fallbackItems5Pool1": [
+      1003,
+      1016,
+      1035,
+      1041,
+      1042,
+      1069,
+      1079,
+      1109
+    ]
+  },
+  {
+    "comment": "莓色香颂（爱可菲 UP）。来源：国服 7.1 下半官方预告（ys.mihoyo.com news 166763/166659/166637/166638）；prefab 对应按名称推断",
+    "bannerType": "CHARACTER2",
+    "scheduleId": 1002,
+    "sortId": 1001,
+    "prefabPath": "GachaShowPanel_A281",
+    "previewPrefabPath": "UI_Tab_GachaShowPanel_A281",
+    "titlePath": "UI_GACHA_SHOW_PANEL_A281_TITLE",
+    "costItemId": 223,
+    "beginTime": 1791885600,
+    "endTime": 1793689199,
+    "rateUpItems5": [
+      1112
+    ],
+    "rateUpItems4": [
+      1115,
+      1072,
+      1080
+    ],
+    "fallbackItems5Pool1": [
+      1003,
+      1016,
+      1035,
+      1041,
+      1042,
+      1069,
+      1079,
+      1109
+    ]
+  },
+  {
+    "comment": "神铸赋形（苍耀/香韵奏者 UP）。来源：国服 7.1 下半官方预告（ys.mihoyo.com news 166763/166659/166637/166638）；prefab 对应按名称推断",
+    "bannerType": "WEAPON",
+    "scheduleId": 1003,
+    "sortId": 1002,
+    "prefabPath": "GachaShowPanel_A282",
+    "previewPrefabPath": "UI_Tab_GachaShowPanel_A282",
+    "titlePath": "UI_GACHA_SHOW_PANEL_A282_TITLE",
+    "costItemId": 223,
+    "beginTime": 1791885600,
+    "endTime": 1793689199,
+    "rateUpItems5": [
+      11517,
+      13514
+    ],
+    "rateUpItems4": [
+      11430,
+      12403,
+      13407,
+      14402,
+      15403
+    ]
+  },
+  {
+    "comment": "奔行世间（常驻，全程开放；5 星名单按 Wiki：琴、迪卢克、七七、莫娜、刻晴、提纳里、迪希雅、梦见月瑞希）",
+    "bannerType": "STANDARD",
+    "scheduleId": 1004,
+    "sortId": 9990,
+    "prefabPath": "GachaShowPanel_A008",
+    "previewPrefabPath": "UI_Tab_GachaShowPanel_A008",
+    "titlePath": "UI_GACHA_SHOW_PANEL_A008_TITLE",
+    "costItemId": 224,
+    "fallbackItems5Pool1": [
+      1003,
+      1016,
+      1035,
+      1041,
+      1042,
+      1069,
+      1079,
+      1109
+    ]
+  },
+  {
+    "comment": "晨风之诗（集录祈愿，全角色自选）。默认关闭：disabled 改 false 或调 beginTime/endTime 即开启，后台卡池排期接入后由后台控制",
+    "disabled": true,
     "gachaType": 500,
     "op_gacha_Type": 5001,
     "scheduleId": 6666,
     "prefabPath": "GachaShowPanel_N?5",
     "previewPrefabPath": "UI_Tab_GachaShowPanel_N5",
     "titlePath": "UI_GACHA_SHOW_PANEL_B001_TITLE",
-    "costItemId": 202,
+    "costItemId": 223,
     "sortId": 9995,
     "rateUpItems4": [],
     "fallbackItems4Pool1": [1006, 1014, 1015, 1020, 1021, 1023, 1024, 1025, 1027, 1031, 1032, 1034, 1036, 1039, 1043, 1044, 1045, 1048, 1050, 1053, 1055, 1056, 1059, 1061, 1064, 1065, 1067, 1068, 1072, 1074, 1076, 1077, 1080, 1081, 1083, 1085, 1088, 1090, 1092, 1097, 4100, 4105, 4108, 4110, 4113, 4115, 4121, 4124, 4127, 4132, 4148],

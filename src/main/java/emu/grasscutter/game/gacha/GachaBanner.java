@@ -171,6 +171,11 @@ public class GachaBanner {
         }
     }
 
+    /** 卡池是否在 [beginTime, endTime] 内（Unix 秒）。排期上下架用，后台接入前靠 Banners.json 配置。 */
+    public boolean isActiveAt(long nowSeconds) {
+        return nowSeconds >= beginTime && nowSeconds <= endTime;
+    }
+
     public ItemParamData getCost(int numRolls) {
         return switch (numRolls) {
             case 10 -> new ItemParamData(costItemId10, costItemAmount10);

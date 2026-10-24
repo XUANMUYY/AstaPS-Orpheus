@@ -79,6 +79,9 @@ public class GachaSystem extends BaseGameSystem {
                                         "A Banner has not been loaded because it contains one or more deprecated fields. Remove the fields mentioned above and reload.");
                     } else if (banner.isDisabled()) {
                         Grasscutter.getLogger().trace("A Banner has not been loaded because it is disabled.");
+                    } else if (!banner.isActiveAt(System.currentTimeMillis() / 1000)) {
+                        Grasscutter.getLogger()
+                                .debug("A Banner has not been loaded because it is outside its schedule window.");
                     } else {
                         if (banner.scheduleId < 0) banner.scheduleId = autoScheduleId++;
                         if (banner.sortId < 0) banner.sortId = autoSortId--;
