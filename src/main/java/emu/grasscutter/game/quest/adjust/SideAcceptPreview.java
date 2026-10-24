@@ -30,8 +30,7 @@ final class SideAcceptPreview {
                     if (c.type().equals("QUEST_COND_STATE_NOT_EQUAL")) return n != c.p(1);
                     return false;
                 }).toList();
-                boolean ready = "LOGIC_AND".equals(sub.acceptLogic()) ? matches.stream().allMatch(Boolean::booleanValue)
-                        : ("LOGIC_OR".equals(sub.acceptLogic()) || "LOGIC_NONE".equals(sub.acceptLogic())) && matches.contains(true);
+                boolean ready = AcceptLogic.matches(sub.acceptLogic(), matches);
                 if (ready) { projected.put(sub.id(), 2); accepted.put(sub.id(), sub); pending.add(sub.id()); }
             }
         }

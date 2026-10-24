@@ -14,4 +14,17 @@ gradle.projectsEvaluated {
             args root.property('input'), root.property('goal'), root.property('out')
         }
     }
+    root.tasks.register('questAdjustBatchDryRun', JavaExec) {
+        dependsOn root.tasks.named('classes')
+        classpath = root.sourceSets.main.runtimeClasspath
+        mainClass = 'emu.grasscutter.game.quest.adjust.QuestAdjustBatchDryRun'
+        workingDir root.projectDir
+        maxHeapSize = '4G'
+        doFirst {
+            ['manifest', 'out'].each { name ->
+                if (!root.hasProperty(name)) throw new GradleException("缺少 -P${name}=...")
+            }
+            args root.property('manifest'), root.property('out')
+        }
+    }
 }

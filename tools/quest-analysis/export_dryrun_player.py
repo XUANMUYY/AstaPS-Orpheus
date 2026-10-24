@@ -28,7 +28,7 @@ def main():
         if players != list(db['players'].find({'_id': args.uid})) or quests != list(db['quests'].find({'ownerUid': args.uid}).sort('parentQuestId', 1)):
             raise RuntimeError('导出期间玩家或任务已变化，请在存档稳定时重试')
     now = datetime.now().astimezone()
-    directory = root.parent / 'backups' / ('quest-adjust-dryrun-' + now.strftime('%Y%m%d-%H%M%S-%f'))
+    directory = root.parent / 'backups' / ('quest-adjust-dryrun-' + str(args.uid) + '-' + now.strftime('%Y%m%d-%H%M%S-%f'))
     directory.mkdir()
     files = {}
     for name, docs in [('players', players), ('quests', quests)]:

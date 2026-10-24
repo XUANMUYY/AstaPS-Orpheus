@@ -27,8 +27,20 @@ public final class QuestPlanner {
     private final QuestCatalog catalog;
     private final ExecPolicy policy;
     private final Predicate<String> registered;
+    private final Map<Integer, List<Sub>> byMain = new HashMap<>();
+    private final Map<Integer, List<QuestCatalog.Main>> suggestedBy = new HashMap<>();
+    private final Map<String, List<Sub>> globalWriters = new HashMap<>();
     public QuestPlanner(QuestCatalog catalog, ExecPolicy policy, Predicate<String> registered) {
         this.catalog = catalog; this.policy = policy; this.registered = registered;
+        catalog.subs().values().stream().sorted(Comparator.comparingInt(Sub::order).thenComparingInt(Sub::id)).forEach(s -> {
+            byMain.computeIfAbsent(s.mainId(), k -> new ArrayList<>()).add(s);
+            for (var e : s.execs()) if (!e.phase().equals("failExec") && e.type().equals("QUEST_EXEC_SET_QUEST_GLOBAL_VAR") && e.param().size() >= 2) {
+                var writers = globalWriters.computeIfAbsent(e.param().get(0) + ":" + e.param().get(1), k -> new ArrayList<>());
+                if (!writers.contains(s)) writers.add(s);
+            }
+        });
+        catalog.mains().values().stream().sorted(Comparator.comparingInt(QuestCatalog.Main::id)).forEach(m ->
+                m.successors().forEach(id -> suggestedBy.computeIfAbsent(id, k -> new ArrayList<>()).add(m)));
     }
     public Plan plan(PlayerState state, int target, String mode, Set<String> overrides) {
         return plan(state, List.of(target), mode, overrides);
@@ -43,14 +55,15 @@ public final class QuestPlanner {
     /** 只有必须经过 FAILED 的接取式才是失败分支；OR 中仍有正常路径时保留。 */
     static boolean failBranch(Sub q) {
         var flags = q.accept().stream().map(c -> c.type().endsWith("STATE_EQUAL") && c.p(1) == 4).toList();
-        return !flags.isEmpty() && ("LOGIC_AND".equals(q.acceptLogic()) ? flags.contains(true) : flags.stream().allMatch(Boolean::booleanValue));
+        var terms = AcceptLogic.terms(q.acceptLogic(), flags.size());
+        return !terms.isEmpty() && terms.stream().allMatch(t -> t.stream().anyMatch(flags::get));
     }
+    private record Node(int id, int state) {}
     private final class Planning {
         final PlayerState state; final int target; final List<Integer> targets; final Set<String> overrides;
-        final Map<Integer, Set<Integer>> edges = new HashMap<>();
-        final Map<Integer, Integer> required = new HashMap<>();
-        final Set<Integer> visiting = new HashSet<>(); final List<Integer> finished = new ArrayList<>();
-        final Set<Integer> mustNotFinish = new HashSet<>();
+        final Map<Node, Set<Node>> edges = new HashMap<>();
+        final Map<Node, Set<Integer>> beforeFinish = new HashMap<>();
+        final Set<Node> visiting = new HashSet<>(); final List<Integer> finished = new ArrayList<>();
         final Set<Integer> alternativeBranches = new HashSet<>();
         final List<Issue> blockers = new ArrayList<>(), warnings = new ArrayList<>();
         Planning(PlayerState state, List<Integer> targets, Set<String> overrides) { this.state = state; this.targets = targets; this.target = targets.getFirst(); this.overrides = overrides; }
@@ -67,51 +80,48 @@ public final class QuestPlanner {
             if (current == 4) { blockers.add(new Issue(id, "failed_quest", "任务已失败，本期不自动重跑 beginExec")); return; }
             if (current == requested) { if (current == 3 && !finished.contains(id)) finished.add(id); return; }
             if (current == 3) { blockers.add(new Issue(id, "state_conflict", "已完成任务不能满足未完成状态依赖")); return; }
-            if (visiting.contains(id)) { blockers.add(new Issue(id, "cycle", "任务依赖成环")); return; }
-            if (required.containsKey(id) && required.get(id) != requested) {
-                blockers.add(new Issue(id, "state_conflict", "同时要求未完成和已完成，需要分阶段计划")); return;
+            var node = new Node(id, requested);
+            if (visiting.contains(node)) { blockers.add(new Issue(id, "cycle", "任务阶段依赖成环：" + requested)); return; }
+            if (edges.containsKey(node)) return;
+            edges.put(node, new HashSet<>()); visiting.add(node);
+            if (requested == 3) {
+                edge(node, id, 2);
+                if (q.finishParent()) for (var prior : byMain.getOrDefault(q.mainId(), List.of())) {
+                    if (prior.order() < q.order() && !alternativeBranches.contains(prior.id())) edge(node, prior.id(), 3);
+                }
+                visiting.remove(node); return;
             }
-            if (required.getOrDefault(id, 0) >= requested) return;
-            required.put(id, requested); edges.computeIfAbsent(id, k -> new HashSet<>()); visiting.add(id);
             var conditions = q.accept();
-            if ("LOGIC_OR".equals(q.acceptLogic()) || "LOGIC_NONE".equals(q.acceptLogic())) {
-                // LOGIC_NONE follows the existing server's any-match semantics.
-                if (!conditions.isEmpty()) {
-                    var selected = conditions.stream().filter(this::satisfied).findFirst().orElseGet(() ->
-                            conditions.stream().filter(c -> positive(c) && c.p(0) > 0
-                                            && (!catalog.subs().containsKey(c.p(0)) || !failBranch(catalog.subs().get(c.p(0)))))
-                                    .min(Comparator.comparingInt(c -> c.p(0))).orElse(conditions.get(0)));
-                    conditions.stream().filter(c -> c != selected && positive(c) && c.p(0) != selected.p(0))
-                            .forEach(c -> alternativeBranches.add(c.p(0)));
-                    dependency(q, selected);
-                }
-            } else if ("LOGIC_AND".equals(q.acceptLogic())) conditions.forEach(c -> dependency(q, c));
-            else if (!conditions.isEmpty()) blockers.add(new Issue(id, q.acceptLogic(), "复杂接取组合尚不能安全选择分支"));
-            // Completing a parent includes its earlier ordered stages, while retaining explicit
-            // mutually exclusive NOT_EQUAL branches. This includes 35107's world-suite write.
-            if (requested == 3 && q.finishParent()) {
-                for (var prior : catalog.subs().values().stream()
-                        .filter(s -> s.mainId() == q.mainId() && s.order() < q.order())
-                        .sorted(Comparator.comparingInt(Sub::order).thenComparingInt(Sub::id)).toList()) {
-                    if (!mustNotFinish.contains(prior.id()) && !alternativeBranches.contains(prior.id())) edge(id, prior.id(), 3);
-                }
+            var terms = AcceptLogic.terms(q.acceptLogic(), conditions.size());
+            var selected = terms.stream().filter(t -> t.stream().noneMatch(i -> failedRequirement(conditions.get(i))))
+                    .min(Comparator.<List<Integer>>comparingInt(t -> t.stream().allMatch(i -> satisfied(conditions.get(i))) ? 0 : 1)
+                            .thenComparingInt(t -> (int)t.stream().filter(i -> !satisfied(conditions.get(i)) && !positive(conditions.get(i))).count())
+                            .thenComparingInt(t -> -(int)t.stream().filter(i -> positive(conditions.get(i))).count())
+                            .thenComparingInt(t -> t.stream().mapToInt(i -> conditions.get(i).p(0)).min().orElse(0))).orElse(null);
+            if (selected == null && !conditions.isEmpty()) blockers.add(new Issue(id, q.acceptLogic(), "没有可安全推进的正向接取组合"));
+            else if (selected != null) {
+                var selectedRefs = selected.stream().map(conditions::get).map(c -> c.p(0)).toList();
+                for (int i = 0; i < conditions.size(); i++) if (!selected.contains(i) && positive(conditions.get(i)) && !selectedRefs.contains(conditions.get(i).p(0))) alternativeBranches.add(conditions.get(i).p(0));
+                selected.forEach(i -> dependency(q, conditions.get(i)));
             }
             // A suggestion starts an otherwise unlinked parent; it is not a reason to finish all siblings.
             if (conditions.isEmpty()) {
-                var entries = catalog.subs().values().stream().filter(s -> s.mainId() == q.mainId())
+                var entries = byMain.getOrDefault(q.mainId(), List.of()).stream()
                         .min(Comparator.comparingInt(Sub::order).thenComparingInt(Sub::id));
                 if (entries.isPresent() && entries.get().id() == id) {
-                    var parents = catalog.mains().values().stream().filter(m -> m.successors().contains(q.mainId())).toList();
+                    var parents = suggestedBy.getOrDefault(q.mainId(), List.of());
                     if (parents.size() == 1) {
-                        var ends = catalog.subs().values().stream().filter(s -> s.mainId() == parents.get(0).id() && s.finishParent())
+                        var ends = byMain.getOrDefault(parents.get(0).id(), List.of()).stream().filter(Sub::finishParent)
                                 .sorted(Comparator.comparingInt(Sub::order).thenComparingInt(Sub::id)).toList();
-                        if (ends.size() == 1) edge(id, ends.get(0).id(), 3);
+                        if (ends.size() == 1) edge(node, ends.get(0).id(), 3);
                         else if (!ends.isEmpty()) warnings.add(new Issue(id, "finish_parent_branch", "前置主任务存在多个结算分支，依赖以 acceptCond 为准"));
                     } else if (parents.size() > 1) blockers.add(new Issue(id, "ambiguous_parent", "多个建议接取来源，不能猜测前置主任务"));
                 }
             }
-            visiting.remove(id);
+            visiting.remove(node);
         }
+        boolean failedRequirement(Condition c) { return c.type().endsWith("STATE_EQUAL") && c.p(1) == 4
+                || positive(c) && catalog.subs().containsKey(c.p(0)) && failBranch(catalog.subs().get(c.p(0))); }
         boolean positive(Condition c) { return (c.type().endsWith("STATE_EQUAL") && c.p(1) == 3) || c.type().contains("COMPLETE_ANY_QUEST") || c.type().contains("COMPLETE_ALL_QUEST"); }
         boolean satisfied(Condition c) {
             if (c.type().endsWith("STATE_EQUAL")) return state.state(c.p(0)) == c.p(1);
@@ -119,66 +129,88 @@ public final class QuestPlanner {
             if (c.type().contains("QUEST_GLOBAL_VAR_EQUAL")) return Objects.equals(state.value("questGlobalVariables", c.p(0)), c.p(1));
             return false;
         }
-        void edge(int id, int dependency, int desired) {
-            if (dependency == 0) { warnings.add(new Issue(id, "placeholder_ref", "任务0占位依赖不能真实完成；重放绕过并记录接取求值")); return; }
+        void edge(Node node, int dependency, int desired) {
+            if (dependency == 0) { warnings.add(new Issue(node.id(), "placeholder_ref", "任务0占位依赖不能真实完成；重放绕过并记录接取求值")); return; }
             need(dependency, desired);
-            if (required.containsKey(dependency)) edges.get(id).add(dependency);
+            var dep = new Node(dependency, desired);
+            if (edges.containsKey(dep)) edges.get(node).add(dep);
         }
         void dependency(Sub q, Condition c) {
-            if (c.type().endsWith("STATE_NOT_EQUAL") && c.p(1) == 3) mustNotFinish.add(c.p(0));
+            var node = new Node(q.id(), 2);
+            if (c.type().endsWith("STATE_NOT_EQUAL") && c.p(1) == 3) beforeFinish.computeIfAbsent(node, k -> new HashSet<>()).add(c.p(0));
+            if (c.type().endsWith("STATE_EQUAL") && c.p(1) == 2) beforeFinish.computeIfAbsent(node, k -> new HashSet<>()).add(c.p(0));
             if (satisfied(c)) return;
             if (c.type().endsWith("STATE_EQUAL")) {
-                if (c.p(1) == 3 || c.p(1) == 2) edge(q.id(), c.p(0), c.p(1));
+                if (c.p(1) == 3 || c.p(1) == 2) {
+                    edge(node, c.p(0), c.p(1));
+                    if (c.p(1) == 2) beforeFinish.computeIfAbsent(node, k -> new HashSet<>()).add(c.p(0));
+                }
                 else blockers.add(new Issue(q.id(), c.type(), "不能通过推进满足状态 " + c.param()));
             } else if (c.type().endsWith("STATE_NOT_EQUAL")) {
                 blockers.add(new Issue(q.id(), c.type(), "负向接取门槛不满足 " + c.param()));
             } else if (c.type().contains("COMPLETE_ANY_QUEST") || c.type().contains("COMPLETE_ALL_QUEST")) {
                 var ids = c.param().stream().filter(i -> i > 0).toList();
                 if (c.type().contains("ANY")) {
-                    if (ids.stream().noneMatch(i -> state.state(i) == 3) && !ids.isEmpty()) edge(q.id(), ids.get(0), 3);
-                } else ids.forEach(i -> edge(q.id(), i, 3));
+                    if (ids.stream().noneMatch(i -> state.state(i) == 3) && !ids.isEmpty()) edge(node, ids.get(0), 3);
+                } else ids.forEach(i -> edge(node, i, 3));
             } else if (c.type().contains("QUEST_GLOBAL_VAR")) {
-                var writers = catalog.subs().values().stream().filter(s -> s.execs().stream().anyMatch(e ->
-                        !e.phase().equals("failExec") && e.type().equals("QUEST_EXEC_SET_QUEST_GLOBAL_VAR")
-                                && e.param().size() >= 2 && e.param().get(0).equals(""+c.p(0)) && e.param().get(1).equals(""+c.p(1))))
+                var writers = globalWriters.getOrDefault(c.p(0) + ":" + c.p(1), List.of()).stream()
                         .sorted(Comparator.comparingInt(Sub::id)).toList();
-                if (writers.size() == 1) edge(q.id(), writers.get(0).id(), 3);
+                if (writers.size() == 1) edge(node, writers.get(0).id(), 3);
                 else blockers.add(new Issue(q.id(), c.type(), "全局变量写入来源缺失或不唯一：" + c.param()));
             } else warnings.add(new Issue(q.id(), c.type(), "重放绕过接取门槛；实际求值写入 journal"));
         }
         Plan build() {
             targets.forEach(id -> need(id, 3));
-            mustNotFinish.stream().filter(i -> required.getOrDefault(i, 0) == 3)
-                    .forEach(i -> blockers.add(new Issue(i, "state_conflict", "该任务同时被要求完成和保持未完成")));
-            var ordered = new ArrayList<Integer>(); var done = new HashSet<Integer>();
-            var comparator = Comparator.comparingInt((Integer i) -> catalog.subs().get(i).mainId())
-                    .thenComparingInt(i -> catalog.subs().get(i).order()).thenComparingInt(i -> i);
-            while (done.size() < required.size()) {
-                var ready = required.keySet().stream().filter(i -> !done.contains(i) && done.containsAll(edges.get(i))).sorted(comparator).toList();
-                if (ready.isEmpty()) { blockers.add(new Issue(target, "cycle", "依赖无法拓扑排序")); break; }
-                ordered.addAll(ready); done.addAll(ready);
+            beforeFinish.forEach((consumer, ids) -> ids.forEach(id -> {
+                var finish = new Node(id, 3); if (edges.containsKey(finish)) edges.get(finish).add(consumer);
+            }));
+            var ordered = new ArrayList<Node>(); var done = new HashSet<Node>();
+            var comparator = Comparator.comparingInt((Node n) -> catalog.subs().get(n.id()).mainId())
+                    .thenComparingInt(n -> catalog.subs().get(n.id()).order()).thenComparingInt(Node::id).thenComparingInt(Node::state);
+            var pendingCounts = new HashMap<Node, Integer>(); var consumers = new HashMap<Node, List<Node>>();
+            var ready = new PriorityQueue<>(comparator);
+            edges.forEach((node, dependencies) -> {
+                pendingCounts.put(node, dependencies.size());
+                if (dependencies.isEmpty()) ready.add(node);
+                dependencies.forEach(dependency -> consumers.computeIfAbsent(dependency, k -> new ArrayList<>()).add(node));
+            });
+            while (!ready.isEmpty()) {
+                var next = ready.remove(); ordered.add(next); done.add(next);
+                for (var consumer : consumers.getOrDefault(next, List.of()))
+                    if (pendingCounts.compute(consumer, (k, n) -> n - 1) == 0) ready.add(consumer);
             }
+            if (done.size() < edges.size()) blockers.add(new Issue(target, "cycle", "依赖无法拓扑排序；未排序子任务：" + edges.keySet().stream().filter(n -> !done.contains(n)).map(Node::id).distinct().sorted().toList()));
             var steps = new ArrayList<Step>();
             var rewardedParents = new HashSet<Integer>();
             if (state.world().has("mainQuests")) state.world().getAsJsonObject("mainQuests").entrySet().forEach(e -> {
                 var parent = e.getValue().getAsJsonObject();
                 if (parent.has("isFinished") && parent.get("isFinished").getAsBoolean()) rewardedParents.add(Integer.parseInt(e.getKey()));
             });
-            for (int id : ordered) {
-                var q = catalog.subs().get(id); boolean complete = required.get(id) == 3;
+            var began = new HashSet<Integer>();
+            for (int cursor = 0; cursor < ordered.size(); cursor++) {
+                var node = ordered.get(cursor); int id = node.id();
+                // 普通步骤仍是一条 finish；只有必须穿插其他任务时保留显式 start 阶段。
+                if (node.state() == 2 && cursor + 1 < ordered.size() && ordered.get(cursor + 1).equals(new Node(id, 3))) continue;
+                var q = catalog.subs().get(id); boolean complete = node.state() == 3;
                 for (var c : q.accept()) if (!registered.test(c.type())) warnings.add(new Issue(id, c.type(), "acceptCond handler 缺失；依赖规划后绕过，实际求值记录到journal"));
                 var ops = new ArrayList<Operation>(); var effects = new ArrayList<Effect>();
                 for (var exec : q.execs()) {
                     if (exec.phase().equals("failExec") || (!complete && exec.phase().equals("finishExec"))
-                            || (state.state(id) == 2 && exec.phase().equals("beginExec"))) continue;
+                            || ((state.state(id) == 2 || began.contains(id)) && exec.phase().equals("beginExec"))) continue;
                     var check = policy.check(exec.type(), id, registered.test(exec.type()), overrides);
                     ops.add(new Operation(exec.phase(), exec.type(), exec.param(), check));
                     if (check.action() == ExecPolicy.Decision.block) blockers.add(new Issue(id, exec.type(), check.note()));
                     effects.add(new Effect(exec.type(), exec.param(), check.action() == ExecPolicy.Decision.handled ? disposition(state, exec.type(), exec.param()) : check.action().name()));
                 }
                 if (complete) for (var c : q.finish()) {
-                    effects.add(CondCompensation.preview(c, state));
-                    if (!registered.test(c.type())) warnings.add(new Issue(id, c.type(), "finishCond handler 缺失；检查补偿覆盖"));
+                    var effect = CondCompensation.preview(c, state); effects.add(effect);
+                    if (!registered.test(c.type())) {
+                        warnings.add(new Issue(id, c.type(), "finishCond handler 缺失；检查补偿覆盖"));
+                    }
+                    if (effect.disposition().startsWith("cond_unhandled")) blockers.add(new Issue(id, c.type(),
+                            registered.test(c.type()) ? "handler存在但完成条件的持久世界效果尚未补偿/审计；不能仅写完成进度"
+                                    : "finishCond handler 缺失且没有世界效果补偿；不能仅写完成进度"));
                 }
                 var rewards = new ArrayList<Item>();
                 if (complete) {
@@ -187,6 +219,7 @@ public final class QuestPlanner {
                     for (var item : rewards) if (catalog.isQuestItem(item.id())) effects.add(new Effect("quest_item_to_inventory", List.of("" + item.id(), "" + item.count()), item.source()));
                 }
                 steps.add(new Step(id, q.mainId(), q.order(), q.name(), complete ? "finish" : "start", List.copyOf(ops), complete ? q.finish() : List.of(), List.copyOf(effects), List.copyOf(rewards)));
+                began.add(id);
             }
             var coverage = c1Coverage(target, steps, state);
             if (target == 35205 && coverage.size() != 696) blockers.add(new Issue(target, "c1_coverage_missing", "缺少完整的696项C1核对表"));

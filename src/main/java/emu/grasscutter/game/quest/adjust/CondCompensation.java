@@ -9,6 +9,12 @@ import java.util.*;
 /** World traces of forced actions. No teleporting, dungeon rewards, or monster spawning. */
 public final class CondCompensation {
     private CondCompensation() {}
+    // 只跳过玩家当下的动作/时间门槛；持久化进度、机关/组、邀约存档等绝不视为瞬时事件。
+    private static final Set<String> TRANSIENT = Set.of(
+            "QUEST_CONTENT_TRIGGER_FIRE", "QUEST_CONTENT_SKILL", "QUEST_CONTENT_GAME_TIME_TICK",
+            "QUEST_CONTENT_ENTER_MY_WORLD", "QUEST_CONTENT_ENTER_MY_WORLD_SCENE", "QUEST_CONTENT_LEAVE_SCENE",
+            "QUEST_CONTENT_ENTER_ROOM", "QUEST_CONTENT_LEAVE_SCENE_RANGE", "QUEST_CONTENT_PRESENT_AT_SPECIFIC_SCENE",
+            "QUEST_CONTENT_ANY_MANUAL_TRANSPORT", "QUEST_CONTENT_PLAYER_LEVEL_UP", "QUEST_CONTENT_TEAM_DEAD");
     public static QuestPlanner.Effect preview(QuestCatalog.Condition c, PlayerState state) {
         var p = new ArrayList<>(c.param().stream().map(String::valueOf).toList());
         if (!c.paramStr().isBlank()) p.add("param_str=" + c.paramStr());
@@ -21,7 +27,8 @@ public final class CondCompensation {
         else if (type.contains("QUEST_VAR_") || type.contains("GLOBAL_VAR_")) action = "satisfy_variable";
         else if (type.contains("DUNGEON")) action = "skipped; dungeon_first_clear_reward_not_granted";
         else if (type.contains("OBTAIN_ITEM")) action = "skipped; items_from_preceding_steps";
-        else action = "cond_unhandled; force_completion_only";
+        else if (TRANSIENT.contains(type)) action = "transient_event_skipped; lifecycle_execs_still_required";
+        else action = "cond_unhandled; world_effect_requires_audit";
         return new QuestPlanner.Effect(type, p, action);
     }
     public static void apply(GameQuest quest, List<QuestCatalog.Condition> conditions, java.util.function.Consumer<Object> journal) {
@@ -56,6 +63,7 @@ public final class CondCompensation {
         }
     }
     static int satisfyingValue(String type, int old, int target) {
+        if (type.endsWith("NOT_EQUAL")) return old != target ? old : target == Integer.MAX_VALUE ? target - 1 : target + 1;
         if (type.endsWith("GREATER")) return old > target ? old : Math.addExact(target, 1);
         if (type.endsWith("LESS")) return old < target ? old : Math.subtractExact(target, 1);
         if (type.endsWith("EQUAL")) return target;
