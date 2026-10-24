@@ -14,5 +14,6 @@ final class PlayerStartingCollectionsTest {
 
         assertEquals(List.of(Player.STARTING_NAME_CARD_ID), List.copyOf(player.getNameCardList()));
         assertEquals(List.of(140001), List.copyOf(player.getFlyCloakList()));
+        assertTrue(player.getTraceEffectList().isEmpty(), "trace effects are event rewards");
     }
 }

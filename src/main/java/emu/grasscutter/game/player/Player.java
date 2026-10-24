@@ -353,7 +353,10 @@ public class Player implements PlayerHook, FieldFetch {
         setPhlogistonValue(100);
     }
 
-    /** 新号默认的风之翼与名片。名片只给「原神·印象」，其余靠好感、成就、纪行等各自解锁。 */
+    /**
+     * 新号默认的风之翼与名片。名片只给「原神·印象」，其余靠好感、成就、纪行等各自解锁；
+     * 游迹（冲刺特效）一个都不送，原版来自「绘想游迹」等活动奖励。
+     */
     void grantStartingCollections() {
         this.getFlyCloakList().add(140001);
         this.getNameCardList().add(STARTING_NAME_CARD_ID);
@@ -377,9 +380,6 @@ public class Player implements PlayerHook, FieldFetch {
         this.applyStartingSceneTags();
         this.grantStartingCollections();
         setPhlogistonValue(100);
-        for(int t=0; t < 20; t++){
-            this.getTraceEffectList().add(215001+t);
-        }
         this.mapMarksManager = new MapMarksManager(this);
         this.staminaManager = new StaminaManager(this);
         this.sotsManager = new SotSManager(this);
