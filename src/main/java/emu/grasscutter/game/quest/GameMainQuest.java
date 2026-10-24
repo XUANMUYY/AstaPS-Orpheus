@@ -459,6 +459,7 @@ public class GameMainQuest {
                             .toList();
 
             for (GameQuest subQuestWithCond : subQuestsWithCond) {
+                if (!emu.grasscutter.game.quest.adjust.ReplayContext.allowAutomaticProgress(subQuestWithCond)) continue;
                 val failCond = subQuestWithCond.getQuestData().getFailCond();
 
                 for (int i = 0; i < failCond.size(); i++) {
@@ -506,6 +507,7 @@ public class GameMainQuest {
                             .toList();
 
             for (GameQuest subQuestWithCond : subQuestsWithCond) {
+                if (!emu.grasscutter.game.quest.adjust.ReplayContext.allowAutomaticProgress(subQuestWithCond)) continue;
                 val finishCond = subQuestWithCond.getQuestData().getFinishCond();
 
                 for (int i = 0; i < finishCond.size(); i++) {

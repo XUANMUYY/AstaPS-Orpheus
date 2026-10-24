@@ -228,6 +228,7 @@ public class GameQuest {
     }
 
     public void finish() {
+        if (!emu.grasscutter.game.quest.adjust.ReplayContext.allowFinish(this)) return;
         // Call PlayerCompleteQuestEvent.
         var event = new PlayerCompleteQuestEvent(this.getOwner(), this);
         if (!event.call()) return;
@@ -306,6 +307,7 @@ public class GameQuest {
 
     // TODO
     public void fail() {
+        if (!emu.grasscutter.game.quest.adjust.ReplayContext.allowFail(this)) return;
         this.state = QuestState.QUEST_STATE_FAILED;
         this.finishTime = Utils.getCurrentSeconds();
         AmberFlightExamSupport.stopWithQuest(this);

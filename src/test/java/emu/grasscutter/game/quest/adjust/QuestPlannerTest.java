@@ -93,6 +93,35 @@ class QuestPlannerTest {
         var target=sub(3,List.of(),"LOGIC_NONE",List.of()); var p=planner(target);
         assertNotEquals(p.plan(empty(),3,"advance",Set.of()).planHash(), p.plan(new PlayerState(2,Map.of(1,3),new JsonObject()),3,"advance",Set.of()).planHash());
     }
+    @Test void real375FailureRetryIsExcludedButExplicitTargetBlocks() {
+        assertTrue(QuestPlanner.failBranch(real.subs().get(37504)));
+        assertEquals(List.of(37503,4,0), real.subs().get(37504).accept().getFirst().param());
+        var p = new QuestPlanner(real,policy,handled::contains);
+        var normal = p.plan(empty(),37507,"advance",Set.of());
+        assertFalse(normal.steps().stream().anyMatch(s -> s.subId()==37504));
+        assertTrue(normal.warnings().stream().anyMatch(w -> w.subId()==37504 && w.type().equals("fail_branch_excluded")));
+        assertFalse(normal.blockers().stream().anyMatch(b -> b.subId()==37504));
+        assertTrue(p.plan(empty(),37504,"advance",Set.of()).blockers().stream().anyMatch(b -> b.type().equals("fail_branch_excluded")));
+    }
+    @Test void mixedOrFailureConditionDoesNotExcludeNormalAlternative() {
+        var target = sub(3,List.of(cond("QUEST_COND_STATE_EQUAL",1,4),cond("QUEST_COND_STATE_EQUAL",2,3)),"LOGIC_OR",List.of());
+        assertFalse(QuestPlanner.failBranch(target));
+        assertEquals(List.of(2,3),planner(sub(2,List.of(),"LOGIC_NONE",List.of()),target).plan(empty(),3,"advance",Set.of()).steps().stream().map(QuestPlanner.Step::subId).toList());
+    }
+    @Test void unpairedTrialsAndEveryVariantAreSkippedAndLuaExceptionsAreScoped() {
+        var p = new QuestPlanner(real,policy,handled::contains);
+        for (int sub : List.of(30604,30704,30804,39809)) {
+            var plan = p.plan(empty(),sub,"advance",Set.of());
+            assertFalse(plan.blockers().stream().anyMatch(b -> b.type().equals("trial_pair")));
+            assertTrue(plan.steps().stream().flatMap(s -> s.execs().stream()).filter(e -> ExecPolicy.isTrial(e.type())).allMatch(e -> e.policy().action()==ExecPolicy.Decision.skip));
+        }
+        for (var type : List.of("QUEST_EXEC_GRANT_TRIAL_AVATAR","QUEST_EXEC_REMOVE_TRIAL_AVATAR","QUEST_EXEC_GRANT_TRIAL_AVATAR_BATCH_AND_LOCK_TEAM_V2","QUEST_EXEC_REMOVE_TRIAL_AVATAR_FUTURE"))
+            assertEquals(ExecPolicy.Decision.skip,policy.check(type,1,false,Set.of()).action());
+        for(int sub : List.of(35303,35304,38001,38003,39004,39301,39403)) assertEquals(ExecPolicy.Decision.block,policy.check("QUEST_EXEC_NOTIFY_GROUP_LUA",sub,true,Set.of("QUEST_EXEC_NOTIFY_GROUP_LUA")).action());
+        assertEquals(ExecPolicy.Decision.handled,policy.check("QUEST_EXEC_NOTIFY_GROUP_LUA",30803,true,Set.of()).action());
+        assertEquals(ExecPolicy.Decision.block,policy.check("QUEST_EXEC_NOTIFY_GROUP_LUA",30803,false,Set.of()).action());
+        assertEquals(ExecPolicy.Decision.block,policy.check("QUEST_EXEC_NOTIFY_GROUP_LUA",99999,true,Set.of()).action());
+    }
     static PlayerState empty() { return new PlayerState(2,Map.of(),new JsonObject()); }
     static QuestCatalog.Condition cond(String type,int a,int b) { return new QuestCatalog.Condition(type,List.of(a,b),""); }
     static QuestCatalog.Sub sub(int id,List<QuestCatalog.Condition> accept,String logic,List<QuestCatalog.Exec> exec) {

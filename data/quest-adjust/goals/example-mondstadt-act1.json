@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "source": {
+    "description": "示例：官服蒙德序章第一幕已完成，后续保留接着玩的进度",
+    "screenshots": [],
+    "date": "2026-10-25"
+  },
+  "completeChapters": [{"id": 1001}],
+  "completeParents": [],
+  "completeSubs": []
+}

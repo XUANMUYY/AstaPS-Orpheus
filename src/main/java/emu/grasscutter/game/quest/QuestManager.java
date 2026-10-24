@@ -735,6 +735,7 @@ public final class QuestManager extends BasePlayerManager {
      * @param quest The ID of the quest.
      */
     public void checkQuestAlreadyFulfilled(GameQuest quest) {
+        if (!emu.grasscutter.game.quest.adjust.ReplayContext.allowAutomaticProgress(quest)) return;
         if (isQuestingActive()) LiyueRescuePlotRecovery.replayReportedCompletion(quest);
         Grasscutter.getThreadPool()
                 .submit(

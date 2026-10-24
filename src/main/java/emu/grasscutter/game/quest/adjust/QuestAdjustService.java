@@ -64,9 +64,19 @@ public final class QuestAdjustService {
         return Map.of("uid", uid, "mains", result, "forcedWithoutResource", missing);
     }
     public synchronized QuestPlanner.Plan plan(int uid, int target, String mode, Set<String> overrides) {
+        return plan(uid, List.of(target), mode, overrides);
+    }
+    public synchronized QuestPlanner.Plan plan(int uid, JsonElement goal, String mode, Set<String> overrides) throws IOException {
+        var resolver = ProgressGoalResolver.load(catalog, FileUtils.getResourcePath(""), Path.of("data/admin-catalog/quests.json"));
+        var resolved = resolver.resolve(ProgressGoalResolver.input(goal, Path.of("data/quest-adjust/goals")));
+        var result = plan(uid, resolved.targetSubIds(), mode, overrides).withGoal(resolved);
+        plans.put(result.planId(), new Cached(result, System.currentTimeMillis() + Duration.ofMinutes(30).toMillis()));
+        return result;
+    }
+    private QuestPlanner.Plan plan(int uid, Collection<Integer> targets, String mode, Set<String> overrides) {
         if (locks.containsKey(uid)) throw new IllegalStateException("该玩家正在调整，请等待完成");
         var player = online(uid);
-        var result = new QuestPlanner(catalog, policy, this::registered).plan(PlayerState.capture(player), target, mode, overrides);
+        var result = new QuestPlanner(catalog, policy, this::registered).plan(PlayerState.capture(player), targets, mode, overrides);
         plans.entrySet().removeIf(e -> e.getValue().expires < System.currentTimeMillis());
         while (plans.size() >= 128) plans.remove(plans.keySet().iterator().next());
         plans.put(result.planId(), new Cached(result, System.currentTimeMillis() + Duration.ofMinutes(30).toMillis()));
@@ -82,7 +92,8 @@ public final class QuestAdjustService {
         if (plan.steps().isEmpty()) throw new IllegalArgumentException("目标已经完成，没有需要重放的步骤");
         var player = online(uid); OnlineQuestRuntime.checkEnvironment(player);
         if (ReplayContext.current(uid) != null) throw new IllegalStateException("该玩家存在未排空的重放上下文，请先人工核对journal");
-        var fresh = new QuestPlanner(catalog, policy, this::registered).plan(PlayerState.capture(player), plan.targetSubId(), plan.mode(), overrides);
+        var fresh = new QuestPlanner(catalog, policy, this::registered).plan(PlayerState.capture(player), plan.targetSubIds(), plan.mode(), overrides);
+        if (plan.progressGoal() != null) fresh = fresh.withGoal(plan.progressGoal());
         if (!fresh.planHash().equals(plan.planHash())) throw new IllegalStateException("玩家状态、资源或策略已变化，请重新生成计划");
         var job = new Job(UUID.randomUUID().toString(), uid, planId);
         if (locks.putIfAbsent(uid, job.id) != null) throw new IllegalStateException("该玩家已有调整任务");

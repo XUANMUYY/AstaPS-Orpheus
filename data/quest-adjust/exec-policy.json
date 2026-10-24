@@ -628,10 +628,10 @@
       "note": "统计找到处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecRefreshGroupSuite.java；运行时仍核验注册及执行结果，非原生验收结论。"
     },
     "QUEST_EXEC_NOTIFY_GROUP_LUA": {
-      "action": "block",
+      "action": "handled",
       "status": "handled",
       "occurrences": 2633,
-      "note": "类型核对：回滚、随机写入或任意 Lua 通知会破坏确定性或存在未审计的世界副作用；本期阻断。"
+      "note": "已审计蒙德原14处及空白号补充2处：本组变量、无战斗的suite/gadget和任务通知可执行；刷怪战斗、跨group及未实现API按(type, subId)例外阻断。仅auditedSubIds内生效；详见docs/任务调整-NOTIFY_GROUP_LUA审计.md。"
     },
     "QUEST_EXEC_ADD_QUEST_PROGRESS": {
       "action": "handled",
@@ -649,13 +649,13 @@
       "action": "skip",
       "status": "missing",
       "occurrences": 1068,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_REMOVE_TRIAL_AVATAR": {
       "action": "skip",
       "status": "handled",
       "occurrences": 797,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_DEL_PACK_ITEM": {
       "action": "handled",
@@ -667,7 +667,7 @@
       "action": "skip",
       "status": "enum_only",
       "occurrences": 451,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_DEL_ALL_SPECIFIC_PACK_ITEM": {
       "action": "handled",
@@ -691,7 +691,7 @@
       "action": "skip",
       "status": "handled",
       "occurrences": 317,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_LOCK_POINT": {
       "action": "handled",
@@ -751,7 +751,7 @@
       "action": "skip",
       "status": "enum_only",
       "occurrences": 197,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_SET_MAP_LAYER_UNLOCK_STATE": {
       "action": "block",
@@ -763,7 +763,7 @@
       "action": "skip",
       "status": "missing",
       "occurrences": 162,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_BATCH_SET_QUEST_VAR": {
       "action": "handled",
@@ -775,7 +775,7 @@
       "action": "skip",
       "status": "enum_only",
       "occurrences": 147,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_SET_IS_GAME_TIME_LOCKED": {
       "action": "handled",
@@ -799,7 +799,7 @@
       "action": "skip",
       "status": "missing",
       "occurrences": 79,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_UNLOCK_AREA": {
       "action": "handled",
@@ -841,13 +841,13 @@
       "action": "skip",
       "status": "handled",
       "occurrences": 52,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_SET_ABYSS_WAR_LEVEL_STATE": {
       "action": "skip",
       "status": "missing",
       "occurrences": 44,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_UNHIDE_SCENE_POINT": {
       "action": "block",
@@ -877,7 +877,7 @@
       "action": "skip",
       "status": "missing",
       "occurrences": 33,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_MODIFY_ARANARA_COLLECTION_STATE": {
       "action": "block",
@@ -967,7 +967,7 @@
       "action": "skip",
       "status": "missing",
       "occurrences": 17,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_CLEAR_FEATURE_TAG_VEHICLE": {
       "action": "block",
@@ -991,13 +991,13 @@
       "action": "skip",
       "status": "missing",
       "occurrences": 14,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_MODIFY_CLIMATE_AREA": {
       "action": "skip",
       "status": "enum_only",
       "occurrences": 14,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_RANDOM_QUEST_VAR": {
       "action": "block",
@@ -1063,31 +1063,31 @@
       "action": "skip",
       "status": "missing",
       "occurrences": 4,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_LOCK_AVATAR_TEAM": {
       "action": "skip",
       "status": "enum_only",
       "occurrences": 4,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_GRANT_TRIAL_AVATAR_AND_LOCK_TEAM": {
       "action": "skip",
       "status": "enum_only",
       "occurrences": 3,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_GRANT_TRIAL_AVATAR_AND_LOCK_TEAM_V2": {
       "action": "skip",
       "status": "missing",
       "occurrences": 3,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_LOCK_AVATAR_TEAM_V2": {
       "action": "skip",
       "status": "missing",
       "occurrences": 3,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_OPTIONAL_REVIVAL_TEAM": {
       "action": "block",
@@ -1117,7 +1117,7 @@
       "action": "skip",
       "status": "handled",
       "occurrences": 2,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_CHANGE_AVATAR_COSTUME": {
       "action": "block",
@@ -1165,7 +1165,7 @@
       "action": "skip",
       "status": "missing",
       "occurrences": 1,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_SET_IS_DIVEABLE": {
       "action": "block",
@@ -1183,7 +1183,7 @@
       "action": "skip",
       "status": "handled",
       "occurrences": 1,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；试用角色仅在计划中发放/移除成对时跳过。"
+      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_SET_LIMIT_REGION_STATE": {
       "action": "block",
@@ -1215,5 +1215,69 @@
       "occurrences": 1,
       "note": "统计为 missing；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
     }
+  },
+  "exceptions": [
+    {
+      "type": "QUEST_EXEC_NOTIFY_GROUP_LUA",
+      "subId": 38001,
+      "action": "block",
+      "note": "RefreshGroup到suite2，其中包含遗迹守卫620，会生成怪物并开启战斗。"
+    },
+    {
+      "type": "QUEST_EXEC_NOTIFY_GROUP_LUA",
+      "subId": 38003,
+      "action": "block",
+      "note": "RefreshGroup到suite1，该suite仍包含遗迹守卫620，会重新生成怪物。"
+    },
+    {
+      "type": "QUEST_EXEC_NOTIFY_GROUP_LUA",
+      "subId": 39004,
+      "action": "block",
+      "note": "133007230的suite2激活区域230001，进入后添加suite3怪物并StartSealBattle，开启限时封印战斗。"
+    },
+    {
+      "type": "QUEST_EXEC_NOTIFY_GROUP_LUA",
+      "subId": 39301,
+      "action": "block",
+      "note": "回调调用UnlockScenePoint(38)，当前ScriptLib未实现此API，不能漏掉存档点位解锁。"
+    },
+    {
+      "type": "QUEST_EXEC_NOTIFY_GROUP_LUA",
+      "subId": 39403,
+      "action": "block",
+      "note": "KillEntityByConfigId修改133007004/076/078/079/001共5个其他group。"
+    },
+    {
+      "type": "QUEST_EXEC_NOTIFY_GROUP_LUA",
+      "subId": 35303,
+      "action": "block",
+      "note": "空白号第一幕补充审计：133003448的QUEST_START_544延迟2秒生成怪物440/441；存活回调向另一group133003002创建定时器。"
+    },
+    {
+      "type": "QUEST_EXEC_NOTIFY_GROUP_LUA",
+      "subId": 35304,
+      "action": "block",
+      "note": "空白号第一幕补充审计：133003449的QUEST_START_545延迟2秒生成怪物442/443/444/445；存活回调向另一group133003002创建定时器。"
+    }
+  ],
+  "auditedSubIds": {
+    "QUEST_EXEC_NOTIFY_GROUP_LUA": [
+      30803,
+      35303,
+      35304,
+      35404,
+      38001,
+      38003,
+      38803,
+      38905,
+      39003,
+      39004,
+      39005,
+      39006,
+      39007,
+      39301,
+      39403,
+      39812
+    ]
   }
 }

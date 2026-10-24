@@ -28,11 +28,11 @@ class QuestReplayerTest {
         public boolean beyondTarget(int subId,QuestPlanner.Step target){return subId==9;}
     }
     static QuestPlanner.Plan plan(){return QuestPlannerTest.planner(QuestPlannerTest.sub(1,List.of(),"LOGIC_NONE",List.of()),QuestPlannerTest.sub(2,List.of(QuestPlannerTest.cond("QUEST_COND_STATE_EQUAL",1,3)),"LOGIC_NONE",List.of())).plan(QuestPlannerTest.empty(),2,"advance",Set.of());}
-    @Test void replayOrdersBarriersAndDetectsSideFinishBeyondTarget() throws Exception {
+    @Test void replayOrdersBarriersAndStopsOnUnexpectedSideFinishBeyondTarget() throws Exception {
         var runtime=new Runtime();runtime.side=true;
         try(var journal=new AdjustJournal(temp)) {
             var result=new QuestReplayer().replay(plan(),runtime,journal,r->{});
-            assertEquals("completed",result.status());assertEquals(2,result.completed());assertTrue(runtime.disconnected);
+            assertEquals("failed",result.status());assertEquals(0,result.completed());assertTrue(runtime.disconnected);
             assertEquals(List.of("accept:1","barrier","compensate:1","barrier","finish:1","barrier","save"),runtime.actions.subList(0,7));
             assertTrue(result.sideEffects().stream().anyMatch(s->s.subId()==9&&s.action().equals("side_finish")&&s.beyondTarget()));
         }

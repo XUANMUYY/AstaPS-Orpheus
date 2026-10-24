@@ -1491,6 +1491,14 @@ public class SceneScriptManager {
         toRemove.forEach(getScene()::killEntity);
     }
 
+    /** 重放收尾只查询本次通知涉及的组，避免退出上下文后其延迟任务继续推进剧情。 */
+    public synchronized boolean hasPendingQuestAdjustTimers(Collection<Integer> groupIds) {
+        return groupIds.stream().anyMatch(id -> {
+            var timers = activeGroupTimers.get(id);
+            return timers != null && !timers.isEmpty();
+        });
+    }
+
     public int createGroupTimerEvent(int groupID, String source, double time) {
         if (LiyueCloudDungeonSupport.isTimerGroup(getScene(), groupID))
             return liyueDungeonTimers.create(groupID, source, time);

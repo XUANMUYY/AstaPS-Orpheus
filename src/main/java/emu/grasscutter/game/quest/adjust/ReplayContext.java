@@ -14,6 +14,7 @@ public final class ReplayContext implements AutoCloseable {
     public interface Scope extends AutoCloseable { @Override void close(); }
     private static final Map<Integer, ReplayContext> ACTIVE = new ConcurrentHashMap<>();
     private static final ThreadLocal<Binding> LOCAL = new ThreadLocal<>();
+    private static final ThreadLocal<GameQuest> FINISHING = new ThreadLocal<>();
     private final int uid;
     private final ExecPolicy policy;
     private final Set<String> overrides;
@@ -23,12 +24,16 @@ public final class ReplayContext implements AutoCloseable {
     private volatile boolean closed;
     private volatile boolean quarantined;
     private volatile RewardMailSink.Source stepSource;
+    private final Map<Integer, Set<Integer>> notifiedGroups = new ConcurrentHashMap<>();
     public ReplayContext(int uid, ExecPolicy policy, Set<String> overrides, Consumer<Object> journal) {
         this.uid = uid; this.policy = policy; this.overrides = Set.copyOf(overrides); this.journal = journal;
         if (ACTIVE.putIfAbsent(uid, this) != null) throw new IllegalStateException("该玩家已有重放上下文");
     }
     public RewardMailSink rewards() { return rewards; }
     public List<String> failures() { return List.copyOf(failures); }
+    Map<Integer, Set<Integer>> notifiedGroups() {
+        var copy = new TreeMap<Integer, Set<Integer>>(); notifiedGroups.forEach((scene, groups) -> copy.put(scene, Set.copyOf(groups))); return copy;
+    }
     public void quarantine(String reason) { quarantined = true; failures.add(reason); }
     public void capture(int itemId, int count, RewardMailSink.Source source) {
         var grant = new RewardMailSink.Grant(itemId, count, source);
@@ -38,6 +43,30 @@ public final class ReplayContext implements AutoCloseable {
     public void step(int mainId, int subId) { stepSource = new RewardMailSink.Source(mainId, subId, "gainItems"); }
     public static ReplayContext current(int uid) {
         var result = ACTIVE.get(uid); return result != null && !result.closed ? result : null;
+    }
+    /** 事件仍可接取后续任务；只有重放器当前明确完成的子任务可以结算。 */
+    public static boolean allowFinish(GameQuest quest) {
+        var c = current(quest.getOwner().getUid());
+        if (c == null || FINISHING.get() == quest) return true;
+        c.journal.accept(Map.of("action", "side_finish_prevented", "subId", quest.getSubQuestId()));
+        return false;
+    }
+    public static boolean allowFail(GameQuest quest) {
+        var c = current(quest.getOwner().getUid());
+        if (c == null) return true;
+        c.journal.accept(Map.of("action", "side_fail_prevented", "subId", quest.getSubQuestId()));
+        return false;
+    }
+    public static boolean allowAutomaticProgress(GameQuest quest) {
+        var c = current(quest.getOwner().getUid());
+        if (c == null) return true;
+        c.journal.accept(Map.of("action", "automatic_progress_prevented", "subId", quest.getSubQuestId()));
+        return false;
+    }
+    static void finish(GameQuest quest) {
+        var previous = FINISHING.get(); FINISHING.set(quest);
+        try { quest.finish(); }
+        finally { if (previous == null) FINISHING.remove(); else FINISHING.set(previous); }
     }
     public static RewardMailSink.Source source(int uid) {
         var c = current(uid); if (c == null) return null;
@@ -59,7 +88,7 @@ public final class ReplayContext implements AutoCloseable {
             context.journal.accept(Map.of("action", "quarantined_exec", "subId", quest.getSubQuestId(), "type", param.getType().name()));
             return true;
         }
-        var type = param.getType().name(); var check = context.policy.check(type, registered, context.overrides);
+        var type = param.getType().name(); var check = context.policy.check(type, quest.getSubQuestId(), registered, context.overrides);
         if (check.action() != ExecPolicy.Decision.handled) {
             context.journal.accept(Map.of("action", "skipped_exec", "subId", quest.getSubQuestId(), "policy", check));
             if (check.action() == ExecPolicy.Decision.block) context.failures.add("阻断 exec " + type + " @" + quest.getSubQuestId());
@@ -67,6 +96,11 @@ public final class ReplayContext implements AutoCloseable {
         }
         emu.grasscutter.game.quest.QuestManager.eventExecutor.submit(() -> {
             try (var scope = source(quest, "exec:" + type)) {
+                if (type.equals("QUEST_EXEC_NOTIFY_GROUP_LUA")) {
+                    var p = param.getParam();
+                    if (p == null || p.length < 2) throw new IllegalArgumentException("Lua通知参数缺失");
+                    context.notifiedGroups.computeIfAbsent(Integer.parseInt(p[0]), k -> ConcurrentHashMap.newKeySet()).add(Integer.parseInt(p[1]));
+                }
                 boolean ok = handler.getAsBoolean();
                 context.journal.accept(Map.of("action", "exec_result", "subId", quest.getSubQuestId(), "type", type, "handlerResult", ok));
                 // Known idempotent handlers return false when already set. The state verifier decides.

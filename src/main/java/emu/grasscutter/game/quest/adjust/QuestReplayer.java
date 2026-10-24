@@ -29,6 +29,7 @@ public final class QuestReplayer {
         if (!plan.stateHash().equals(runtime.state().hash())) throw new IllegalStateException("玩家状态已变化，请重新生成计划");
         int completed = 0; var side = new ArrayList<SideEffect>(); var failures = new ArrayList<String>();
         var ids = new HashSet<Integer>(); plan.steps().forEach(s -> ids.add(s.subId()));
+        var finishIds = new HashSet<Integer>(); plan.steps().stream().filter(s -> s.action().equals("finish")).forEach(s -> finishIds.add(s.subId()));
         var target = plan.steps().stream().filter(s -> s.subId() == plan.targetSubId()).findFirst().orElse(null);
         var initial = runtime.documents(); var previous = initial;
         try {
@@ -46,6 +47,8 @@ public final class QuestReplayer {
                         failures.add("MISMATCH 子任务状态 " + step.subId() + "=" + actual.state(step.subId()));
                     failures.addAll(runtime.verify(step, before));
                     for (var entry : actual.quests().entrySet()) {
+                        if (entry.getValue() == 3 && before.state(entry.getKey()) != 3 && !finishIds.contains(entry.getKey()))
+                            failures.add("计划外任务意外完成，停止后续步骤：" + entry.getKey());
                         int id = entry.getKey(); if (ids.contains(id) || Objects.equals(before.quests().get(id), entry.getValue())) continue;
                         var name = entry.getValue() == 3 ? "side_finish" : entry.getValue() == 2 ? "side_accept" : "side_state";
                         boolean beyond = name.equals("side_finish") && target != null && runtime.beyondTarget(id, target);

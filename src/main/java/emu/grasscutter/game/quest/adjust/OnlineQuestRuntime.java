@@ -57,12 +57,31 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
             var quest = player.getQuestManager().getQuestById(step.subId());
             try (var scope = ReplayContext.source(quest, "gainItems")) {
                 CondCompensation.completeProgress(quest);
-                if (quest.getState().getValue() != 3) quest.finish();
+                if (quest.getState().getValue() != 3) ReplayContext.finish(quest);
             }
         });
     }
     @Override public void barrier() throws Exception {
-        try { QuestReplayer.awaitQuiescence(QuestManager.eventExecutor, Duration.ofSeconds(10)); }
+        try {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            int quiet = 0;
+            do {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) throw new TimeoutException("任务/Lua事件或已通知组定时器未排空");
+                QuestReplayer.awaitQuiescence(QuestManager.eventExecutor, Duration.ofNanos(remaining));
+                var groups = context.notifiedGroups();
+                if (groups.isEmpty()) return;
+                var scripts = (ThreadPoolExecutor) emu.grasscutter.scripts.SceneScriptManager.eventExecutor;
+                boolean pending = scripts.getActiveCount() != 0 || !scripts.getQueue().isEmpty();
+                for (var entry : groups.entrySet()) {
+                    var scene = player.getWorld().getSceneById(entry.getKey());
+                    if (scene == null || !scene.isFinishedLoading()) throw new IllegalStateException("Lua目标场景尚未加载完成");
+                    pending |= scene.getScriptManager().hasPendingQuestAdjustTimers(entry.getValue());
+                }
+                quiet = pending ? 0 : quiet + 1;
+                if (quiet < 2) Thread.sleep(10);
+            } while (quiet < 2);
+        }
         catch (Exception e) { context.quarantine("任务屏障未排空：" + e); throw e; }
     }
     @Override public List<String> verify(QuestPlanner.Step step, PlayerState before) {
@@ -151,6 +170,7 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
         throw new TimeoutException("数据库保存队列未排空，停止调整");
     }
     @Override public void complete(Consumer<Object> journal) {
+        TrialCleanup.remove(player, journal);
         context.rewards().send(player, catalog, journal);
         for (var main : player.getQuestManager().getMainQuests().values()) {
             if (main.isFinished() && verifiedParents.contains(main.getParentQuestId()) && !alreadyFinishedParents.contains(main.getParentQuestId())
@@ -186,5 +206,6 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
         if (player.getWorld() == null || player.getWorld().isMultiplayer() || player.getWorld().getHost() != player)
             throw new IllegalArgumentException("任务调整需要玩家处于自己的单人世界");
         if (!player.getScene().getScriptManager().isInit()) throw new IllegalArgumentException("场景脚本尚未就绪");
+        if (!player.getScene().isFinishedLoading()) throw new IllegalArgumentException("场景尚未加载完成，不能安排延迟Lua通知");
     }
 }

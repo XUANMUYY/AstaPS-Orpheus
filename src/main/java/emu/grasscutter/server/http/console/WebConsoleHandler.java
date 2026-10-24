@@ -78,7 +78,9 @@ public final class WebConsoleHandler implements Router {
                 var overrides = new java.util.HashSet<String>();
                 if (body.has("overrides")) body.getAsJsonArray("overrides").forEach(e -> overrides.add(e.getAsString()));
                 response = switch (operation) {
-                    case "plan" -> service.plan(uid, body.get("targetSubId").getAsInt(), body.has("mode") ? body.get("mode").getAsString() : "advance", overrides);
+                    case "plan" -> body.has("goal")
+                            ? service.plan(uid, body.get("goal"), body.has("mode") ? body.get("mode").getAsString() : "advance", overrides)
+                            : service.plan(uid, body.get("targetSubId").getAsInt(), body.has("mode") ? body.get("mode").getAsString() : "advance", overrides);
                     case "apply" -> service.apply(uid, body.get("planId").getAsString(), overrides);
                     case "undo" -> service.undo(uid, body.get("jobId").getAsString());
                     default -> throw new IllegalArgumentException("未知操作");

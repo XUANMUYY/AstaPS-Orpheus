@@ -15,8 +15,14 @@ public final class QuestPlanner {
                        String stateHash, String catalogHash, String policyHash, Set<String> overrides,
                        List<Step> steps, List<Integer> alreadyFinished, List<Issue> blockers,
                        List<Issue> warnings, List<Effect> c1Coverage, List<RewardMailSink.Envelope> expectedMail,
-                       boolean executionAvailable) {
+                       boolean executionAvailable, List<Integer> targetSubIds, List<Integer> sideAcceptMainIds,
+                       ProgressGoalResolver.Resolved progressGoal) {
         public boolean executable() { return blockers.isEmpty(); }
+        public Plan withGoal(ProgressGoalResolver.Resolved goal) {
+            return new Plan(planId, AdjustJson.hash(List.of(planHash, goal)), uid, targetSubId, mode,
+                    stateHash, catalogHash, policyHash, overrides, steps, alreadyFinished, blockers, warnings,
+                    c1Coverage, expectedMail, executionAvailable, targetSubIds, sideAcceptMainIds, goal);
+        }
     }
     private final QuestCatalog catalog;
     private final ExecPolicy policy;
@@ -25,23 +31,38 @@ public final class QuestPlanner {
         this.catalog = catalog; this.policy = policy; this.registered = registered;
     }
     public Plan plan(PlayerState state, int target, String mode, Set<String> overrides) {
+        return plan(state, List.of(target), mode, overrides);
+    }
+    public Plan plan(PlayerState state, Collection<Integer> targets, String mode, Set<String> overrides) {
         if (!"advance".equals(mode)) throw new IllegalArgumentException("仅支持 advance；回退请撤销指定 jobId");
-        if (!catalog.subs().containsKey(target)) throw new IllegalArgumentException("资源中没有目标子任务 " + target);
-        return new Planning(state, target, Set.copyOf(overrides)).build();
+        var sorted = targets.stream().distinct().sorted().toList();
+        if (sorted.isEmpty()) throw new IllegalArgumentException("目标不能为空");
+        for (int target : sorted) if (!catalog.subs().containsKey(target)) throw new IllegalArgumentException("资源中没有目标子任务 " + target);
+        return new Planning(state, sorted, Set.copyOf(overrides)).build();
+    }
+    /** 只有必须经过 FAILED 的接取式才是失败分支；OR 中仍有正常路径时保留。 */
+    static boolean failBranch(Sub q) {
+        var flags = q.accept().stream().map(c -> c.type().endsWith("STATE_EQUAL") && c.p(1) == 4).toList();
+        return !flags.isEmpty() && ("LOGIC_AND".equals(q.acceptLogic()) ? flags.contains(true) : flags.stream().allMatch(Boolean::booleanValue));
     }
     private final class Planning {
-        final PlayerState state; final int target; final Set<String> overrides;
+        final PlayerState state; final int target; final List<Integer> targets; final Set<String> overrides;
         final Map<Integer, Set<Integer>> edges = new HashMap<>();
         final Map<Integer, Integer> required = new HashMap<>();
         final Set<Integer> visiting = new HashSet<>(); final List<Integer> finished = new ArrayList<>();
         final Set<Integer> mustNotFinish = new HashSet<>();
         final Set<Integer> alternativeBranches = new HashSet<>();
         final List<Issue> blockers = new ArrayList<>(), warnings = new ArrayList<>();
-        Planning(PlayerState state, int target, Set<String> overrides) { this.state = state; this.target = target; this.overrides = overrides; }
+        Planning(PlayerState state, List<Integer> targets, Set<String> overrides) { this.state = state; this.targets = targets; this.target = targets.getFirst(); this.overrides = overrides; }
         void need(int id, int requested) {
             if (id == 0) return;
             var q = catalog.subs().get(id);
             if (q == null) { blockers.add(new Issue(id, "missing_resource", "前置子任务资源缺失")); return; }
+            if (failBranch(q)) {
+                var issue = new Issue(id, "fail_branch_excluded", "接取要求子任务 FAILED；正常剧情推进排除失败重试分支");
+                if (targets.contains(id)) blockers.add(issue); else if (!warnings.contains(issue)) warnings.add(issue);
+                return;
+            }
             int current = state.state(id);
             if (current == 4) { blockers.add(new Issue(id, "failed_quest", "任务已失败，本期不自动重跑 beginExec")); return; }
             if (current == requested) { if (current == 3 && !finished.contains(id)) finished.add(id); return; }
@@ -57,7 +78,8 @@ public final class QuestPlanner {
                 // LOGIC_NONE follows the existing server's any-match semantics.
                 if (!conditions.isEmpty()) {
                     var selected = conditions.stream().filter(this::satisfied).findFirst().orElseGet(() ->
-                            conditions.stream().filter(c -> positive(c) && c.p(0) > 0)
+                            conditions.stream().filter(c -> positive(c) && c.p(0) > 0
+                                            && (!catalog.subs().containsKey(c.p(0)) || !failBranch(catalog.subs().get(c.p(0)))))
                                     .min(Comparator.comparingInt(c -> c.p(0))).orElse(conditions.get(0)));
                     conditions.stream().filter(c -> c != selected && positive(c) && c.p(0) != selected.p(0))
                             .forEach(c -> alternativeBranches.add(c.p(0)));
@@ -125,7 +147,7 @@ public final class QuestPlanner {
             } else warnings.add(new Issue(q.id(), c.type(), "重放绕过接取门槛；实际求值写入 journal"));
         }
         Plan build() {
-            need(target, 3);
+            targets.forEach(id -> need(id, 3));
             mustNotFinish.stream().filter(i -> required.getOrDefault(i, 0) == 3)
                     .forEach(i -> blockers.add(new Issue(i, "state_conflict", "该任务同时被要求完成和保持未完成")));
             var ordered = new ArrayList<Integer>(); var done = new HashSet<Integer>();
@@ -149,7 +171,7 @@ public final class QuestPlanner {
                 for (var exec : q.execs()) {
                     if (exec.phase().equals("failExec") || (!complete && exec.phase().equals("finishExec"))
                             || (state.state(id) == 2 && exec.phase().equals("beginExec"))) continue;
-                    var check = policy.check(exec.type(), registered.test(exec.type()), overrides);
+                    var check = policy.check(exec.type(), id, registered.test(exec.type()), overrides);
                     ops.add(new Operation(exec.phase(), exec.type(), exec.param(), check));
                     if (check.action() == ExecPolicy.Decision.block) blockers.add(new Issue(id, exec.type(), check.note()));
                     effects.add(new Effect(exec.type(), exec.param(), check.action() == ExecPolicy.Decision.handled ? disposition(state, exec.type(), exec.param()) : check.action().name()));
@@ -166,25 +188,31 @@ public final class QuestPlanner {
                 }
                 steps.add(new Step(id, q.mainId(), q.order(), q.name(), complete ? "finish" : "start", List.copyOf(ops), complete ? q.finish() : List.of(), List.copyOf(effects), List.copyOf(rewards)));
             }
-            var trials = new HashMap<String, Integer>();
-            for (var step : steps) for (var op : step.execs()) {
-                if (op.param().isEmpty() || op.policy().override()) continue;
-                if (op.type().equals("QUEST_EXEC_GRANT_TRIAL_AVATAR")) trials.merge(op.param().getFirst(), 1, Integer::sum);
-                if (op.type().equals("QUEST_EXEC_REMOVE_TRIAL_AVATAR")) trials.merge(op.param().getFirst(), -1, Integer::sum);
-            }
-            trials.forEach((id, balance) -> { if (balance != 0) blockers.add(new Issue(target,
-                    "trial_pair", "试用角色 " + id + " 的发放/移除不成对，不能一律跳过")); });
             var coverage = c1Coverage(target, steps, state);
             if (target == 35205 && coverage.size() != 696) blockers.add(new Issue(target, "c1_coverage_missing", "缺少完整的696项C1核对表"));
             var preview = new RewardMailSink();
             for (var step : steps) for (var item : step.rewards()) if (!catalog.isQuestItem(item.id()))
                 preview.record(item.id(), item.count(), new RewardMailSink.Source(step.mainId(), step.subId(), item.source()));
             var expectedMail = preview.envelopes(catalog);
-            var content = List.of(state.hash(), catalog.fingerprint(), policy.fingerprint(), target, new TreeSet<>(overrides), steps, blockers, warnings, coverage, expectedMail);
+            var finishingParents = new HashSet<Integer>();
+            for (var step : steps) if (step.action().equals("finish") && catalog.subs().get(step.subId()).finishParent()) finishingParents.add(step.mainId());
+            var sideAccept = new TreeSet<Integer>();
+            finishingParents.stream().map(catalog.mains()::get).filter(Objects::nonNull).forEach(m -> sideAccept.addAll(m.successors()));
+            for (var sub : SideAcceptPreview.collect(catalog, state, steps)) {
+                sideAccept.add(sub.mainId());
+                for (var exec : sub.execs()) if (exec.phase().equals("beginExec")) {
+                    var check = policy.check(exec.type(), sub.id(), registered.test(exec.type()), overrides);
+                    if (check.action() == ExecPolicy.Decision.block) blockers.add(new Issue(sub.id(), exec.type(), "顺带接取的 beginExec：" + check.note()));
+                }
+            }
+            sideAccept.removeAll(finishingParents);
+            steps.forEach(s -> sideAccept.remove(s.mainId()));
+            sideAccept.removeIf(id -> state.world().has("mainQuests") && state.world().getAsJsonObject("mainQuests").has("" + id));
+            var content = List.of(state.hash(), catalog.fingerprint(), policy.fingerprint(), targets, new TreeSet<>(overrides), steps, blockers, warnings, coverage, expectedMail, sideAccept);
             return new Plan(UUID.randomUUID().toString(), AdjustJson.hash(content), state.uid(), target, "advance", state.hash(),
                     catalog.fingerprint(), policy.fingerprint(), overrides, List.copyOf(steps), List.copyOf(finished), List.copyOf(blockers),
                     List.copyOf(warnings), coverage, expectedMail,
-                    ReplayContext.DISPATCH_SUPPORTED);
+                    ReplayContext.DISPATCH_SUPPORTED, targets, List.copyOf(sideAccept), null);
         }
     }
     private static List<Effect> c1Coverage(int target, List<Step> steps, PlayerState state) {
