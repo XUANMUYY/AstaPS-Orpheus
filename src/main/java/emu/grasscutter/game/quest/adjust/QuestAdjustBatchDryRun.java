@@ -31,11 +31,13 @@ public final class QuestAdjustBatchDryRun {
             var goal = ProgressGoal.parse(AdjustJson.read(goalFile));
             var issues = new ArrayList<QuestPlanner.Issue>();
             ProgressGoalResolver.Resolved resolved;
-            try { resolved = resolver.resolve(goal); }
+            try { resolved = goal.version() >= 2 ? resolver.resolveDiagnostic(goal) : resolver.resolve(goal); issues.addAll(resolved.resolutionIssues()); }
             catch (IllegalArgumentException strictFailure) {
                 // 诊断继续列出可解析部分；每个失败引用保留阻断，原始目标与错误均保留。
                 // 在线 resolver 仍严格拒绝整个歧义目标，不会将此诊断计划交给 apply。
                 var targets = new TreeSet<Integer>(); var parents = new TreeSet<Integer>(); var chapters = new TreeSet<Integer>();
+                if (!goal.include().isEmpty() || !goal.exclude().isEmpty() || !goal.stopBefore().isJsonNull())
+                    issues.add(new QuestPlanner.Issue(0, "selection_unresolved", strictFailure.getMessage()));
                 for (var ref : goal.completeParents()) {
                     try {
                         var r = resolver.resolve(new ProgressGoal(1, goal.source(), List.of(), JsonNull.INSTANCE, List.of(ref), List.of()));
@@ -59,7 +61,7 @@ public final class QuestAdjustBatchDryRun {
                 if (!goal.archonThrough().isJsonNull()) issues.add(new QuestPlanner.Issue(0, "goal_resolution", strictFailure.getMessage()));
                 resolved = new ProgressGoalResolver.Resolved(goal, List.copyOf(targets), List.copyOf(parents), List.copyOf(chapters));
             }
-            var plan = resolved.targetSubIds().isEmpty() ? null : planner.plan(state, resolved.targetSubIds(), "advance", Set.of()).withGoal(resolved);
+            var plan = resolved.targetSubIds().isEmpty() && resolved.stopSubId() == 0 ? null : planner.plan(state, resolved, "advance", Set.of());
             var after = plan == null ? state : projectConditional(catalog, state, plan);
             var data = new LinkedHashMap<String, Object>();
             data.put("createdAt", Instant.now().toString()); data.put("segment", segment); data.put("goal", goal);
@@ -96,7 +98,8 @@ public final class QuestAdjustBatchDryRun {
             String fileName = segment.has("outputFile") ? segment.get("outputFile").getAsString() : key + ".json";
             if (!fileName.matches("[A-Za-z0-9_-]+\\.json")) throw new IllegalArgumentException("输出文件名非法：" + fileName);
             write(output.resolve(fileName), data);
-            var summary = Map.of("key", key, "steps", plan == null ? 0 : plan.steps().size(), "blockers", issues.size() + (plan == null ? 0 : plan.blockers().size()), "mail", plan == null ? 0 : plan.expectedMail().size());
+            var uniqueIssues = new HashSet<>(issues); if (plan != null) uniqueIssues.addAll(plan.blockers());
+            var summary = Map.of("key", key, "steps", plan == null ? 0 : plan.steps().size(), "blockers", uniqueIssues.size(), "mail", plan == null ? 0 : plan.expectedMail().size());
             index.add(summary); System.out.println(summary);
         }
         String indexName = manifest.has("indexFile") ? manifest.get("indexFile").getAsString() : "index.json";
@@ -114,6 +117,7 @@ public final class QuestAdjustBatchDryRun {
             if (!mains.has(parentKey)) mains.add(parentKey, new JsonObject());
             if (step.action().equals("finish") && catalog.subs().get(step.subId()).finishParent()) mains.getAsJsonObject(parentKey).addProperty("isFinished", true);
             for (var effect : step.effects()) {
+                if (Set.of("skip", "block").contains(effect.disposition())) continue;
                 var p = effect.param();
                 try {
                     if (effect.type().equals("QUEST_EXEC_SET_QUEST_GLOBAL_VAR") || effect.type().equals("QUEST_EXEC_SET_OPEN_STATE")) {
@@ -129,7 +133,7 @@ public final class QuestAdjustBatchDryRun {
                 } catch (RuntimeException ignored) { /* 不猜未知参数；原效果仍在计划中。 */ }
             }
         }
-        for (var sub : SideAcceptPreview.collect(catalog, before, plan.steps())) states.putIfAbsent(sub.id(), 2);
+        for (var sub : SideAcceptPreview.collect(catalog, before, plan.steps())) if (states.getOrDefault(sub.id(), 0) < 2) states.put(sub.id(), 2);
         return new PlayerState(before.uid(), states, world);
     }
 

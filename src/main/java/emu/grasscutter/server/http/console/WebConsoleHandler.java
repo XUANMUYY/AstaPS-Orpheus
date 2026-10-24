@@ -52,6 +52,7 @@ public final class WebConsoleHandler implements Router {
         javalin.get("/console/api/players", this::players);
         javalin.post("/console/api/command", this::command);
         javalin.get("/console/api/quest/tree", ctx -> quest(ctx, "tree"));
+        javalin.get("/console/api/quest/options", ctx -> quest(ctx, "options"));
         javalin.post("/console/api/quest/plan", ctx -> quest(ctx, "plan"));
         javalin.post("/console/api/quest/apply", ctx -> quest(ctx, "apply"));
         javalin.get("/console/api/quest/job", ctx -> quest(ctx, "job"));
@@ -69,7 +70,8 @@ public final class WebConsoleHandler implements Router {
         try {
             var service = questAdjust();
             Object response;
-            if (operation.equals("tree")) response = service.tree(Integer.parseInt(ctx.queryParam("uid")));
+            if (operation.equals("options")) response = service.selectionOptions();
+            else if (operation.equals("tree")) response = service.tree(Integer.parseInt(ctx.queryParam("uid")));
             else if (operation.equals("backups")) response = service.backups(Integer.parseInt(ctx.queryParam("uid")));
             else if (operation.equals("job")) response = service.job(ctx.queryParam("id"));
             else {

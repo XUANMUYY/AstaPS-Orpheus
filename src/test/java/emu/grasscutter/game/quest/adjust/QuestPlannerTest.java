@@ -19,7 +19,7 @@ class QuestPlannerTest {
             var type = v.getAsJsonObject(); if (type.get("status").getAsString().equals("handled")) handled.add(type.get("type").getAsString());
         }));
     }
-    @Test void test2To35205DryRunUsesRealResourcesWithoutDatabase() throws Exception {
+    @Test void syntheticFixtureTo35205UsesRealResourcesWithoutAccountPlanOutput() throws Exception {
         var world = new JsonObject();
         var points = new JsonArray(); for (int i = 1; i <= 1720; i++) points.add(i);
         var areas = new JsonArray(); for (int i = 1; i <= 999; i++) areas.add(i);
@@ -29,7 +29,7 @@ class QuestPlannerTest {
         world.addProperty("mainCharacterElement", "None");
         var markers = new JsonArray(); markers.add(351); markers.add(352); for (int i = 0; i < 4370; i++) markers.add(10000+i);
         world.add("forcedFinishedQuests", markers);
-        var state = new PlayerState(100000002, Map.of(30341, 2), world);
+        var state = new PlayerState(0, Map.of(30341, 2), world);
         var planner = new QuestPlanner(real, policy, handled::contains);
         var plan = planner.plan(state, 35205, "advance", Set.of());
         var ids = plan.steps().stream().map(QuestPlanner.Step::subId).toList();
@@ -46,10 +46,6 @@ class QuestPlannerTest {
         assertTrue(plan.steps().stream().flatMap(s -> s.effects().stream()).anyMatch(e -> e.type().equals("QUEST_EXEC_UNLOCK_POINT") && e.disposition().equals("already_set")));
         assertTrue(plan.blockers().isEmpty(), plan.blockers().toString());
         assertEquals(plan.planHash(), planner.plan(state, 35205, "advance", Set.of()).planHash());
-        var output = Path.of("build/quest-adjust"); Files.createDirectories(output);
-        var artifact = new JsonObject(); artifact.addProperty("evidence", "真实资源 + 构造玩家状态；不是数据库实测，地图集合仅按C1数量构造，非原件复制");
-        artifact.add("plan", AdjustJson.GSON.toJsonTree(plan));
-        Files.writeString(output.resolve("dry-run-test2-35205.json"), new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(artifact));
     }
     @Test void natlanClosureFollowsOrderNotNumericNeighbors() {
         var plan = new QuestPlanner(real, policy, handled::contains).plan(empty(), 500006, "advance", Set.of());

@@ -14,10 +14,10 @@ public final class QuestAdjustDryRun {
         var catalog = QuestCatalog.load(Path.of("resources"));
         var policy = ExecPolicy.load(Path.of("data/quest-adjust/exec-policy.json"));
         var goal = ProgressGoal.parse(AdjustJson.read(Path.of(args[1])));
-        var resolved = ProgressGoalResolver.load(catalog, Path.of("resources"), Path.of("data/admin-catalog/quests.json")).resolve(goal);
+        var resolved = ProgressGoalResolver.load(catalog, Path.of("resources"), Path.of("data/admin-catalog/quests.json")).resolveDiagnostic(goal);
         var state = args[0].equals("new") ? new PlayerState(0, Map.of(), new JsonObject()) : OfflinePlayerState.load(Path.of(args[0]));
         var handlers = sourceHandlers(Path.of("src/main/java/emu/grasscutter/game/quest"));
-        var plan = new QuestPlanner(catalog, policy, handlers::contains).plan(state, resolved.targetSubIds(), "advance", Set.of()).withGoal(resolved);
+        var plan = new QuestPlanner(catalog, policy, handlers::contains).plan(state, resolved, "advance", Set.of());
         var output = new LinkedHashMap<String, Object>();
         output.put("createdAt", Instant.now().toString()); output.put("input", args[0]); output.put("goalFile", args[1]);
         output.put("evidence", "真实资源与导出快照的静态规划；handler 仅按源码注解核验，未启动服务端、未连接数据库、未执行重放，不能视为运行验收");

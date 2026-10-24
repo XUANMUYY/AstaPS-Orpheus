@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "source": {
+    "description": "通用示例：推进到璃月第一幕开始前；只表达意图，不绑定账号"
+  },
+  "stopBefore": {
+    "chapter": {
+      "id": 1101
+    }
+  }
+}

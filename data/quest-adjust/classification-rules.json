@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "note": "区域编号属于 WorldAreaConfigData.areaID1，场景编号属于 SceneExcelConfigData.id；国别由 CityConfigData.areaIdVec 推导。区域证据来自 guide、场景组 area、ShareConfig 坐标与 scene3_worldArea 多边形，不按任务ID或坐标阈值猜测。",
+  "categories": ["魔神任务", "传说任务", "世界任务", "活动任务", "限时或已下线的传说任务", "邀约任务", "扩展区域世界任务"],
+  "expansions": [
+    {"name":"龙脊雪山", "areas":[10], "scenes":[]},
+    {"name":"层岩巨渊", "areas":[19,300], "scenes":[6]},
+    {"name":"渊下宫", "areas":[200], "scenes":[5]},
+    {"name":"须弥沙漠", "areas":[26,27,28], "scenes":[]},
+    {"name":"千壑沙地", "areas":[29], "scenes":[]},
+    {"name":"苍漠囿土", "areas":[30,31], "scenes":[]},
+    {"name":"须弥扩展区域32（名称待核实）", "areas":[32], "scenes":[]},
+    {"name":"沉玉谷", "areas":[40,41,47], "scenes":[]},
+    {"name":"海岛1.6", "areas":[100,101,102,103], "scenes":[4]},
+    {"name":"三界路飨祭", "areas":[210], "scenes":[7]},
+    {"name":"海岛2.8", "areas":[400,401,402,403], "scenes":[9]},
+    {"name":"琉形蜃境", "areas":[500,501,502,503], "scenes":[10]},
+    {"name":"旧日之海", "areas":[600], "scenes":[11]},
+    {"name":"希穆兰卡", "areas":[700,701,702], "scenes":[100]},
+    {"name":"空之域", "areas":[1000], "scenes":[103]}
+  ],
+  "timedLegendRule": "LQ 且非邀约，并且章节有 needBeginTimeStr/needEndTimeStr，或任务/章节关联 ActivityExcelConfigData；仅表示资源中的限时关联，不断言当前官方开放状态。",
+  "dailyRule": "DailyTaskExcelConfigData.questId 是子任务编号；通过 QuestExcelConfigData.mainId 映射得到整个委托主任务。不能仅凭 IQ 类型判断；场景型委托不属于剧情目标。",
+  "mainAreaRule": "排除扩展区域时，仅保留具有区域证据、国别唯一且所有证据不落在扩展区域的主任务；没有区域证据的世界任务保守排除，omit 列表可核对。"
+}

@@ -16,12 +16,12 @@ public final class QuestPlanner {
                        List<Step> steps, List<Integer> alreadyFinished, List<Issue> blockers,
                        List<Issue> warnings, List<Effect> c1Coverage, List<RewardMailSink.Envelope> expectedMail,
                        boolean executionAvailable, List<Integer> targetSubIds, List<Integer> sideAcceptMainIds,
-                       ProgressGoalResolver.Resolved progressGoal) {
+                       ProgressGoalResolver.Resolved progressGoal, QuestAcceptance.Preview stopPreview) {
         public boolean executable() { return blockers.isEmpty(); }
         public Plan withGoal(ProgressGoalResolver.Resolved goal) {
             return new Plan(planId, AdjustJson.hash(List.of(planHash, goal)), uid, targetSubId, mode,
                     stateHash, catalogHash, policyHash, overrides, steps, alreadyFinished, blockers, warnings,
-                    c1Coverage, expectedMail, executionAvailable, targetSubIds, sideAcceptMainIds, goal);
+                    c1Coverage, expectedMail, executionAvailable, targetSubIds, sideAcceptMainIds, goal, stopPreview);
         }
     }
     private final QuestCatalog catalog;
@@ -45,6 +45,24 @@ public final class QuestPlanner {
     public Plan plan(PlayerState state, int target, String mode, Set<String> overrides) {
         return plan(state, List.of(target), mode, overrides);
     }
+    public Plan plan(PlayerState state, ProgressGoalResolver.Resolved goal, String mode, Set<String> overrides) {
+        if (!"advance".equals(mode)) throw new IllegalArgumentException("仅支持 advance");
+        var planning = new Planning(state, goal.targetSubIds(), Set.copyOf(overrides), goal.stopSubId());
+        var base = planning.build(); var blockers = new ArrayList<>(base.blockers()); blockers.addAll(goal.resolutionIssues());
+        for (var s : base.steps()) if (goal.forbiddenParents().contains(s.mainId())) blockers.add(new Issue(s.subId(), "excluded_dependency", "前置闭包需要排除/停止章节中的主任务 " + s.mainId() + "，不可静默越界"));
+        QuestAcceptance.Preview preview = null;
+        if (goal.stopSubId() != 0) {
+            var after = QuestAdjustBatchDryRun.projectConditional(catalog, state, base);
+            preview = QuestAcceptance.preview(catalog, catalog.subs().get(goal.stopSubId()), state, after);
+            if (!preview.status().equals("可接")) blockers.add(new Issue(goal.stopSubId(), "stop_unavailable", preview.status() + "：" + preview.reasons()));
+            if (after.state(goal.stopSubId()) >= 2) blockers.add(new Issue(goal.stopSubId(), "stop_auto_accept", "正常交接/状态事件会顺带开始停止点；当前生命周期没有接取拦截钩子，不能承诺保持未开始。后续需在正常接取路径增加边界保护"));
+            if (base.steps().stream().anyMatch(s -> s.subId() == goal.stopSubId())) blockers.add(new Issue(goal.stopSubId(), "stop_boundary", "依赖闭包越过停止点"));
+        }
+        var uniqueBlockers = List.copyOf(new LinkedHashSet<>(blockers));
+        return new Plan(base.planId(), AdjustJson.hash(List.of(base.planHash(), goal, uniqueBlockers, preview == null ? "" : preview)), base.uid(), base.targetSubId(), mode,
+                base.stateHash(), base.catalogHash(), base.policyHash(), base.overrides(), base.steps(), base.alreadyFinished(), uniqueBlockers, base.warnings(),
+                base.c1Coverage(), base.expectedMail(), base.executionAvailable(), base.targetSubIds(), base.sideAcceptMainIds(), goal, preview);
+    }
     public Plan plan(PlayerState state, Collection<Integer> targets, String mode, Set<String> overrides) {
         if (!"advance".equals(mode)) throw new IllegalArgumentException("仅支持 advance；回退请撤销指定 jobId");
         var sorted = targets.stream().distinct().sorted().toList();
@@ -66,7 +84,9 @@ public final class QuestPlanner {
         final Set<Node> visiting = new HashSet<>(); final List<Integer> finished = new ArrayList<>();
         final Set<Integer> alternativeBranches = new HashSet<>();
         final List<Issue> blockers = new ArrayList<>(), warnings = new ArrayList<>();
-        Planning(PlayerState state, List<Integer> targets, Set<String> overrides) { this.state = state; this.targets = targets; this.target = targets.getFirst(); this.overrides = overrides; }
+        final int stop;
+        Planning(PlayerState state, List<Integer> targets, Set<String> overrides) { this(state, targets, overrides, 0); }
+        Planning(PlayerState state, List<Integer> targets, Set<String> overrides, int stop) { this.state = state; this.targets = targets; this.target = targets.isEmpty() ? stop : targets.getFirst(); this.overrides = overrides; this.stop = stop; }
         void need(int id, int requested) {
             if (id == 0) return;
             var q = catalog.subs().get(id);
@@ -137,6 +157,18 @@ public final class QuestPlanner {
         }
         void dependency(Sub q, Condition c) {
             var node = new Node(q.id(), 2);
+            if (c.type().equals("QUEST_COND_STATE_EQUAL") && c.p(0) == 0 && c.p(1) == 3) {
+                if (!QuestAcceptance.unlinked(catalog, q)) {
+                    blockers.add(new Issue(q.id(), "zero_reference_unresolved", "非单条件入口使用 [0,3]，不能猜测丢失的任务引用")); return;
+                }
+                var sources = suggestedBy.getOrDefault(q.mainId(), List.of());
+                if (sources.size() == 1) {
+                    var ends = byMain.getOrDefault(sources.getFirst().id(), List.of()).stream().filter(Sub::finishParent).filter(s -> !failBranch(s)).toList();
+                    if (ends.size() == 1) edge(node, ends.getFirst().id(), 3);
+                    else blockers.add(new Issue(q.id(), "entry_handoff_ambiguous", "交接来源主任务结算分支不唯一：" + ends.stream().map(Sub::id).toList()));
+                } else blockers.add(new Issue(q.id(), "entry_handoff_missing", "[0,3]入口无唯一建议交接来源，不能当恒真条件；来源：" + sources.stream().map(QuestCatalog.Main::id).toList()));
+                return;
+            }
             if (c.type().endsWith("STATE_NOT_EQUAL") && c.p(1) == 3) beforeFinish.computeIfAbsent(node, k -> new HashSet<>()).add(c.p(0));
             if (c.type().endsWith("STATE_EQUAL") && c.p(1) == 2) beforeFinish.computeIfAbsent(node, k -> new HashSet<>()).add(c.p(0));
             if (satisfied(c)) return;
@@ -162,6 +194,12 @@ public final class QuestPlanner {
         }
         Plan build() {
             targets.forEach(id -> need(id, 3));
+            if (stop != 0) {
+                need(stop, 2);
+                // 停止点本身不执行 beginExec/finish，只保留它的前置闭包。
+                var boundary = new Node(stop, 2); edges.remove(boundary); beforeFinish.remove(boundary);
+                edges.values().forEach(set -> set.remove(boundary));
+            }
             beforeFinish.forEach((consumer, ids) -> ids.forEach(id -> {
                 var finish = new Node(id, 3); if (edges.containsKey(finish)) edges.get(finish).add(consumer);
             }));
@@ -230,7 +268,6 @@ public final class QuestPlanner {
             var finishingParents = new HashSet<Integer>();
             for (var step : steps) if (step.action().equals("finish") && catalog.subs().get(step.subId()).finishParent()) finishingParents.add(step.mainId());
             var sideAccept = new TreeSet<Integer>();
-            finishingParents.stream().map(catalog.mains()::get).filter(Objects::nonNull).forEach(m -> sideAccept.addAll(m.successors()));
             for (var sub : SideAcceptPreview.collect(catalog, state, steps)) {
                 sideAccept.add(sub.mainId());
                 for (var exec : sub.execs()) if (exec.phase().equals("beginExec")) {
@@ -245,7 +282,7 @@ public final class QuestPlanner {
             return new Plan(UUID.randomUUID().toString(), AdjustJson.hash(content), state.uid(), target, "advance", state.hash(),
                     catalog.fingerprint(), policy.fingerprint(), overrides, List.copyOf(steps), List.copyOf(finished), List.copyOf(blockers),
                     List.copyOf(warnings), coverage, expectedMail,
-                    ReplayContext.DISPATCH_SUPPORTED, targets, List.copyOf(sideAccept), null);
+                    ReplayContext.DISPATCH_SUPPORTED, targets, List.copyOf(sideAccept), null, null);
         }
     }
     private static List<Effect> c1Coverage(int target, List<Step> steps, PlayerState state) {

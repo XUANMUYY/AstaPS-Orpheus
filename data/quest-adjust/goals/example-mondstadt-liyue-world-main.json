@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "source": {
+    "description": "通用示例：蒙德璃月世界任务，保守排除扩展区域及区域依据不明的任务"
+  },
+  "include": [
+    {
+      "regions": [
+        "蒙德",
+        "璃月"
+      ],
+      "categories": [
+        "世界任务"
+      ]
+    }
+  ],
+  "exclude": [
+    {
+      "categories": [
+        "扩展区域世界任务"
+      ]
+    }
+  ]
+}

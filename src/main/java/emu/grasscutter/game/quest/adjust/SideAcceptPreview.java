@@ -13,6 +13,15 @@ final class SideAcceptPreview {
         for (var step : steps) {
             if (projected.getOrDefault(step.subId(), 0) < 2) emit(step.subId(), 2, projected, byReference, accepted);
             if (step.action().equals("finish")) emit(step.subId(), 3, projected, byReference, accepted);
+            var q = catalog.subs().get(step.subId());
+            if (step.action().equals("finish") && q.finishParent() && catalog.mains().containsKey(q.mainId())) {
+                for (int next : catalog.mains().get(q.mainId()).successors()) {
+                    var entry = catalog.subs().values().stream().filter(s -> s.mainId() == next).min(Comparator.comparingInt(QuestCatalog.Sub::order).thenComparingInt(QuestCatalog.Sub::id)).orElse(null);
+                    if (entry != null && QuestAcceptance.unlinked(catalog, entry) && projected.getOrDefault(entry.id(), 0) < 2) {
+                        accepted.put(entry.id(), entry); emit(entry.id(), 2, projected, byReference, accepted);
+                    }
+                }
+            }
         }
         var planned = new HashSet<Integer>(); steps.forEach(s -> planned.add(s.subId()));
         accepted.keySet().removeAll(planned);

@@ -10,10 +10,17 @@ import java.util.*;
 public final class ProgressGoalResolver {
     public record Parent(int id, String titleZh, int chapterId) {}
     public record Chapter(int id, String chapterTitleZh, int tag, boolean archon) {}
-    public record Resolved(ProgressGoal goal, List<Integer> targetSubIds, List<Integer> parentIds, List<Integer> chapterIds) {}
+    public record Resolved(ProgressGoal goal, List<Integer> targetSubIds, List<Integer> parentIds, List<Integer> chapterIds,
+                           int stopSubId, List<Integer> forbiddenParents, List<Integer> omittedParents, List<QuestPlanner.Issue> resolutionIssues) {
+        public Resolved(ProgressGoal goal, List<Integer> targets, List<Integer> parents, List<Integer> chapters) {
+            this(goal, targets, parents, chapters, 0, List.of(), List.of(), List.of());
+        }
+    }
     private final QuestCatalog catalog;
     private final Map<Integer, Parent> parents;
     private final Map<Integer, Chapter> chapters;
+    private QuestSelection selection = QuestSelection.empty();
+    private final Map<Integer, Integer> chapterEntries = new HashMap<>();
     public ProgressGoalResolver(QuestCatalog catalog, Map<Integer, Parent> parents, Map<Integer, Chapter> chapters) {
         this.catalog = catalog; this.parents = Map.copyOf(parents); this.chapters = Map.copyOf(chapters);
     }
@@ -62,7 +69,10 @@ public final class ProgressGoalResolver {
         chapterRows.forEach((id, row) -> chapters.put(id, new Chapter(id, names.getOrDefault(id, ""),
                 AdjustJson.integer(row, "tag", id), row.entrySet().stream().anyMatch(e ->
                 e.getValue().isJsonPrimitive() && e.getValue().getAsString().equals("CHAPTER_STYLE_TYPE_AQ")))));
-        return new ProgressGoalResolver(catalog, parents, chapters);
+        var resolver = new ProgressGoalResolver(catalog, parents, chapters);
+        resolver.selection = QuestSelection.load(Path.of("data/quest-adjust/classification.json"), resources, adminFile);
+        chapterRows.forEach((id, row) -> resolver.chapterEntries.put(id, AdjustJson.integer(row, "beginQuestId", 0)));
+        return resolver;
     }
     /** HTTP 文件名只允许读取固定目标目录；CLI 路径由本机操作者直接指定。 */
     public static ProgressGoal input(JsonElement value, Path goalRoot) throws IOException {
@@ -74,7 +84,14 @@ public final class ProgressGoalResolver {
         return ProgressGoal.parse(AdjustJson.read(file));
     }
     public Resolved resolve(ProgressGoal goal) {
+        return resolve(goal, false);
+    }
+    public Resolved resolveDiagnostic(ProgressGoal goal) { return resolve(goal, true); }
+    public Object options() { return selection.options(); }
+    private Resolved resolve(ProgressGoal goal, boolean diagnostic) {
         var selectedChapters = new TreeSet<Integer>(); var selectedParents = new TreeSet<Integer>();
+        var forbidden = new TreeSet<Integer>(); var omitted = new TreeSet<Integer>(); var issues = new ArrayList<QuestPlanner.Issue>();
+        int stop = 0;
         for (var ref : goal.completeChapters()) selectedChapters.add(chapter(ref));
         if (!goal.archonThrough().isJsonNull()) {
             var end = chapters.get(chapter(goal.archonThrough(), true));
@@ -87,18 +104,64 @@ public final class ProgressGoalResolver {
             matches.forEach(p -> selectedParents.add(p.id()));
         }
         for (var ref : goal.completeParents()) selectedParents.add(parent(ref));
+        for (var ref : goal.include()) selectedParents.addAll(selection.match(ref, this));
+        for (var ref : goal.exclude()) {
+            forbidden.addAll(selection.match(ref, this));
+            // 无区域证据时不能证明属于主区域；排除扩展区域时保守省略并列出。
+            if (ref.getAsJsonObject().has("categories") && ref.getAsJsonObject().getAsJsonArray("categories").contains(new JsonPrimitive("扩展区域世界任务")))
+                selection.rows.forEach((id, row) -> { if (selectedParents.contains(id) && row.get("kind").getAsString().equals("WQ") && !row.get("areaKnown").getAsBoolean()) omitted.add(id); });
+        }
+        forbidden.addAll(omitted);
+        if (!goal.stopBefore().isJsonNull()) {
+            if (!goal.stopBefore().isJsonObject() || goal.stopBefore().getAsJsonObject().size() != 1) throw new IllegalArgumentException("stopBefore 只允许 chapter、parent 或 sub 一个字段");
+            var boundary = goal.stopBefore().getAsJsonObject();
+            if (boundary.has("chapter")) {
+                int id = chapter(boundary.get("chapter")); var c = chapters.get(id);
+                stop = chapterEntries.getOrDefault(id, 0);
+                if (stop == 0) throw new IllegalArgumentException("章节缺少 beginQuestId，不能猜停止点：" + id);
+                if (!c.archon()) throw new IllegalArgumentException("非魔神章节没有全局顺序，请指定 stopBefore.parent 或 sub");
+                for (var prior : chapters.values()) if (prior.archon() && prior.tag() < c.tag()) {
+                    selectedChapters.add(prior.id()); parents.values().stream().filter(p -> p.chapterId() == prior.id() && !excluded(p)).forEach(p -> selectedParents.add(p.id()));
+                }
+                parents.values().stream().filter(p -> chapters.containsKey(p.chapterId()) && chapters.get(p.chapterId()).archon()
+                        && chapters.get(p.chapterId()).tag() >= c.tag()).forEach(p -> forbidden.add(p.id()));
+            } else if (boundary.has("parent")) {
+                int id = parent(boundary.get("parent")); stop = entry(id); forbidden.add(id);
+            } else if (boundary.has("sub")) stop = ProgressGoal.integerId(boundary.get("sub"), "stopBefore.sub");
+            else throw new IllegalArgumentException("stopBefore 只允许 chapter、parent 或 sub");
+            if (!catalog.subs().containsKey(stop)) throw new IllegalArgumentException("停止点子任务不存在：" + stop);
+        }
+        selectedParents.removeAll(forbidden);
         var targets = new TreeSet<>(goal.completeSubs());
         for (int id : selectedParents) {
+            if (selection.daily(id)) throw new IllegalArgumentException("每日委托不支持进度调整：" + id);
             var ends = catalog.subs().values().stream().filter(s -> s.mainId() == id && s.finishParent() && !QuestPlanner.failBranch(s)).toList();
-            if (ends.size() != 1) throw new IllegalArgumentException("主任务 " + id + " 的 finishParent 不唯一或缺失，请用 completeSubs 精确指定；候选：" + ends.stream().map(QuestCatalog.Sub::id).sorted().toList());
+            if (ends.size() != 1) {
+                String error = "主任务 " + id + " 的 finishParent 不唯一或缺失，请用 completeSubs 精确指定；候选：" + ends.stream().map(QuestCatalog.Sub::id).sorted().toList();
+                if (!diagnostic) throw new IllegalArgumentException(error);
+                issues.add(new QuestPlanner.Issue(id, "goal_resolution", error)); continue;
+            }
             targets.add(ends.getFirst().id());
         }
         for (int id : targets) if (!catalog.subs().containsKey(id)) throw new IllegalArgumentException("子任务不存在：" + id);
-        if (targets.isEmpty()) throw new IllegalArgumentException("进度目标为空");
-        return new Resolved(goal, List.copyOf(targets), List.copyOf(selectedParents), List.copyOf(selectedChapters));
+        for (int id : targets) {
+            int parent = catalog.subs().get(id).mainId();
+            if (selection.daily(parent)) throw new IllegalArgumentException("每日委托不支持进度调整：" + parent);
+            if (forbidden.contains(parent)) throw new IllegalArgumentException("显式子任务与排除/停止边界冲突：" + id);
+        }
+        if (targets.isEmpty() && stop == 0 && issues.isEmpty()) throw new IllegalArgumentException("进度目标为空：没有可证明符合条件的资源");
+        selection.rows.keySet().stream().filter(selection::daily).forEach(forbidden::add);
+        return new Resolved(goal, List.copyOf(targets), List.copyOf(selectedParents), List.copyOf(selectedChapters), stop, List.copyOf(forbidden), List.copyOf(omitted), List.copyOf(issues));
+    }
+    private int entry(int parent) {
+        var subs = catalog.subs().values().stream().filter(s -> s.mainId() == parent).toList();
+        int order = subs.stream().mapToInt(QuestCatalog.Sub::order).min().orElseThrow();
+        var first = subs.stream().filter(s -> s.order() == order).toList();
+        if (first.size() != 1) throw new IllegalArgumentException("主任务入口不唯一，候选：" + first.stream().map(QuestCatalog.Sub::id).toList());
+        return first.getFirst().id();
     }
     private boolean excluded(Parent p) { return p.titleZh().toLowerCase(Locale.ROOT).contains("(test)") || p.titleZh().contains("$HIDDEN"); }
-    private int parent(JsonElement ref) {
+    int parent(JsonElement ref) {
         Integer id = referenceId(ref, "id", "titleZh");
         if (id != null && parents.containsKey(id) && catalog.mains().containsKey(id)) return id;
         String name = referenceName(ref, "titleZh");
@@ -106,7 +169,7 @@ public final class ProgressGoalResolver {
         if (id == null && found.size() == 1) return found.getFirst().id();
         throw new IllegalArgumentException("主任务无法唯一解析：" + ref + "；候选：" + (found.isEmpty() ? parents.values().stream().filter(p -> name.isBlank() || p.titleZh().contains(name)).sorted(Comparator.comparingInt(Parent::id)).toList() : found));
     }
-    private int chapter(JsonElement ref) {
+    int chapter(JsonElement ref) {
         return chapter(ref, false);
     }
     private int chapter(JsonElement ref, boolean archonOnly) {
