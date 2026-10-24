@@ -30,6 +30,7 @@ import emu.grasscutter.game.managers.forging.*;
 import emu.grasscutter.game.managers.mapmark.*;
 import emu.grasscutter.game.managers.stamina.StaminaManager;
 import emu.grasscutter.game.props.*;
+import emu.grasscutter.game.player.migration.PlayerDataMigrations;
 import emu.grasscutter.game.quest.ForcedQuests;
 import emu.grasscutter.game.quest.QuestManager;
 import emu.grasscutter.game.quest.enums.*;
@@ -85,6 +86,7 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter private int profileFrameId = 100011;
     @Getter private Map<Integer, Set<Integer>> sceneTags;
     @Getter private int nameCardId = 210001;
+    @Getter @Setter private int dataMigrationVersion;
     @Getter private Position position;
     @Getter @Setter private Position prevPos;
     @Getter @Setter private Position prevPosForHome;
@@ -366,6 +368,7 @@ public class Player implements PlayerHook, FieldFetch {
 
     public Player(GameSession session) {
         this();
+        this.initializeDataMigrationVersion();
 
         this.account = session.getAccount();
         this.accountId = this.getAccount().getId();
@@ -392,6 +395,10 @@ public class Player implements PlayerHook, FieldFetch {
         this.cookingManager = new CookingManager(this);
         this.cookingCompoundManager = new CookingCompoundManager(this);
         this.satiationManager = new SatiationManager(this);
+    }
+
+    void initializeDataMigrationVersion() {
+        this.dataMigrationVersion = PlayerDataMigrations.LATEST;
     }
 
     @Override
@@ -1593,7 +1600,7 @@ public class Player implements PlayerHook, FieldFetch {
         }
 
         var runner = Grasscutter.getThreadPool();
-        runner.submit(() -> this.achievements = Achievements.getByPlayer(this));
+        var achievementsLoad = runner.submit(() -> this.achievements = Achievements.getByPlayer(this));
 
         var avatarsLoad = runner.submit(this.getAvatars()::loadFromDatabase);
         var inventoryLoad = runner.submit(this.getInventory()::loadFromDatabase);
@@ -1611,8 +1618,15 @@ public class Player implements PlayerHook, FieldFetch {
         // instead.
         awaitLoad("avatars", avatarsLoad);
         awaitLoad("inventory", inventoryLoad);
+        awaitLoad("achievements", achievementsLoad);
 
         this.getPlayerProgress().setPlayer(this);
+    }
+
+    /** What the startup data migration reads, for an account nobody is logged in to. */
+    public void loadForDataMigration() {
+        this.getAvatars().loadFromDatabase();
+        this.achievements = Achievements.getByPlayer(this);
     }
 
     private static final long LOAD_TIMEOUT_SECONDS = 30;
@@ -1635,6 +1649,12 @@ public class Player implements PlayerHook, FieldFetch {
     }
 
     public void onLogin() {
+        try {
+            PlayerDataMigrations.run(this, PlayerDataMigrations.DATABASE_BACKUP);
+        } catch (Exception e) {
+            Grasscutter.getLogger().error("Player migration failed unexpectedly uid={}", this.getUid(), e);
+        }
+
         // A trial avatar saved into a team (e.g. logging out inside a trial dungeon) has no avatar
         // to build an entity from.
         this.getTeamManager().removeUnownedAvatarsFromTeams();

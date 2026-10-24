@@ -200,6 +200,13 @@ public final class Grasscutter {
             Tools.createGmHandbooks(false);
             // Generate gacha mappings.
             Tools.generateGachaMappings();
+
+            // Run-once fixes to stored accounts, before anyone can log in.
+            try {
+                emu.grasscutter.game.player.migration.PlayerDataMigrations.runAll();
+            } catch (Exception e) {
+                logger.error("Startup player migration failed", e);
+            }
         }
 
         // Start servers.

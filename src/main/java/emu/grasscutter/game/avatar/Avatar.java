@@ -1290,6 +1290,13 @@ public class Avatar {
         return levels;
     }
 
+    /** The stored claims only; owning a card is not proof that level 10 was claimed. */
+    public Set<Integer> getStoredRewardedFetterLevels() {
+        return this.rewardedFetterLevels == null
+                ? Set.of()
+                : Collections.unmodifiableSet(this.rewardedFetterLevels);
+    }
+
     public void addRewardedFetterLevel(int fetterLevel) {
         if (this.rewardedFetterLevels == null) this.rewardedFetterLevels = new HashSet<>();
         this.rewardedFetterLevels.add(fetterLevel);
