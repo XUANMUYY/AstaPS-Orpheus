@@ -1,4 +1,4 @@
-# AstaPS
+# AstaPS-Orpheus
 
 English · [简体中文](README_zh-CN.md) · [繁體中文](README_zh-TW.md)
 
@@ -7,6 +7,23 @@ A private server for Genshin Impact **7.1.0**, built on Grasscutter.
 > This is a research and preservation project. It is not affiliated with, endorsed by, or connected to HoYoverse / miHoYo in any way, and it is not for commercial use.
 
 If you can fix a bug, please help me.
+
+## AstaPS-Orpheus development plan
+
+AstaPS-Orpheus is a downstream fork of [MeChen618/AstaPS](https://github.com/MeChen618/AstaPS). The upstream project and its contributors remain the foundation of this work.
+
+The plan is to replay the main story from a fresh save, identify and fix bugs encountered along the way, and gradually bring this version closer to the original game's experience. Initial priorities are the opening sequence, quest guidance, dialogue and cutscene triggers, and progression between main quests. This is a development goal, not a claim that the full story is already playable.
+
+Upstream changes will be merged regularly. Conflicts will be reviewed individually to preserve useful local changes while incorporating upstream fixes; builds and gameplay checks are required before deployment.
+
+### Current local changes
+
+- Skip packet delivery when an administrative operation targets an offline player without a session.
+- Resolve the current region from the configured regions instead of hard-coding `os_usa`.
+- Log HTTP method, path and status for diagnosis, without request bodies or query strings.
+- Provide an explicit, one-shot prologue bootstrap repair flag for saves created with quests disabled. Its native story behavior remains unverified; it is not a general quest-completion fix.
+
+Local account fixtures, saves, credentials, client binaries and resource packs are not included in this repository. The existing build and runtime requirements below still apply.
 
 ## Requirements
 
