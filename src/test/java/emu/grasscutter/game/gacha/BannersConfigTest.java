@@ -36,7 +36,7 @@ class BannersConfigTest {
                         .orElseThrow();
         assertFalse(std.isDisabled());
         assertEquals(224, std.getCostItem());
-        assertEquals("GachaShowPanel_A008", std.getPrefabPath());
+        assertEquals("GachaShowPanel_A280", std.getPrefabPath());
         assertTrue(std.isActiveAt(NOW_71_SECOND_HALF));
     }
 
