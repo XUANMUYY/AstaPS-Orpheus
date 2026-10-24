@@ -3069,6 +3069,7 @@ public final class PacketOpcodes {
     public static final int MusicGameBookAllDataNotify = 8786; // 7.1 packet of the same name
     public static final int Opcode6231 = -1012; // no 7.1 CmdId known
     public static final int PlayerOfferingReq = 4465; // 7.1 CmdId from kitkat-multiverse/genshin-protocol 7.1.0
+    public static final int PushTipsReadFinishReq = 22209; // 7.1 CmdId from kitkat-multiverse/genshin-protocol 7.1.0
     public static final int SetCoopChapterViewedRsp = -1014; // no 7.1 CmdId known
     public static final int SetReliquaryStarStateReq = 5672; // 7.1 packet of the same name
     public static final int SetReliquaryStarStateRsp = 7536; // 7.1 packet of the same name

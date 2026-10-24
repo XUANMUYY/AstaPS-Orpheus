@@ -7,6 +7,7 @@ import emu.grasscutter.data.excels.*;
 import emu.grasscutter.data.excels.quest.QuestData;
 import emu.grasscutter.game.dungeons.enums.DungeonPassConditionType;
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.player.PushTipsManager;
 import emu.grasscutter.game.props.ActionReason;
 import emu.grasscutter.game.props.WatcherTriggerType;
 import emu.grasscutter.game.quest.enums.*;
@@ -270,6 +271,12 @@ public class GameQuest {
                 .getActivityManager()
                 .triggerWatcher(
                         WatcherTriggerType.TRIGGER_FINISH_QUEST_AND, String.valueOf(this.subQuestId));
+        try {
+            PushTipsManager.of(this.getOwner()).onQuestFinished(this.subQuestId);
+        } catch (Throwable t) {
+            Grasscutter.getLogger()
+                    .warn("[PushTips] quest {} hook failed: {}", this.subQuestId, t.toString());
+        }
         this.getOwner()
                 .getScene()
                 .triggerDungeonEvent(DungeonPassConditionType.DUNGEON_COND_FINISH_QUEST, getSubQuestId());

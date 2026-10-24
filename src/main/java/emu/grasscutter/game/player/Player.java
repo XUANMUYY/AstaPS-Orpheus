@@ -1707,7 +1707,20 @@ public class Player implements PlayerHook, FieldFetch {
         session.send(new PacketBattlePassAllDataNotify(this));
         session.send(new PacketQuestListNotify(this));
         session.send(new PacketQuestGlobalVarNotify(this));
+        // Tips met before they were tracked, so the codex matches this account's progress.
+        try {
+            PushTipsManager.of(this)
+                    .backfill(
+                            subQuestId -> {
+                                var quest = this.getQuestManager().getQuestById(subQuestId);
+                                return quest != null && quest.getState() == QuestState.QUEST_STATE_FINISHED;
+                            },
+                            monsterId -> this.getCodex().getUnlockedAnimal().containsKey(monsterId));
+        } catch (RuntimeException e) {
+            Grasscutter.getLogger().warn("[PushTips] uid={} backfill failed", this.getUid(), e);
+        }
         session.send(new PacketCodexDataFullNotify(this));
+        session.send(new PacketPushTipsAllDataNotify(PushTipsManager.of(this).states()));
         session.send(new PacketAllWidgetDataNotify(this));
 
         this.achievements.onLogin(this);

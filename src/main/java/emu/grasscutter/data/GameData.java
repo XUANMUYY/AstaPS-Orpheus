@@ -210,6 +210,18 @@ public final class GameData {
             new Int2ObjectOpenHashMap<>();
 
     @Getter
+    private static final Int2ObjectMap<PushTipsConfigData> pushTipsConfigDataMap =
+            new Int2ObjectOpenHashMap<>();
+
+    @Getter
+    private static final Int2ObjectMap<PushTipsCodexExcelConfigData> pushTipsCodexExcelConfigDataMap =
+            new Int2ObjectOpenHashMap<>();
+
+    @Getter
+    private static final Int2ObjectMap<GlobalWatcherConfigData> globalWatcherConfigDataMap =
+            new Int2ObjectOpenHashMap<>();
+
+    @Getter
     private static final Int2ObjectMap<CodexMaterialData> codexMaterialDataIdMap =
             new Int2ObjectOpenHashMap<>();
 

@@ -4,10 +4,12 @@ import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.excels.achievement.AchievementData;
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.player.PushTipsManager;
 import emu.grasscutter.game.props.WatcherTriggerType;
 import emu.grasscutter.server.packet.send.PacketWatcherAllDataNotify;
 import emu.grasscutter.server.packet.send.PacketWatcherChangeNotify;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -32,7 +34,10 @@ public final class AchievementWatchers {
     }
 
     public static void sendAll(Player player) {
-        player.sendPacket(new PacketWatcherAllDataNotify(unfinishedIds(player.getAchievements())));
+        // Push tips watchers ride along: the client only reports triggers it was told to watch.
+        var ids = new LinkedHashSet<Integer>(unfinishedIds(player.getAchievements()));
+        ids.addAll(PushTipsManager.of(player).pendingWatcherIds());
+        player.sendPacket(new PacketWatcherAllDataNotify(new ArrayList<>(ids)));
     }
 
     /** WatcherEventNotify / WatcherEventStageNotify: progress one watcher by id. */
@@ -41,6 +46,7 @@ public final class AchievementWatchers {
         if (achievements.isInvalid(watcherId)) {
             Grasscutter.getLogger()
                     .debug("[Watcher] uid={} event for non-achievement watcher {}", player.getUid(), watcherId);
+            PushTipsManager.of(player).onWatcherEvent(watcherId);
             return;
         }
         addProgress(player, achievements, watcherId, addProgress);
