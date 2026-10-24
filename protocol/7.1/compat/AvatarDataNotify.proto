@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+import "AvatarInfo.proto";
+import "AvatarRenameInfo.proto";
+import "AvatarTeam.proto";
+
+option java_package = "emu.grasscutter.net.proto";
+
+// Field numbers from kitkat-multiverse/genshin-protocol 7.1.0. The base descriptor had the
+// glider and trace effect lists swapped (13/5), so the 7.1 client showed every owned glider and
+// trace effect locked while costumes on field 6 worked.
+message AvatarDataNotify {
+  repeated uint32 backup_avatar_team_order_list = 1;
+  repeated AvatarInfo avatar_list = 7;
+  repeated uint32 owned_costume_list = 6;
+  map<uint32, AvatarTeam> avatar_team_map = 8;
+  repeated AvatarRenameInfo avatar_rename_list = 14;
+  repeated uint32 _owned_trace_effect_list = 13;
+  repeated uint64 temp_avatar_guid_list = 12;
+  repeated uint32 owned_flycloak_list = 5;
+  uint64 choose_avatar_guid = 9;
+  uint32 cur_avatar_team_id = 3;
+}
