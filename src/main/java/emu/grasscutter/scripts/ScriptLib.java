@@ -44,6 +44,7 @@ import static emu.grasscutter.scripts.constants.GroupKillPolicy.*;
 public class ScriptLib {
     public static final Logger logger = Grasscutter.getLogger();
     private static final String BLOSSOM_SCHEDULE_STATE_KEY = "__blossomScheduleState";
+    private static final String BLOSSOM_SCHEDULE_PROGRESS_KEY = "__blossomScheduleProgress";
     private final FastThreadLocal<SceneScriptManager> sceneScriptManager;
     private final FastThreadLocal<SceneGroup> currentGroup;
     private final FastThreadLocal<ScriptArgs> callParams;
@@ -314,9 +315,32 @@ public class ScriptLib {
     }
 
     public int AddBlossomScheduleProgressByGroupId(int groupId) {
-        logger.warn("[LUA] Call unimplemented AddBlossomScheduleProgressByGroupId with {}", groupId);
-
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || targetGroupId <= 0) return 1;
+        var variables = manager.getVariables(targetGroupId);
+        int target = blossomFinishProgress(
+                GameData.getBlossomCampDataMap().values(), targetGroupId);
+        int previous = variables.getOrDefault(BLOSSOM_SCHEDULE_PROGRESS_KEY, 0);
+        if (previous >= target) return 0;
+        int progress = previous + 1;
+        variables.put(BLOSSOM_SCHEDULE_PROGRESS_KEY, progress);
+        if (progress == target) {
+            manager.callEvent(new ScriptArgs(targetGroupId,
+                    EventType.EVENT_BLOSSOM_PROGRESS_FINISH));
+        }
         return 0;
+    }
+
+    static int blossomFinishProgress(
+            Collection<emu.grasscutter.data.excels.BlossomCampData> camps, int groupId) {
+        for (var camp : camps) {
+            if (camp.getNewGroupVec() != null && camp.getNewGroupVec().contains(groupId)
+                    && camp.getFinishProgress() > 0) return camp.getFinishProgress();
+        }
+        // 推断：older groups absent from BlossomGroups have one completion action.
+        return 1;
     }
 
     public int AddExtraGroupSuite(int groupId, int suite) {
@@ -1325,6 +1349,7 @@ public class ScriptLib {
         if (manager == null || targetGroupId <= 0 || state < 0 || state > 3) return 1;
         // 推断：原生 Blossom schedule 的组状态由 Lua 设置；沿用已有可持久化的组变量缓存。
         manager.getVariables(targetGroupId).put(BLOSSOM_SCHEDULE_STATE_KEY, state);
+        if (state == 1) manager.getVariables(targetGroupId).put(BLOSSOM_SCHEDULE_PROGRESS_KEY, 0);
         return 0;
     }
 
