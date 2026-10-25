@@ -302,6 +302,7 @@ public class EntityGadget extends EntityBaseGadget {
                     case OfferingGadget ->
                             new emu.grasscutter.game.entity.gadget.GadgetOffering(this);
                     case Gadget -> new GadgetObject(this);
+                    case ViewPoint -> new emu.grasscutter.game.entity.gadget.GadgetViewPoint(this);
                     default -> null;
                 };
         try {

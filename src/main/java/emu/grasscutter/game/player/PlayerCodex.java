@@ -75,6 +75,12 @@ public class PlayerCodex {
     public void checkAddedItem(GameItem item) {
         val itemData = item.getItemData();
         val itemId = item.getItemId();
+        // 书籍图鉴：书都是任务道具，按道具 ID 查表，不受下面材料类型的限制
+        val codexBook = GameData.getCodexBookDataIdMap().get(itemId);
+        if (codexBook != null && this.getUnlockedBook().add(codexBook.getId())) {
+            this.player.save();
+            this.player.sendPacket(new PacketCodexDataUpdateNotify(5, codexBook.getId()));
+        }
         switch (itemData.getItemType()) {
             case ITEM_WEAPON -> {
                 Optional.ofNullable(GameData.getCodexWeaponDataIdMap().get(itemId))
@@ -113,6 +119,27 @@ public class PlayerCodex {
             }
             default -> {}
         }
+    }
+
+    /** 已解锁的书籍图鉴 ID：记录过的，加上背包里正拿着的书（记录功能上线前拿到的书也算）。 */
+    public Set<Integer> unlockedBooksIncludingHeld() {
+        var result = new TreeSet<>(this.getUnlockedBook());
+        if (this.player == null || this.player.getInventory() == null) return result;
+        GameData.getCodexBookDataIdMap().forEach((materialId, codexBook) -> {
+            if (this.player.getInventory().getItemCountById(materialId) > 0) result.add(codexBook.getId());
+        });
+        return result;
+    }
+
+    /** 景观图鉴：和表里登记的景观点交互后解锁。返回是否新解锁。 */
+    public boolean checkView(EntityGadget gadget) {
+        if (gadget == null || gadget.getGroupId() <= 0) return false;
+        val codexView = GameData.getCodexViewDataByConfigMap()
+                .get(emu.grasscutter.data.excels.codex.CodexViewData.configKey(gadget.getGroupId(), gadget.getConfigId()));
+        if (codexView == null || !this.getUnlockedView().add(codexView.getId())) return false;
+        this.player.save();
+        this.player.sendPacket(new PacketCodexDataUpdateNotify(7, codexView.getId()));
+        return true;
     }
 
     public void checkAnimal(GameEntity target, CodexAnimalData.CountType countType) {
