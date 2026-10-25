@@ -272,6 +272,7 @@ public class ChatSystem implements ChatSystemHandler {
         }
 
         if (serverHistory.isEmpty()) {
+            player.sendPacket(new PacketPullRecentChatRsp(List.of()));
             return;
         }
 
