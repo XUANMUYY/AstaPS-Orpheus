@@ -4,272 +4,367 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>AstaPS 管理页</title>
+<title>Orpheus 后台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+  /* 布局和配色照「原神后台管理页模板」：左侧深色导航、白色卡片、蓝色主按钮 */
   :root {
-    --bg: #f4f5f7; --panel: #ffffff; --panel-2: #f8f9fb; --text: #15171c; --muted: #6a717d;
-    --border: #e2e5ea; --accent: #3b5bdb; --accent-soft: #e8edff; --accent-text: #ffffff;
-    --ok: #1f8a4c; --warn: #b7791f; --bad: #c92a2a; --ok-soft: #e6f4ec; --warn-soft: #fbf1df; --bad-soft: #fbe7e7;
-    --radius: 12px; --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .06);
-    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0f1115; --panel: #171a21; --panel-2: #1c2029; --text: #e7e9ee; --muted: #959cab;
-      --border: #272c37; --accent: #6d8cff; --accent-soft: #1f2742; --accent-text: #0d1016;
-      --ok: #4cc283; --warn: #e3b04b; --bad: #ff7b7b; --ok-soft: #15291f; --warn-soft: #2d2414; --bad-soft: #321a1c;
-      --shadow: 0 1px 2px rgba(0, 0, 0, .3);
-    }
+    --bg: #F4F5F7; --panel: #FFFFFF; --text: #1B1F24; --muted: #5B6470; --border: #DDE1E6; --line: #EEF0F2;
+    --accent: #2457C5; --accent-dark: #163C8F; --accent-soft: #E8EEFA;
+    --nav: #1C2330; --nav-text: #C9D1DC; --nav-active: #2B3546; --nav-muted: #9AA5B4;
+    --ok: #2E6B45; --ok-soft: #E5F3EA; --warn: #7A4A0C; --warn-soft: #FBF1E4; --bad: #A33A3A; --bad-soft: #FBE9E9;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
-  body { background: var(--bg); color: var(--text); min-height: 100vh;
-    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.5 "Noto Sans SC", system-ui, "Microsoft YaHei", sans-serif; }
+  input, select, button, textarea { font-family: inherit; font-size: 14px; color: inherit; }
+  a { color: var(--accent); } a:hover { color: var(--accent-dark); }
   .hidden { display: none !important; }
-  button, input, select, textarea { font: inherit; color: inherit; }
-  button { cursor: pointer; border: 1px solid var(--border); background: var(--panel); border-radius: 8px; padding: 6px 12px; }
-  button:hover { background: var(--panel-2); }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
-  button.danger { border-color: var(--bad); color: var(--bad); }
-  button.small { padding: 2px 8px; font-size: 12px; }
-  input[type=text], input[type=password], input[type=number], input[type=search], input[type=datetime-local], select, textarea {
-    padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); min-width: 0; }
-  textarea { width: 100%; resize: vertical; }
-  label { display: inline-flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
-  label > input, label > select, label > textarea { color: var(--text); font-size: 14px; }
-  label.inline { flex-direction: row; align-items: center; gap: 6px; }
 
-  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    padding: 8px 20px; background: var(--panel); border-bottom: 1px solid var(--border); }
-  .brand { font-weight: 650; display: flex; gap: 8px; align-items: center; }
-  .logo { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
-    background: linear-gradient(135deg, var(--accent), #8a5cf6); color: #fff; font-size: 12px; font-weight: 700; }
-  nav { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
-  nav a { padding: 5px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 13px; }
-  nav a:hover { background: var(--panel-2); color: var(--text); }
-  nav a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-  nav a.later { opacity: .55; }
+  /* 控件 */
+  .input { height: 44px; border: 1px solid var(--border); border-radius: 8px; padding: 0 12px; background: #FFFFFF; min-width: 0; }
+  .input.sm { height: 34px; border-radius: 6px; padding: 0 8px; font-size: 13px; }
+  textarea.input { height: auto; padding: 10px 12px; line-height: 1.7; resize: vertical; width: 100%; }
+  select.input { padding: 0 10px; }
+  .btn { height: 44px; padding: 0 18px; border: 1px solid var(--border); background: #FFFFFF; border-radius: 10px; cursor: pointer; }
+  .btn:hover { background: #F7F8FA; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.primary { border: none; background: var(--accent); color: #FFFFFF; font-weight: 500; }
+  .btn.primary:hover { background: var(--accent-dark); }
+  .btn.outline { border-color: var(--accent); color: var(--accent); }
+  .btn.sm { height: 32px; padding: 0 12px; border-radius: 6px; font-size: 13px; }
+  .btn.icon { width: 32px; height: 32px; padding: 0; border-radius: 6px; }
+  .btn.danger { color: var(--bad); }
+  .pill { height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border); background: #FFFFFF; cursor: pointer; }
+  .pill.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-dark); font-weight: 500; }
+  .badge { display: inline-block; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--line); color: var(--muted); white-space: nowrap; }
+  .badge.ok { color: var(--ok); background: var(--ok-soft); }
+  .badge.warn { color: var(--warn); background: var(--warn-soft); }
+  .badge.bad { color: var(--bad); background: var(--bad-soft); }
+  .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+  .field > .input { color: var(--text); font-size: 14px; }
+  .muted { color: var(--muted); } .small { font-size: 12px; } .note { margin: 0; font-size: 12px; line-height: 1.6; color: var(--muted); }
+  .switch { width: 44px; height: 26px; border-radius: 999px; border: none; padding: 3px; cursor: pointer; display: flex; align-items: center; background: #C3C9D1; justify-content: flex-start; }
+  .switch[aria-checked=true] { background: var(--accent); justify-content: flex-end; }
+  .switch span { width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; display: block; }
 
-  main { max-width: 1280px; margin: 0 auto; padding: 20px; display: grid; gap: 16px; }
-  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); min-width: 0; }
-  .panel > h2 { font-size: 15px; margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .panel > .body { padding: 14px; display: grid; gap: 12px; }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-  .hint { color: var(--muted); font-size: 12px; margin: 0; }
-  .note { padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); border: 1px solid var(--warn); font-size: 13px; }
-  .cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
-  @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } main { padding: 12px; } }
+  /* 框架 */
+  #app { min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch; }
+  nav { flex: 1 1 220px; max-width: 100%; background: var(--nav); color: var(--nav-text); padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; }
+  @media (min-width: 900px) { nav { max-width: 240px; position: sticky; top: 0; height: 100vh; } }
+  nav .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 20px; }
+  nav .logo { width: 32px; height: 32px; border-radius: 8px; background: var(--accent); color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  nav a, nav .item { color: var(--nav-text); text-decoration: none; padding: 11px 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  nav a:hover { color: #FFFFFF; background: #232C3B; }
+  nav a[aria-current=page] { color: #FFFFFF; background: var(--nav-active); font-weight: 500; }
+  nav .sep { height: 1px; background: var(--nav-active); margin: 12px 4px; }
+  nav .tag { font-size: 12px; color: var(--nav-muted); } nav .tag.live { color: #8FD3A8; }
+  nav .spacer { flex: 1; }
+  nav button { background: transparent; border: 1px solid var(--nav-active); color: var(--nav-text); border-radius: 8px; height: 40px; cursor: pointer; }
+  main { flex: 999 1 560px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+  @media (max-width: 700px) { main { padding: 20px 16px; } }
+  .page { display: flex; flex-direction: column; gap: 20px; }
+  .page-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; }
+  .page-head h1 { margin: 0; font-size: 24px; font-weight: 700; }
+  .page-head p { margin: 4px 0 0; color: var(--muted); }
+  .wrap { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .card h2 { margin: 0; font-size: 17px; }
+  .card h3 { margin: 0; font-size: 14px; color: var(--muted); font-weight: 500; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .between { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .list-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
+  .empty { margin: 0; padding: 24px 0; text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: 8px; }
+  .table-box { overflow: auto; max-height: 620px; }
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { color: var(--muted); font-weight: 500; font-size: 12px; position: sticky; top: 0; background: var(--panel); }
-  .scroll { max-height: 420px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
-  .mono { font-family: var(--mono); font-size: 12px; }
-  .tag { display: inline-block; padding: 0 6px; border-radius: 6px; font-size: 11px; background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); }
-  .tag.ok { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
-  .tag.bad { background: var(--bad-soft); color: var(--bad); border-color: var(--bad); }
-  .r5 { color: #c0841a; } .r4 { color: #8a5cf6; } .r3 { color: #3b82f6; } .r2 { color: #22a06b; }
+  th { font-weight: 500; color: var(--muted); font-size: 13px; text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; background: #FFFFFF; z-index: 1; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td.changed { background: #FFF8EC; }
 
-  /* 物品选择器 */
-  .picker { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 10px; }
-  @media (max-width: 700px) { .picker { grid-template-columns: minmax(0, 1fr); } }
-  .cats { max-height: 420px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
-  .cats div { padding: 4px 10px; cursor: pointer; display: flex; justify-content: space-between; gap: 6px; }
-  .cats div.sub { padding-left: 22px; font-size: 12px; color: var(--muted); }
-  .cats div:hover { background: var(--panel-2); }
-  .cats div.active { background: var(--accent-soft); color: var(--accent); }
+  /* 物品卡片 */
+  .cats { flex: 1 1 180px; max-width: 100%; padding: 12px; gap: 2px; max-height: 760px; overflow: auto; }
+  @media (min-width: 1100px) { .cats { max-width: 220px; } }
+  .cats button { display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 12px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: #FFFFFF; width: 100%; }
+  .cats button:hover { background: #F7F8FA; }
+  .cats button.on { background: var(--accent-soft); color: var(--accent-dark); font-weight: 500; }
+  .cats button span:last-child { font-size: 12px; color: var(--muted); }
+  .items { flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 12px; }
+  .item-card { background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  .item-card .band { height: 4px; }
+  .item-card .body { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .item-card h3 { margin: 0; font-size: 15px; font-weight: 500; color: var(--text); }
+  .item-card .meta { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .item-card .stars { font-size: 12px; letter-spacing: 1px; padding: 2px 8px; border-radius: 999px; }
+  .item-card .btn { margin-top: auto; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips button { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border); background: #FFFFFF; cursor: pointer; font-size: 13px; }
+  .chips button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-dark); }
+  .basket { flex: 1 1 300px; max-width: 100%; }
+  @media (min-width: 1100px) { .basket { max-width: 340px; position: sticky; top: 20px; } }
+  .basket-line { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+  .basket-line .name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .basket-line input { width: 84px; text-align: center; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
 
-  #toast { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 20; max-width: min(460px, calc(100vw - 32px)); }
-  #toast div { padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow); background: var(--panel); border: 1px solid var(--border); white-space: pre-wrap; }
-  #toast div.ok { border-color: var(--ok); } #toast div.bad { border-color: var(--bad); color: var(--bad); }
+  /* 邮件预览 */
+  .preview { background: #2A2F3A; border-radius: 12px; padding: 18px; color: #ECE5D8; display: flex; flex-direction: column; gap: 12px; }
+  .preview h2 { margin: 0; font-size: 17px; color: #F3EEE3; word-break: break-word; }
+  .preview p { margin: 0; font-size: 13px; line-height: 1.8; white-space: pre-line; color: #DCD4C4; word-break: break-word; }
+  .preview .sub { font-size: 12px; color: #B7AE9E; }
+  .preview .att { width: 64px; height: 64px; border-radius: 8px; background: #3A4150; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 0 2px 6px; font-size: 11px; text-align: center; overflow: hidden; border-bottom: 3px solid transparent; }
 
-  #login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
-  #login form { width: 100%; max-width: 340px; display: grid; gap: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+  /* 账户编辑 */
+  .summary { flex-direction: row; flex-wrap: wrap; gap: 28px; align-items: center; padding: 18px 22px; }
+  .summary .avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-dark); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; }
+  .summary .kv { display: flex; flex-direction: column; gap: 2px; } .summary .kv span:first-child { font-size: 13px; color: var(--muted); } .summary .kv span:last-child { font-size: 16px; font-weight: 500; }
+  [role=tablist] { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); }
+  [role=tab] { height: 44px; padding: 0 18px; border: none; background: transparent; cursor: pointer; margin-bottom: -1px; color: var(--muted); border-bottom: 2px solid transparent; }
+  [role=tab][aria-selected=true] { color: var(--accent-dark); font-weight: 500; border-bottom-color: var(--accent); }
+  .num { width: 64px; } .num.wide { width: 120px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+
+  #toast { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 50; max-width: min(460px, calc(100vw - 32px)); }
+  #toast div { padding: 12px 16px; border-radius: 10px; background: #FFFFFF; border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(20, 30, 50, .12); white-space: pre-wrap; }
+  #toast div.ok { border-left: 4px solid var(--ok); } #toast div.bad { border-left: 4px solid var(--bad); color: var(--bad); }
+
+  #login { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--nav); }
+  #login form { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; background: #FFFFFF; border-radius: 12px; padding: 28px; }
   #login-error { color: var(--bad); margin: 0; min-height: 1.5em; font-size: 13px; }
 </style>
 </head>
 <body>
 <section id="login" class="hidden">
   <form id="login-form">
-    <div class="brand"><span class="logo">AP</span> AstaPS 管理页</div>
-    <input id="password" type="password" placeholder="控制台密码" autocomplete="current-password" required>
-    <button class="primary" type="submit">登录</button>
+    <div class="row"><span class="logo" style="width:32px;height:32px;border-radius:8px;background:#2457C5;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">O</span><b>Orpheus 后台</b></div>
+    <label class="field">控制台密码<input id="password" class="input" type="password" autocomplete="current-password" required></label>
+    <button class="btn primary" type="submit">登录</button>
     <p id="login-error" role="alert"></p>
   </form>
 </section>
 
-<section id="app" class="hidden">
-  <header>
-    <div class="brand"><span class="logo">AP</span> 管理页</div>
-    <nav id="nav">
-      <a href="/console">控制台 / 任务调整</a>
-      <a href="#notice" data-page="notice">全服公告</a>
-      <a href="#mail" data-page="mail">发邮件</a>
-      <a href="#account" data-page="account">账户编辑</a>
-      <a href="#give" data-page="give">发物品</a>
-      <a href="#gacha" data-page="gacha" class="later">卡池排期</a>
-      <a href="#activity" data-page="activity">活动排期</a>
-    </nav>
-    <button id="logout" type="button" class="small">退出登录</button>
-  </header>
+<div id="app" class="hidden">
+  <nav aria-label="后台导航">
+    <div class="brand"><div class="logo">O</div><div style="display:flex;flex-direction:column"><span style="color:#fff;font-weight:700;font-size:15px">Orpheus 后台</span><span class="tag">原神 7.1 自用服</span></div></div>
+    <a href="#schedule" data-page="schedule">公告与活动</a>
+    <a href="#mail" data-page="mail">发邮件</a>
+    <a href="#account" data-page="account">账户编辑</a>
+    <a href="#give" data-page="give">发物品</a>
+    <div class="sep"></div>
+    <a href="/console#quest"><span>任务进度</span><span class="tag live">已上线</span></a>
+    <a href="#gacha" data-page="gacha"><span>卡池排期</span><span class="tag">另行开发</span></a>
+    <a href="/console">日志与命令</a>
+    <div class="spacer"></div>
+    <button id="logout" type="button">退出登录</button>
+  </nav>
+
   <main id="pages">
-    <section data-page="gacha" class="panel"><h2>卡池排期</h2><div class="body">
-      <p class="hint">卡池排期由另一个开发会话负责，完成后放在这里。现在请直接改 <span class="mono">Banners.json</span>（<span class="mono">disabled</span>、<span class="mono">beginTime</span>、<span class="mono">endTime</span>）。</p>
-    </div></section>
-    <section data-page="notice" class="panel hidden"><h2>全服公告</h2><div class="body">
-      <p class="hint">弹窗：客户端弹出要点「确定」的消息框。顶部：屏幕上方的系统公告，不打断操作。只发给发送时在线的玩家，不补发。</p>
-      <div class="row">
-        <label>形式<select id="n-type"><option value="banner">顶部公告</option><option value="popup">弹窗</option></select></label>
-        <label>发送时间（留空＝立即）<input id="n-at" type="datetime-local"></label>
-        <label>共发几次<input id="n-times" type="number" min="1" max="1000" value="1" style="width:90px"></label>
-        <label>间隔（分钟）<input id="n-repeat" type="number" min="0" value="0" style="width:90px"></label>
-      </div>
-      <label>内容（最多 500 字）<textarea id="n-content" rows="3" maxlength="500" placeholder="例如：服务器将于 22:00 重启维护，请提前下线。"></textarea></label>
-      <div class="row"><button id="n-send" type="button" class="primary">发送 / 加入排期</button><button id="n-refresh" type="button">刷新列表</button></div>
-      <div class="scroll"><table><thead><tr><th>形式</th><th>内容</th><th>下次 / 最后发送</th><th>进度</th><th>状态</th><th></th></tr></thead><tbody id="n-list"></tbody></table></div>
-    </div></section>
-    <section data-page="mail" class="hidden" style="display:grid;gap:16px">
-      <div class="panel"><h2>发邮件</h2><div class="body">
-        <p class="hint">走游戏邮件：在线玩家马上收到新邮件提示，离线玩家下次登录可见；附件在游戏里领取。附件超过 10 个会拆成多封。</p>
-        <div class="row">
-          <label>收件人<select id="m-target"></select></label><button id="m-players" type="button" class="small">刷新玩家</button>
-          <label>发件人<input id="m-sender" type="text" value="派蒙" style="width:120px"></label>
-          <label>有效期（天）<input id="m-days" type="number" min="1" max="3650" value="30" style="width:90px"></label>
-          <label class="inline"><input id="m-star" type="checkbox"> 星标（重要邮件）</label>
-        </div>
-        <label>标题（最多 60 字）<input id="m-title" type="text" maxlength="60" placeholder="例如：维护补偿"></label>
-        <label>正文（最多 2000 字）<textarea id="m-content" rows="4" maxlength="2000" placeholder="旅行者，感谢你的耐心等待……"></textarea></label>
-      </div></div>
-      <div class="cols">
-        <div class="panel"><h2>挑附件</h2><div class="body" id="m-picker"></div></div>
-        <div class="panel"><h2>附件</h2><div class="body">
-          <div class="scroll"><table><thead><tr><th>物品</th><th>数量</th><th></th></tr></thead><tbody id="m-basket"></tbody></table></div>
-          <div class="row"><button id="m-send" type="button" class="primary">发送</button><button id="m-clear" type="button">清空附件</button></div>
-        </div></div>
-      </div>
-      <div class="panel"><h2>最近发送</h2><div class="body"><div class="scroll"><table><thead><tr><th>时间</th><th>收件人</th><th>标题</th><th>附件</th><th>结果</th></tr></thead><tbody id="m-history"></tbody></table></div></div></div>
-    </section>
-    <section data-page="give" class="hidden" style="display:grid;gap:16px">
-      <div class="panel"><h2>发物品</h2><div class="body">
-        <div class="row">
-          <label>玩家<select id="g-player"></select></label><button id="g-players" type="button" class="small">刷新玩家</button>
-          <label>方式<select id="g-mode">
-            <option value="auto">自动：在线进背包，离线或放不下发邮件</option>
-            <option value="bag">只进背包（需在线，放不下的不发）</option>
-            <option value="mail">只发邮件</option>
-          </select></label>
-        </div>
-        <div class="row" id="g-quick"><span class="hint">常用：</span></div>
-        <p class="hint">进背包会弹「获得物品」提示，并先整档备份。左边按分类挑，可以搜中文名或 ID。</p>
-      </div></div>
-      <div class="cols">
-        <div class="panel"><h2>物品清单</h2><div class="body" id="g-picker"></div></div>
-        <div class="panel"><h2>发放篮</h2><div class="body">
-          <div class="scroll"><table><thead><tr><th>物品</th><th>数量</th><th></th></tr></thead><tbody id="g-basket"></tbody></table></div>
-          <div class="row"><button id="g-send" type="button" class="primary">发放</button><button id="g-clear" type="button">清空</button></div>
-          <pre id="g-result" class="hint" style="white-space:pre-wrap;margin:0"></pre>
-        </div></div>
+
+    <!-- 公告与活动 -->
+    <section class="page hidden" data-page="schedule">
+      <div class="page-head"><div><h1>公告与活动</h1><p>公告立即或定时发给在线玩家；活动在这里关闭或改时间，<b>重启服务端后生效</b>，玩家重新登录看到。</p></div></div>
+      <div class="wrap">
+        <section class="card" aria-label="全服公告" style="flex:1 1 340px;max-width:100%">
+          <h2>全服公告</h2>
+          <label class="field">内容<textarea id="n-content" class="input" rows="3" maxlength="500" placeholder="例如：服务器将于 22:00 停服更新，预计 10 分钟。"></textarea></label>
+          <div class="row">
+            <button type="button" class="pill" data-kind="popup">弹窗</button>
+            <button type="button" class="pill on" data-kind="banner">顶部滚动</button>
+            <span style="flex:1 1 auto"></span>
+            <select id="n-when" class="input" aria-label="发布时间"><option value="now">立即发布</option><option value="later">定时发布</option></select>
+          </div>
+          <div id="n-later" class="row hidden">
+            <label class="field">发送时间<input id="n-at" class="input" type="datetime-local"></label>
+            <label class="field">共发几次<input id="n-times" class="input num" type="number" min="1" max="1000" value="1"></label>
+            <label class="field">间隔（分钟）<input id="n-repeat" class="input num" type="number" min="0" value="0"></label>
+          </div>
+          <button id="n-send" type="button" class="btn primary">发布公告</button>
+          <p class="note">只发给发送时在线的玩家，不补发。弹窗要点「确定」才关；顶部滚动不打断操作。</p>
+          <div style="height:1px;background:var(--line)"></div>
+          <h3>排队中</h3>
+          <div id="n-queue" style="display:flex;flex-direction:column;gap:8px"></div>
+          <h3>最近发出</h3>
+          <div id="n-done" style="display:flex;flex-direction:column;gap:8px"></div>
+        </section>
+
+        <section class="card" aria-label="活动排期" style="flex:999 1 560px">
+          <div class="between"><h2>活动排期</h2><span class="muted small" id="v-count"></span></div>
+          <div class="row">
+            <input id="v-search" class="input sm" type="search" placeholder="搜索活动名或 ID" style="flex:1 1 200px">
+            <select id="v-filter" class="input sm" aria-label="显示范围"><option value="configured">已配置或已改过的</option><option value="handler">有专用玩法的</option><option value="all">资源里全部活动</option></select>
+          </div>
+          <div class="table-box"><table>
+            <thead><tr><th>开关</th><th>活动</th><th>开始</th><th>结束</th><th>服务端玩法</th><th>现在</th></tr></thead>
+            <tbody id="v-list"></tbody>
+          </table></div>
+          <p class="note">默认配置里没有的活动，打开时必须填起止时间；排期号按「活动号×1000+1」推断，客户端不认时活动不会出现。</p>
+          <div class="row" style="justify-content:flex-end">
+            <span class="muted small" id="v-dirty"></span>
+            <button id="v-reset" type="button" class="btn">恢复默认</button>
+            <button id="v-save" type="button" class="btn primary">保存排期</button>
+          </div>
+        </section>
       </div>
     </section>
-    <section data-page="account" class="hidden" style="display:grid;gap:16px">
-      <div class="panel"><h2>账户编辑</h2><div class="body">
-        <p class="note">只能改<b>在线</b>玩家。改动用游戏自己的接口实时同步到客户端，不会踢下线；命座往下调时会自动重载一次场景（画面闪一下）。每次保存前都会整档备份到 <span class="mono">backups/admin-account-*</span>。</p>
-        <div class="row"><label>玩家<select id="a-player"></select></label><button id="a-players" type="button" class="small">刷新玩家</button><button id="a-load" type="button" class="primary">读取</button><span class="hint" id="a-backup"></span></div>
-      </div></div>
-      <div id="a-body" class="hidden" style="display:grid;gap:16px">
-        <div class="cols">
-          <div class="panel"><h2>基本信息</h2><div class="body">
-            <div class="row">
-              <label>冒险等级<input id="a-level" type="number" min="1" max="60" style="width:90px"></label>
-              <label>世界等级<input id="a-wl" type="number" min="0" max="9" style="width:90px"></label>
-              <label>冒险阅历（当前级内）<input id="a-exp" type="number" min="0" style="width:120px"></label>
-              <button id="a-save-player" type="button">保存</button>
-            </div>
-          </div></div>
-          <div class="panel"><h2>货币</h2><div class="body"><table><tbody id="a-currencies"></tbody></table></div></div>
-        </div>
-        <div class="panel"><h2>角色</h2><div class="body">
-          <div class="row"><label>加入角色<select id="a-addable"></select></label><button id="a-add" type="button">加入</button><span class="hint">删除角色游戏里没有对应流程，不提供。</span></div>
-          <div class="scroll"><table><thead><tr><th>角色</th><th>等级</th><th>突破</th><th>命座</th><th>天赋（普攻 / 战技 / 爆发）</th><th>好感</th><th>武器</th><th></th></tr></thead><tbody id="a-avatars"></tbody></table></div>
-        </div></div>
-        <div class="panel"><h2>武器</h2><div class="body">
-          <input id="a-wfilter" type="search" placeholder="按名称筛选">
-          <div class="scroll"><table><thead><tr><th>武器</th><th>等级</th><th>突破</th><th>精炼</th><th>装备于</th><th>锁</th><th></th></tr></thead><tbody id="a-weapons"></tbody></table></div>
-        </div></div>
-        <div class="panel"><h2>圣遗物</h2><div class="body">
-          <input id="a-rfilter" type="search" placeholder="按名称、部位、主词条筛选">
-          <div class="scroll"><table><thead><tr><th>圣遗物</th><th>等级</th><th>主词条</th><th>副词条</th><th>装备于</th><th>锁</th><th></th></tr></thead><tbody id="a-relics"></tbody></table></div>
-          <p class="hint">圣遗物只能往上升级，每 4 级按游戏规则随机加一条或强化一条副词条。最多显示 300 件，用筛选找。</p>
-        </div></div>
-        <div class="panel"><h2>背包材料</h2><div class="body">
-          <input id="a-mfilter" type="search" placeholder="按名称、分类或 ID 筛选">
-          <div class="scroll"><table><thead><tr><th>物品</th><th>分类</th><th>数量</th><th></th></tr></thead><tbody id="a-materials"></tbody></table></div>
-          <p class="hint">改成 0 等于全部扣掉。要加新材料请用「发物品」页。最多显示 300 条。</p>
-        </div></div>
+
+    <!-- 发邮件 -->
+    <section class="page hidden" data-page="mail">
+      <div class="page-head"><div><h1>发邮件</h1><p>单人或全服。附件从物品清单里挑，玩家在游戏邮箱里领取。</p></div></div>
+      <div class="wrap">
+        <form class="card" style="flex:999 1 460px;padding:22px;gap:18px" onsubmit="return false">
+          <div class="row">
+            <span class="field" style="width:100%">收件人</span>
+            <button type="button" class="pill on" data-to="one">单个玩家</button>
+            <button type="button" class="pill" data-to="all">全服（含离线）</button>
+            <span id="m-one" class="row"><label for="m-uid" class="muted" style="font-size:13px;margin-left:8px">UID</label><input id="m-uid" class="input" list="player-list" style="width:160px" placeholder="输入或选择"><span id="m-uid-state"></span></span>
+            <span id="m-all" class="badge warn hidden" style="padding:8px 12px;border-radius:8px"></span>
+          </div>
+          <label class="field">标题<input id="m-title" class="input" maxlength="60" placeholder="例如：维护补偿"></label>
+          <label class="field">正文<textarea id="m-content" class="input" rows="5" maxlength="2000" placeholder="旅行者你好：&#10;感谢参与本轮测试，这是一点心意，请查收。"></textarea></label>
+          <div class="row" style="gap:16px;align-items:flex-end">
+            <label class="field" style="flex:1 1 140px">发件人<input id="m-sender" class="input" value="派蒙"></label>
+            <label class="field" style="flex:1 1 120px">有效期<select id="m-days" class="input"><option value="30">30 天</option><option value="7">7 天</option><option value="3650">永久</option></select></label>
+            <label class="field" style="flex:1 1 140px">发送时间<select id="m-when" class="input"><option value="now">立即发送</option><option value="later">定时发送</option></select></label>
+            <label class="field hidden" id="m-at-wrap" style="flex:1 1 200px">定时<input id="m-at" class="input" type="datetime-local"></label>
+          </div>
+          <label class="row" style="font-size:14px"><input id="m-star" type="checkbox"> 星标（重要邮件）</label>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="between"><span class="muted" style="font-size:13px">附件（<span id="m-att-count">0</span> 项，超过 10 项会拆成多封）</span><button type="button" id="m-pick-toggle" class="btn sm outline">从物品清单添加</button></div>
+            <div id="m-atts" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+          <div id="m-picker" class="hidden" style="border:1px solid var(--border);border-radius:12px;padding:12px"></div>
+          <div class="row" style="justify-content:flex-end">
+            <select id="m-tpl" class="input" aria-label="邮件模板" style="max-width:220px"><option value="">载入模板…</option></select>
+            <button type="button" id="m-tpl-save" class="btn">存为模板</button>
+            <button type="button" id="m-send" class="btn primary">发送</button>
+          </div>
+        </form>
+        <aside style="flex:1 1 320px;max-width:100%;display:flex;flex-direction:column;gap:16px">
+          <section class="preview" aria-label="游戏内预览">
+            <span class="sub">游戏内预览</span>
+            <h2 id="p-title">（标题）</h2>
+            <p id="p-body"></p>
+            <span class="sub" id="p-meta"></span>
+            <div id="p-atts" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          </section>
+          <section class="card" aria-label="最近发送" style="padding:16px;gap:10px">
+            <h2 style="font-size:15px">待发送</h2>
+            <div id="m-scheduled" style="display:flex;flex-direction:column;gap:8px"></div>
+            <h2 style="font-size:15px">最近发送</h2>
+            <div id="m-history" style="display:flex;flex-direction:column;gap:8px"></div>
+          </section>
+        </aside>
       </div>
     </section>
-    <section data-page="activity" class="panel hidden"><h2>活动排期</h2><div class="body">
-      <p class="note">改动写在 <span class="mono" id="v-file">data/admin/activity-schedule.json</span>，<b>重启服务端后生效</b>，玩家要重新登录才看到新的活动排期。能不能真玩取决于活动有没有专用处理器（「处理器」一列），没有的只能在活动页里看到。</p>
-      <div class="row">
-        <input id="v-search" type="search" placeholder="搜索活动名、ID、类型">
-        <label>显示<select id="v-filter">
-          <option value="configured">已配置或已改过的</option><option value="handler">有专用处理器的</option><option value="all">全部活动</option>
-        </select></label>
-        <button id="v-refresh" type="button" class="small">刷新</button><span class="hint" id="v-count"></span>
+
+    <!-- 账户编辑 -->
+    <section class="page hidden" data-page="account">
+      <div class="page-head">
+        <div><h1>账户编辑</h1><p>改动先进待保存列表，确认后一次写入；写入前自动备份存档。</p></div>
+        <div class="row"><label for="a-player" class="muted" style="font-size:13px">玩家</label><select id="a-player" class="input" style="min-width:280px"></select><button id="a-reload" type="button" class="btn sm">刷新</button></div>
       </div>
-      <div class="scroll" style="max-height:640px"><table><thead><tr><th>活动</th><th>处理器</th><th>现在</th><th>默认配置</th><th>开启</th><th>开始</th><th>结束</th><th></th></tr></thead><tbody id="v-list"></tbody></table></div>
-      <p class="hint">默认配置里没有的活动，打开时必须填起止时间；排期号按「活动号×1000+1」推断（已有活动都是这个规律），客户端不认时活动不会出现。</p>
-    </div></section>
-    <!-- PAGES -->
+      <p id="a-hint" class="empty">选一个在线玩家。离线玩家改不了：玩家在线时内存存档才是最新的，直接改库会被下一次存档盖掉。</p>
+      <div id="a-body" class="hidden" style="display:flex;flex-direction:column;gap:20px">
+        <section class="card summary">
+          <div class="avatar" id="a-initial">旅</div>
+          <div class="kv"><span>昵称</span><span id="a-s-name"></span></div>
+          <div class="kv"><span>冒险等级</span><span id="a-s-level"></span></div>
+          <div class="kv"><span>世界等级</span><span id="a-s-wl"></span></div>
+          <div class="kv"><span>状态</span><span class="badge ok">在线 · 改动实时同步，不会下线</span></div>
+        </section>
+        <div role="tablist" aria-label="编辑分类" id="a-tabs"></div>
+        <div class="wrap">
+          <section class="card" style="flex:999 1 520px" id="a-panel"></section>
+          <aside class="card" aria-label="待保存" style="flex:1 1 280px;max-width:100%;gap:12px">
+            <h2 style="font-size:16px">待保存的改动</h2>
+            <div id="a-pending" style="display:flex;flex-direction:column;gap:8px"></div>
+            <p class="note">保存时：先备份存档 → 逐项用游戏接口改 → 立即同步到客户端，不踢下线。命座往下调会重载一次场景（画面闪一下）；昵称和签名重新登录后显示。备份在服务端目录上一级的 <span style="font-family:monospace">backups/admin-account-*</span>。</p>
+            <p class="note" id="a-last"></p>
+            <div class="row"><button id="a-discard" type="button" class="btn" style="flex:1 1 auto">全部撤销</button><button id="a-save" type="button" class="btn primary" style="flex:1 1 auto">保存</button></div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- 发物品 -->
+    <section class="page hidden" data-page="give">
+      <div class="page-head">
+        <div><h1>发物品</h1><p>从物品清单里挑选，加入发放篮后一次发出。</p></div>
+        <div class="row" style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:8px 12px">
+          <label for="g-uid" class="muted" style="font-size:13px">目标玩家 UID</label>
+          <input id="g-uid" class="input" list="player-list" style="width:150px;height:36px">
+          <span id="g-uid-state"></span>
+        </div>
+      </div>
+      <div class="wrap" id="g-wrap">
+        <aside class="basket card" aria-label="发放篮">
+          <div class="between"><h2>发放篮</h2><span class="muted" style="font-size:13px"><span id="g-count">0</span> 种</span></div>
+          <div id="g-basket" style="display:flex;flex-direction:column;gap:10px"></div>
+          <div class="row"><span class="muted small">常用：</span><span id="g-quick" class="chips"></span></div>
+          <fieldset style="border:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px">
+            <legend class="muted" style="font-size:13px;margin-bottom:6px">发放方式</legend>
+            <label class="row" style="min-height:32px;gap:8px"><input type="radio" name="g-mode" value="mail" checked> 走邮件（玩家自己领）</label>
+            <label class="row" style="min-height:32px;gap:8px"><input type="radio" name="g-mode" value="auto"> 直接进背包（在线实时同步，放不下的转邮件）</label>
+          </fieldset>
+          <p class="note">进背包前会自动备份该玩家的存档（服务端目录上一级的 backups/admin-give-*）。</p>
+          <button id="g-send" type="button" class="btn primary" style="height:48px;font-size:15px">发放</button>
+          <p class="note" id="g-result"></p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 卡池排期（占位） -->
+    <section class="page hidden" data-page="gacha">
+      <div class="page-head"><div><h1>卡池排期</h1><p>由另一个开发会话负责，完成后挂在这里。</p></div></div>
+      <div class="card"><p class="note">在那之前请直接改 Banners.json 里各卡池的 disabled、beginTime、endTime 字段，服务端会热加载。</p></div>
+    </section>
   </main>
-</section>
+</div>
+<datalist id="player-list"></datalist>
 <div id="toast" aria-live="polite"></div>
 
 <script>
-/* 公共层：登录、请求、提示、玩家选择、物品选择。各页面脚本在后面，通过 Admin.page(name, init) 登记。 */
+/* 公共层：登录、请求、提示、玩家、物品卡片。各页面通过 Admin.page(name, init) 登记。 */
 const Admin = (() => {
   const $ = (id) => document.getElementById(id);
-  const TOKEN_KEY = "astaps-console-token";  // 和 /console 共用同一个登录
+  const TOKEN_KEY = "astaps-console-token"; // 和 /console 共用同一次登录
   const session = {
     get() { try { return sessionStorage.getItem(TOKEN_KEY); } catch (e) { return null; } },
     set(v) { try { v ? sessionStorage.setItem(TOKEN_KEY, v) : sessionStorage.removeItem(TOKEN_KEY); } catch (e) {} },
   };
   let token = session.get();
-  const pages = {};
-  const started = new Set();
+  const pages = {}, started = new Set();
 
   function el(tag, attrs = {}, ...children) {
     const node = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
       if (k === "class") node.className = v;
+      else if (k === "style") node.style.cssText = v;
       else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
       else if (v !== undefined && v !== null && v !== false) node.setAttribute(k, v === true ? "" : v);
     }
-    for (const c of children.flat()) if (c !== null && c !== undefined) node.append(c instanceof Node ? c : String(c));
+    for (const c of children.flat()) if (c !== null && c !== undefined && c !== false) node.append(c instanceof Node ? c : String(c));
     return node;
   }
-
   function toast(text, kind = "ok") {
     const box = el("div", { class: kind }, text);
     $("toast").append(box);
     setTimeout(() => box.remove(), kind === "bad" ? 9000 : 4000);
   }
-
-  /** 调后台接口：path 不带前缀，data 有值时 POST。出错抛 Error（中文原因）。 */
+  /** 调后台接口：data 有值时 POST；出错抛 Error（中文原因）。 */
   async function call(path, data) {
     const headers = { "Content-Type": "application/json" };
     if (token) headers["X-Console-Token"] = token;
     const options = data === undefined ? { headers, cache: "no-store" } : { method: "POST", headers, body: JSON.stringify(data) };
     let response;
-    try { response = await fetch("/console/api/admin/" + path, options); }
-    catch (e) { throw new Error("无法连接服务器"); }
+    try { response = await fetch("/console/api/admin/" + path, options); } catch (e) { throw new Error("无法连接服务器"); }
     if (response.status === 401) { showLogin("登录已过期，请重新登录"); throw new Error("未登录"); }
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error || ("HTTP " + response.status));
+    if (!response.ok) throw new Error(body.error || "HTTP " + response.status);
     return body;
   }
-
-  /** 包一层：按钮点击时禁用按钮，出错弹红色提示。 */
+  /** 按钮点击：执行期间禁用，出错弹红色提示。 */
   function action(fn) {
     return async (event) => {
       const button = event && event.currentTarget instanceof HTMLButtonElement ? event.currentTarget : null;
@@ -278,28 +373,24 @@ const Admin = (() => {
       finally { if (button) button.disabled = false; }
     };
   }
-
-  function page(name, init) { pages[name] = init; }
-
+  const page = (name, init) => { pages[name] = init; };
   function show() {
-    const name = (location.hash || "#notice").slice(1);
-    document.querySelectorAll("#nav a[data-page]").forEach((a) => a.classList.toggle("active", a.dataset.page === name));
-    document.querySelectorAll("#pages > section[data-page]").forEach((s) => s.classList.toggle("hidden", s.dataset.page !== name));
-    if (pages[name] && !started.has(name)) { started.add(name); Promise.resolve(pages[name]()).catch((e) => toast(e.message, "bad")); }
+    const name = (location.hash || "#schedule").slice(1);
+    const known = document.querySelector(`#pages > section[data-page="${name}"]`) ? name : "schedule";
+    document.querySelectorAll("nav a[data-page]").forEach((a) => (a.dataset.page === known ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+    document.querySelectorAll("#pages > section[data-page]").forEach((s) => s.classList.toggle("hidden", s.dataset.page !== known));
+    if (pages[known] && !started.has(known)) { started.add(known); Promise.resolve(pages[known]()).catch((e) => toast(e.message, "bad")); }
   }
-
   function showLogin(message) {
     token = null; session.set(null);
     $("app").classList.add("hidden"); $("login").classList.remove("hidden");
     $("login-error").textContent = message || ""; $("password").focus();
   }
-  function showApp() { $("login").classList.add("hidden"); $("app").classList.remove("hidden"); show(); }
-
+  function showApp() { $("login").classList.add("hidden"); $("app").classList.remove("hidden"); show(); loadPlayers().catch(() => {}); }
   $("login-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      const response = await fetch("/console/api/login", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: $("password").value }) });
+      const response = await fetch("/console/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: $("password").value }) });
       const body = await response.json().catch(() => ({}));
       if (response.ok && body.token) { token = body.token; session.set(token); $("password").value = ""; showApp(); }
       else $("login-error").textContent = response.status === 429 ? "密码错误次数过多，请 10 分钟后再试" : "密码错误";
@@ -311,375 +402,536 @@ const Admin = (() => {
   });
   window.addEventListener("hashchange", show);
 
-  /** 玩家下拉框：全部玩家（在线在前）。onlineOnly 时离线玩家灰掉不可选。 */
-  async function fillPlayers(select, { onlineOnly = false, allowAll = false } = {}) {
-    const keep = select.value;
-    const { players } = await call("players");
-    select.replaceChildren();
-    select.append(el("option", { value: "" }, "请选择玩家"));
-    if (allowAll) select.append(el("option", { value: "all" }, "全服（全部玩家，含离线）"));
-    for (const p of players) {
-      select.append(el("option", { value: p.uid, disabled: onlineOnly && !p.online },
-        `${p.uid} · ${p.nickname || "(无昵称)"} · ${p.online ? "在线 AR" + p.level : "离线"}`));
-    }
-    if ([...select.options].some((o) => o.value === keep)) select.value = keep;
+  /* 玩家：全部玩家（在线在前），同时填 UID 输入框的候选 */
+  let players = [];
+  async function loadPlayers() {
+    players = (await call("players")).players;
+    $("player-list").replaceChildren(...players.map((p) => el("option", { value: p.uid }, `${p.nickname || ""} · ${p.online ? "在线" : "离线"}`)));
+    document.dispatchEvent(new Event("players"));
     return players;
   }
-
-  const rankClass = (r) => (r ? "r" + r : "");
-  const itemLabel = (it) => `${it.name || "(无中文名)"} #${it.id}`;
-
-  /**
-   * 物品选择器：左边分类树，右边搜索结果，点「加入」回调 onPick(item)。
-   * container 里会被填满；返回 { reload }。
-   */
-  function itemPicker(container, onPick) {
-    const cats = el("div", { class: "cats" });
-    const search = el("input", { type: "search", placeholder: "搜索中文名或 ID" });
-    const info = el("span", { class: "hint" });
-    const body = el("tbody");
-    const more = el("button", { type: "button", class: "small hidden" }, "再显示 100 条");
-    const right = el("div", { style: "display:grid;gap:8px;min-width:0" },
-      el("div", { class: "row" }, search, info),
-      el("div", { class: "scroll" }, el("table", {}, el("thead", {}, el("tr", {}, el("th", {}, "物品"), el("th", {}, "分类"), el("th", {}, ""))), body)),
-      more);
-    container.replaceChildren(el("div", { class: "picker" }, cats, right));
-    let category = "", sub = "", offset = 0, timer = null;
-
-    async function load(append) {
-      if (!append) offset = 0;
-      const q = new URLSearchParams({ category, sub, q: search.value, offset, limit: 100 });
-      const data = await call("items/search?" + q);
-      if (!append) body.replaceChildren();
-      for (const it of data.items) {
-        body.append(el("tr", {},
-          el("td", { class: rankClass(it.rank) }, itemLabel(it)),
-          el("td", { class: "hint" }, [it.category, it.subCategory].filter(Boolean).join(" / ")),
-          el("td", {}, el("button", { type: "button", class: "small", onclick: () => onPick(it) }, "加入"))));
-      }
-      offset += data.items.length;
-      info.textContent = `共 ${data.total} 条，已显示 ${offset} 条`;
-      more.classList.toggle("hidden", offset >= data.total);
-    }
-    more.onclick = action(() => load(true));
-    search.oninput = () => { clearTimeout(timer); timer = setTimeout(() => load(false).catch((e) => toast(e.message, "bad")), 250); };
-
-    async function reload() {
-      const { categories } = await call("items/categories");
-      cats.replaceChildren();
-      const pick = (c, s, node) => { category = c; sub = s; cats.querySelectorAll("div").forEach((d) => d.classList.remove("active")); node.classList.add("active"); load(false).catch((e) => toast(e.message, "bad")); };
-      const all = el("div", { class: "active" }, el("span", {}, "全部"));
-      all.onclick = () => pick("", "", all);
-      cats.append(all);
-      for (const c of categories) {
-        const node = el("div", {}, el("span", {}, c.name), el("span", { class: "hint" }, c.count));
-        node.onclick = () => pick(c.name, "", node);
-        cats.append(node);
-        if (c.subCategories.length > 1) for (const s of c.subCategories) {
-          if (!s.name) continue;
-          const subNode = el("div", { class: "sub" }, el("span", {}, s.name), el("span", {}, s.count));
-          subNode.onclick = () => pick(c.name, s.name, subNode);
-          cats.append(subNode);
-        }
-      }
-      await load(false);
-    }
-    return { reload };
+  const findPlayer = (uid) => players.find((p) => String(p.uid) === String(uid).trim());
+  /** UID 旁边的状态小标签 */
+  function playerBadge(uid) {
+    if (!String(uid).trim()) return el("span");
+    const p = findPlayer(uid);
+    if (!p) return el("span", { class: "badge bad" }, "没有这个 UID");
+    return el("span", { class: "badge " + (p.online ? "ok" : "") }, `${p.nickname || "(无昵称)"} · ${p.online ? "在线 AR" + p.level : "离线"}`);
   }
 
-  /** 物品篮：{id → {item, count}}，render 到表格，带数量框和移除按钮。 */
-  function basket(tbody, onChange = () => {}) {
-    const rows = new Map();
-    function render() {
-      tbody.replaceChildren();
-      for (const [id, row] of rows) {
-        const count = el("input", { type: "number", min: 1, value: row.count, style: "width:110px" });
-        count.oninput = () => { row.count = Math.max(1, Number(count.value) || 1); onChange(); };
-        tbody.append(el("tr", {},
-          el("td", { class: rankClass(row.item.rank) }, itemLabel(row.item)),
-          el("td", {}, count),
-          el("td", {}, el("button", { type: "button", class: "small", onclick: () => { rows.delete(id); render(); onChange(); } }, "移除"))));
-      }
-      if (!rows.size) tbody.append(el("tr", {}, el("td", { colspan: 3, class: "hint" }, "还没有物品，从左边挑")));
+  /* 星级配色（模板）：色带、文字、底色 */
+  const TONE = { 5: ["#B8742A", "#9A5B12", "#FBF1E4"], 4: ["#7E57C2", "#5E3A9E", "#F1ECFA"], 3: ["#3A73C2", "#2A5A9C", "#E8F0FA"],
+    2: ["#4F9A63", "#2F6B40", "#E8F4EC"], 1: ["#8A939E", "#4E5661", "#EEF0F2"] };
+  const tone = (rank) => TONE[rank] || TONE[1];
+  const itemName = (it) => it.name || `#${it.id}`;
+  const CAT_ORDER = ["货币", "祈愿道具", "角色突破", "天赋", "周本", "BOSS 掉落", "武器突破", "经验书", "特产", "普通怪掉落", "矿石", "木材", "食物", "烹饪原料", "武器", "圣遗物", "任务道具"];
+
+  /**
+   * 物品清单：分类栏 + 搜索 + 星级卡片。把分类栏和卡片区插进 host（在它最前面）。
+   * onAdd(item) 在点「加入」时调用。
+   */
+  function itemBrowser(host, onAdd, addLabel = "加入发放篮") {
+    const cats = el("section", { class: "card cats", "aria-label": "分类" });
+    const search = el("input", { class: "input", type: "search", placeholder: "搜索名称或 ID，例如 原石、223", style: "flex:1 1 260px" });
+    const info = el("span", { class: "muted", style: "font-size:13px" });
+    const subs = el("div", { class: "chips" });
+    const grid = el("div", { class: "grid" });
+    const more = el("button", { type: "button", class: "btn hidden" }, "再显示 60 项");
+    const items = el("section", { class: "items", "aria-label": "物品" }, el("div", { class: "row" }, search, info), subs, grid, more);
+    host.prepend(cats, items);
+    let category = "", sub = "", offset = 0, timer = null, tree = [];
+
+    function card(it) {
+      const [band, text, soft] = tone(it.rank);
+      return el("article", { class: "item-card" },
+        el("div", { class: "band", style: "background:" + band }),
+        el("div", { class: "body" },
+          el("div", { class: "meta" }, el("span", { class: "stars", style: `color:${text};background:${soft}` }, it.rank ? "★".repeat(it.rank) : "—"), el("span", {}, it.subCategory || it.category || "")),
+          el("h3", {}, itemName(it)),
+          el("span", { class: "muted small" }, "ID " + it.id),
+          el("button", { type: "button", class: "btn outline", onclick: () => onAdd(it) }, addLabel)));
     }
-    render();
+    async function load(append) {
+      if (!append) offset = 0;
+      const q = new URLSearchParams({ category, sub, q: search.value.trim(), offset, limit: 60 });
+      const data = await call("items/search?" + q);
+      if (!append) grid.replaceChildren();
+      grid.append(...data.items.map(card));
+      offset += data.items.length;
+      info.textContent = `当前分类 ${category || "全部"}${sub ? " / " + sub : ""} · ${data.total} 项`;
+      more.classList.toggle("hidden", offset >= data.total);
+      if (!data.total) grid.append(el("p", { class: "empty", style: "grid-column:1/-1" }, "没有找到"));
+    }
+    const reloadSafe = () => load(false).catch((e) => toast(e.message, "bad"));
+    function renderSubs() {
+      const c = tree.find((t) => t.name === category);
+      subs.replaceChildren();
+      if (!c || c.subCategories.filter((s) => s.name).length < 2) return;
+      const chip = (name, label) => el("button", { type: "button", class: sub === name ? "on" : "", onclick: () => { sub = name; renderSubs(); reloadSafe(); } }, label);
+      subs.append(chip("", "全部"), ...c.subCategories.filter((s) => s.name).map((s) => chip(s.name, `${s.name} ${s.count}`)));
+    }
+    function renderCats() {
+      const total = tree.reduce((n, c) => n + c.count, 0);
+      const button = (name, label, count) => el("button", { type: "button", class: category === name ? "on" : "",
+        onclick: () => { category = name; sub = ""; renderCats(); renderSubs(); reloadSafe(); } }, el("span", {}, label), el("span", {}, count));
+      cats.replaceChildren(button("", "全部", total), ...tree.map((c) => button(c.name, c.name, c.count)));
+    }
+    search.oninput = () => { clearTimeout(timer); timer = setTimeout(reloadSafe, 250); };
+    more.onclick = action(() => load(true));
     return {
-      add(item, count = 1) { const row = rows.get(item.id); if (row) row.count += count; else rows.set(item.id, { item, count }); render(); onChange(); },
-      clear() { rows.clear(); render(); onChange(); },
-      list() { return [...rows.values()].map((r) => ({ id: r.item.id, count: r.count })); },
-      get size() { return rows.size; },
+      async reload() {
+        tree = (await call("items/categories")).categories;
+        tree.sort((a, b) => ((CAT_ORDER.indexOf(a.name) + 1 || 999) - (CAT_ORDER.indexOf(b.name) + 1 || 999)) || b.count - a.count);
+        renderCats(); renderSubs(); await load(false);
+      },
     };
   }
 
-  /** datetime-local 的值 ↔ Unix 秒（按浏览器本地时区）。 */
+  /* 时间：datetime-local ↔ Unix 秒（浏览器本地时区） */
   const toUnix = (value) => (value ? Math.floor(new Date(value).getTime() / 1000) : 0);
   const fromUnix = (sec) => { if (!sec) return ""; const d = new Date(sec * 1000); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
-  const fmtTime = (sec) => (sec ? new Date(sec * 1000).toLocaleString("zh-CN", { hour12: false }) : "-");
+  const fmtTime = (sec) => (sec ? new Date(sec * 1000).toLocaleString("zh-CN", { hour12: false, month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-");
+  const fmtNum = (n) => Number(n).toLocaleString("zh-CN");
 
   setTimeout(() => (token ? showApp() : showLogin()), 0);
-  return { $, el, call, action, toast, page, fillPlayers, itemPicker, basket, toUnix, fromUnix, fmtTime, itemLabel, rankClass };
+  return { $, el, call, action, toast, page, loadPlayers, findPlayer, playerBadge, get players() { return players; },
+    itemBrowser, tone, itemName, toUnix, fromUnix, fmtTime, fmtNum };
 })();
 </script>
+
 <script>
-/* B2 全服公告 */
-(() => {
-  const { $, el, call, action, toast, toUnix, fmtTime } = Admin;
-  const TYPE = { popup: "弹窗", banner: "顶部" };
-  const STATUS = { scheduled: "待发送", done: "已发完", cancelled: "已取消" };
-  async function refresh() {
-    const { notices } = await call("notice/list");
-    $("n-list").replaceChildren();
-    for (const n of notices) {
-      $("n-list").append(el("tr", {},
-        el("td", {}, TYPE[n.type] || n.type),
-        el("td", { style: "white-space:pre-wrap;max-width:420px" }, n.content),
-        el("td", { class: "hint" }, n.status === "scheduled" ? "下次 " + fmtTime(n.sendAt) : "最后 " + fmtTime(n.lastSentAt)),
-        el("td", {}, `${n.sent}/${n.times}` + (n.sent ? `（上次 ${n.lastReach} 人在线）` : "")),
-        el("td", {}, el("span", { class: "tag" + (n.status === "scheduled" ? " ok" : "") }, STATUS[n.status] || n.status)),
-        el("td", {}, n.status === "scheduled" ? el("button", { type: "button", class: "small danger",
-          onclick: action(async () => { await call("notice/cancel", { id: n.id }); toast("已取消"); await refresh(); }) }, "取消") : "")));
-    }
-    if (!notices.length) $("n-list").append(el("tr", {}, el("td", { colspan: 6, class: "hint" }, "还没有公告")));
-  }
-  $("n-refresh").onclick = action(refresh);
-  $("n-send").onclick = action(async () => {
-    const data = { type: $("n-type").value, content: $("n-content").value, sendAt: toUnix($("n-at").value),
-      times: Number($("n-times").value) || 1, repeatMinutes: Number($("n-repeat").value) || 0 };
-    const n = await call("notice/send", data);
-    toast(n.sent ? `已发送给 ${n.lastReach} 名在线玩家` : "已加入排期，" + Admin.fmtTime(n.sendAt) + " 发送");
-    await refresh();
-  });
-  Admin.page("notice", refresh);
-})();
-</script>
-<script>
-/* B3 发邮件 */
-(() => {
-  const { $, el, call, action, toast, fmtTime } = Admin;
-  const basket = Admin.basket($("m-basket"));
-  const picker = Admin.itemPicker($("m-picker"), (item) => basket.add(item));
-  async function history() {
-    const { history } = await call("mail/history");
-    $("m-history").replaceChildren();
-    for (const h of history) $("m-history").append(el("tr", {},
-      el("td", { class: "hint" }, fmtTime(h.time)), el("td", {}, h.target === "all" ? "全服" : h.target), el("td", {}, h.title),
-      el("td", { class: "hint" }, (h.items || []).map((i) => `#${i.id}×${i.count}`).join("、") || "无"),
-      el("td", {}, `${h.recipients} 人 / ${h.mails} 封` + ((h.failed || []).length ? `，失败 ${h.failed.length}` : ""))));
-    if (!history.length) $("m-history").append(el("tr", {}, el("td", { colspan: 5, class: "hint" }, "还没有发过")));
-  }
-  $("m-players").onclick = action(() => Admin.fillPlayers($("m-target"), { allowAll: true }));
-  $("m-clear").onclick = () => basket.clear();
-  $("m-send").onclick = action(async () => {
-    const target = $("m-target").value;
-    if (!target) throw new Error("请先选收件人");
-    if (!$("m-title").value.trim()) throw new Error("请填写标题");
-    if (target === "all" && !confirm(`确认给全服所有玩家（含离线）发送「${$("m-title").value}」？附件 ${basket.size} 种。`)) return;
-    const r = await call("mail/send", { target, title: $("m-title").value, content: $("m-content").value, sender: $("m-sender").value,
-      expireDays: Number($("m-days").value) || 30, star: $("m-star").checked, items: basket.list() });
-    toast(`已发送：${r.recipients} 人（在线 ${r.online}），共 ${r.mails} 封` + (r.failed.length ? `；找不到玩家 ${r.failed.join(",")}` : ""));
-    await history();
-  });
-  Admin.page("mail", async () => { await Admin.fillPlayers($("m-target"), { allowAll: true }); await picker.reload(); await history(); });
-})();
-</script>
-<script>
-/* B5 发物品 */
-(() => {
-  const { $, el, call, action, toast } = Admin;
-  const basket = Admin.basket($("g-basket"));
-  const picker = Admin.itemPicker($("g-picker"), (item) => basket.add(item));
-  const QUICK = [[201, "原石", 5, 1600], [202, "摩拉", 3, 1000000], [203, "创世结晶", 5, 6480], [223, "纠缠之缘", 5, 10], [224, "相遇之缘", 5, 10],
-    [104003, "大英雄的经验", 4, 100], [104013, "精锻用魔矿", 3, 100], [220007, "浓缩树脂", 4, 5]];
-  for (const [id, name, rank, count] of QUICK)
-    $("g-quick").append(el("button", { type: "button", class: "small", onclick: () => basket.add({ id, name, rank }, count) }, `${name}×${count}`));
-  $("g-players").onclick = action(() => Admin.fillPlayers($("g-player")));
-  $("g-clear").onclick = () => basket.clear();
-  $("g-send").onclick = action(async () => {
-    const uid = Number($("g-player").value);
-    if (!uid) throw new Error("请先选玩家");
-    if (!basket.size) throw new Error("发放篮是空的");
-    const r = await call("give/send", { uid, mode: $("g-mode").value, items: basket.list() });
-    const lines = [`进背包 ${r.bag.length} 种，邮件 ${r.mail.length} 种（${r.mails} 封）`];
-    if (r.rejected) lines.push(`背包放不下、没有发：${r.rejected.map((i) => "#" + i.id).join("、")}`);
-    if (r.backupId) lines.push("备份：" + r.backupId);
-    $("g-result").textContent = lines.join("\n");
-    toast(lines[0]);
-    basket.clear();
-  });
-  Admin.page("give", async () => { await Admin.fillPlayers($("g-player")); await picker.reload(); });
-})();
-</script>
-<script>
-/* B4 账户编辑 */
-(() => {
-  const { $, el, call, action, toast } = Admin;
-  const PROP = { FIGHT_PROP_HP: "生命值", FIGHT_PROP_HP_PERCENT: "生命值%", FIGHT_PROP_ATTACK: "攻击力", FIGHT_PROP_ATTACK_PERCENT: "攻击力%",
-    FIGHT_PROP_DEFENSE: "防御力", FIGHT_PROP_DEFENSE_PERCENT: "防御力%", FIGHT_PROP_CRITICAL: "暴击率", FIGHT_PROP_CRITICAL_HURT: "暴击伤害",
-    FIGHT_PROP_CHARGE_EFFICIENCY: "元素充能效率", FIGHT_PROP_ELEMENT_MASTERY: "元素精通", FIGHT_PROP_HEAL_ADD: "治疗加成",
-    FIGHT_PROP_PHYSICAL_ADD_HURT: "物理伤害加成", FIGHT_PROP_FIRE_ADD_HURT: "火元素伤害加成", FIGHT_PROP_WATER_ADD_HURT: "水元素伤害加成",
-    FIGHT_PROP_GRASS_ADD_HURT: "草元素伤害加成", FIGHT_PROP_ELEC_ADD_HURT: "雷元素伤害加成", FIGHT_PROP_WIND_ADD_HURT: "风元素伤害加成",
-    FIGHT_PROP_ICE_ADD_HURT: "冰元素伤害加成", FIGHT_PROP_ROCK_ADD_HURT: "岩元素伤害加成" };
-  const prop = (p) => PROP[p] || p || "-";
-  const num = (value, min, max, width = 64) => el("input", { type: "number", min, max, value, style: `width:${width}px` });
-  let uid = 0, data = null;
-  const LIMIT = 300;
-
-  async function save(path, body) {
-    const r = await call("account/" + path, Object.assign({ uid }, body));
-    $("a-backup").textContent = "已保存，备份 " + r.backupId;
-    toast("已保存");
-    return r.result;
-  }
-
-  function renderCurrencies() {
-    $("a-currencies").replaceChildren();
-    for (const c of data.currencies) {
-      const input = num(c.value, 0, undefined, 140);
-      $("a-currencies").append(el("tr", {}, el("td", {}, c.name), el("td", {}, input),
-        el("td", {}, el("button", { type: "button", class: "small", onclick: action(async () => { const r = await save("currency", { id: c.id, value: Number(input.value) }); input.value = r.value; }) }, "保存"))));
-    }
-  }
-
-  function avatarRow(a) {
-    const level = num(a.level, 1, 90), promote = num(a.promoteLevel, 0, 6, 52), cons = num(a.constellation, 0, 6, 52), fetter = num(a.fetterLevel, 1, 10, 52);
-    const skillInputs = a.skills.slice(0, 3).map((s) => { const i = num(s.level, 1, 15, 52); i.title = `${s.kind} #${s.id}`; return [s, i]; });
-    const row = el("tr", {}, el("td", {}, a.name), el("td", {}, level), el("td", {}, promote), el("td", {}, cons),
-      el("td", {}, skillInputs.map(([, i]) => i)), el("td", {}, fetter), el("td", { class: "hint" }, a.weapon || "-"),
-      el("td", {}, el("button", { type: "button", class: "small", onclick: action(async () => {
-        const body = { avatarId: a.id };
-        if (Number(level.value) !== a.level) body.level = Number(level.value);
-        if (Number(promote.value) !== a.promoteLevel) body.promoteLevel = Number(promote.value);
-        if (Number(cons.value) !== a.constellation) body.constellation = Number(cons.value);
-        if (Number(fetter.value) !== a.fetterLevel) body.fetterLevel = Number(fetter.value);
-        const changed = skillInputs.filter(([s, i]) => Number(i.value) !== s.level);
-        if (changed.length) body.skills = Object.fromEntries(changed.map(([s, i]) => [s.id, Number(i.value)]));
-        if (Object.keys(body).length === 1) { toast("没有改动"); return; }
-        row.replaceWith(avatarRow(await save("avatar", body)));
-      }) }, "保存")));
-    return row;
-  }
-
-  function equipRow(it, relic) {
-    const lock = el("input", { type: "checkbox" }); lock.checked = it.locked;
-    const level = relic ? num(it.level - 1, it.level - 1, 20, 52) : num(it.level, 1, 90);
-    const promote = relic ? null : num(it.promoteLevel, 0, 6, 52);
-    const refine = relic ? null : num(it.refinement, 1, 5, 52);
-    const cells = relic
-      ? [el("td", {}, "+", level), el("td", {}, prop(it.mainProp)), el("td", { class: "hint" }, Object.entries(it.subProps || {}).map(([k, n]) => prop(k) + (n > 1 ? `×${n}` : "")).join("、"))]
-      : [el("td", {}, level), el("td", {}, promote), el("td", {}, refine)];
-    const row = el("tr", {}, el("td", { class: Admin.rankClass(it.rank) }, it.name), ...cells,
-      el("td", { class: "hint" }, it.equippedBy || "-"), el("td", {}, lock),
-      el("td", {},
-        el("button", { type: "button", class: "small", onclick: action(async () => {
-          const body = { guid: it.guid, locked: lock.checked };
-          if (relic) { if (Number(level.value) !== it.level - 1) body.level = Number(level.value); }
-          else {
-            if (Number(level.value) !== it.level) body.level = Number(level.value);
-            if (Number(promote.value) !== it.promoteLevel) body.promoteLevel = Number(promote.value);
-            if (Number(refine.value) !== it.refinement) body.refinement = Number(refine.value);
-          }
-          row.replaceWith(equipRow(await save("item", body), relic));
-        }) }, "保存"), " ",
-        el("button", { type: "button", class: "small danger", onclick: action(async () => {
-          if (!confirm(`删除「${it.name}」？`)) return;
-          await save("item/remove", { guid: it.guid }); row.remove();
-        }) }, "删除")));
-    return row;
-  }
-
-  function renderList(tbody, rows, filterId, text, make) {
-    const term = $(filterId).value.trim().toLowerCase();
-    tbody.replaceChildren();
-    const shown = rows.filter((r) => !term || text(r).toLowerCase().includes(term)).slice(0, LIMIT);
-    for (const r of shown) tbody.append(make(r));
-    if (!shown.length) tbody.append(el("tr", {}, el("td", { colspan: 8, class: "hint" }, "没有")));
-  }
-  const renderWeapons = () => renderList($("a-weapons"), data.weapons, "a-wfilter", (w) => w.name, (w) => equipRow(w, false));
-  const renderRelics = () => renderList($("a-relics"), data.relics, "a-rfilter", (r) => `${r.name} ${prop(r.mainProp)}`, (r) => equipRow(r, true));
-  const renderMaterials = () => renderList($("a-materials"), data.materials, "a-mfilter", (m) => `${m.id} ${m.name} ${m.category || ""}`, (m) => {
-    const count = num(m.count, 0, 9999999, 120);
-    return el("tr", {}, el("td", {}, `${m.name} #${m.id}`), el("td", { class: "hint" }, m.category || "-"), el("td", {}, count),
-      el("td", {}, el("button", { type: "button", class: "small", onclick: action(async () => { const r = await save("material", { id: m.id, count: Number(count.value) }); m.count = r.count; count.value = r.count; }) }, "保存")));
-  });
-  $("a-wfilter").oninput = renderWeapons; $("a-rfilter").oninput = renderRelics; $("a-mfilter").oninput = renderMaterials;
-
-  async function load() {
-    uid = Number($("a-player").value);
-    if (!uid) throw new Error("请先选一个在线玩家");
-    data = await call("account/view?uid=" + uid);
-    $("a-body").classList.remove("hidden");
-    $("a-level").value = data.level; $("a-wl").value = data.worldLevel; $("a-exp").value = data.exp;
-    renderCurrencies();
-    $("a-avatars").replaceChildren(...data.avatars.map(avatarRow));
-    renderWeapons(); renderRelics(); renderMaterials();
-    const { avatars } = await call("account/addable-avatars?uid=" + uid);
-    $("a-addable").replaceChildren(el("option", { value: "" }, `选择角色（${avatars.length} 个未拥有）`), ...avatars.map((a) => el("option", { value: a.id }, `${a.name} #${a.id}`)));
-  }
-  $("a-players").onclick = action(() => Admin.fillPlayers($("a-player"), { onlineOnly: true }));
-  $("a-load").onclick = action(load);
-  $("a-save-player").onclick = action(async () => {
-    const body = {};
-    if (Number($("a-level").value) !== data.level) body.level = Number($("a-level").value);
-    if (Number($("a-wl").value) !== data.worldLevel) body.worldLevel = Number($("a-wl").value);
-    if (Number($("a-exp").value) !== data.exp) body.exp = Number($("a-exp").value);
-    if (!Object.keys(body).length) { toast("没有改动"); return; }
-    const r = await save("player", body);
-    Object.assign(data, r); $("a-level").value = r.level; $("a-wl").value = r.worldLevel; $("a-exp").value = r.exp;
-  });
-  $("a-add").onclick = action(async () => {
-    const id = Number($("a-addable").value);
-    if (!id) throw new Error("请先选角色");
-    await save("avatar/add", { avatarId: id });
-    await load();
-  });
-  Admin.page("account", () => Admin.fillPlayers($("a-player"), { onlineOnly: true }));
-})();
-</script>
-<script>
-/* B7 活动排期 */
+/* 公告与活动 */
 (() => {
   const { $, el, call, action, toast, toUnix, fromUnix, fmtTime } = Admin;
+  let kind = "banner";
+  document.querySelectorAll("[data-kind]").forEach((b) => b.onclick = () => {
+    kind = b.dataset.kind; document.querySelectorAll("[data-kind]").forEach((x) => x.classList.toggle("on", x === b));
+  });
+  $("n-when").onchange = () => $("n-later").classList.toggle("hidden", $("n-when").value !== "later");
+  const KIND = { popup: "弹窗", banner: "顶部" };
+
+  async function notices() {
+    const { notices } = await call("notice/list");
+    const queued = notices.filter((n) => n.status === "scheduled"), done = notices.filter((n) => n.status !== "scheduled").slice(0, 6);
+    $("n-queue").replaceChildren(...queued.map((n) => el("div", { class: "list-line" },
+      el("span", { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }, n.content),
+      el("span", { class: "row", style: "flex:none;gap:6px" }, el("span", { class: "muted" }, `${KIND[n.type]} · ${fmtTime(n.sendAt)}` + (n.times > 1 ? ` · ${n.sent}/${n.times}` : "")),
+        el("button", { type: "button", class: "btn sm danger", onclick: action(async () => { await call("notice/cancel", { id: n.id }); toast("已取消"); await notices(); }) }, "取消")))));
+    if (!queued.length) $("n-queue").append(el("span", { class: "muted small" }, "没有排队的公告"));
+    $("n-done").replaceChildren(...done.map((n) => el("div", { class: "list-line" },
+      el("span", { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }, n.content),
+      el("span", { class: "muted", style: "flex:none" }, n.status === "cancelled" ? "已取消" : `${KIND[n.type]} · ${fmtTime(n.lastSentAt)} · ${n.lastReach} 人`))));
+    if (!done.length) $("n-done").append(el("span", { class: "muted small" }, "还没有"));
+  }
+  $("n-send").onclick = action(async () => {
+    const later = $("n-when").value === "later";
+    if (later && !$("n-at").value) throw new Error("请选择发送时间");
+    const n = await call("notice/send", { type: kind, content: $("n-content").value, sendAt: later ? toUnix($("n-at").value) : 0,
+      times: later ? Number($("n-times").value) || 1 : 1, repeatMinutes: later ? Number($("n-repeat").value) || 0 : 0 });
+    toast(n.sent ? `已发给 ${n.lastReach} 名在线玩家` : `已排队，${fmtTime(n.sendAt)} 发送`);
+    await notices();
+  });
+
+  /* 活动：改动先记在 dirty 里，「保存排期」一起提交 */
   let rows = [];
-  const shortType = (t) => (t || "").replace(/^NEW_ACTIVITY_/, "");
+  const dirty = new Map();
+  function state(a) {
+    const o = a.override, d = dirty.get(a.id);
+    const base = { enabled: o ? !o.disabled : a.inDefault, begin: o && o.beginTime ? o.beginTime : a.defaultBegin, end: o && o.endTime ? o.endTime : a.defaultEnd };
+    return Object.assign(base, d || {});
+  }
+  function mark(a, change) {
+    dirty.set(a.id, Object.assign(dirty.get(a.id) || {}, change));
+    $("v-dirty").textContent = `${dirty.size} 个活动有改动未保存`;
+  }
   function make(a) {
-    const o = a.override;
-    const enabled = el("input", { type: "checkbox" });
-    enabled.checked = o ? !o.disabled : a.inDefault;
-    const begin = el("input", { type: "datetime-local", value: fromUnix(o && o.beginTime ? o.beginTime : a.defaultBegin) });
-    const end = el("input", { type: "datetime-local", value: fromUnix(o && o.endTime ? o.endTime : a.defaultEnd) });
+    const s = state(a);
+    const sw = el("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(s.enabled), "aria-label": "开关：" + (a.name || a.id) }, el("span"));
+    sw.onclick = () => { const on = sw.getAttribute("aria-checked") !== "true"; sw.setAttribute("aria-checked", String(on)); mark(a, { enabled: on }); };
+    const begin = el("input", { class: "input sm", type: "datetime-local", value: fromUnix(s.begin), "aria-label": "开始时间" });
+    const end = el("input", { class: "input sm", type: "datetime-local", value: fromUnix(s.end), "aria-label": "结束时间" });
+    begin.onchange = () => mark(a, { begin: toUnix(begin.value) });
+    end.onchange = () => mark(a, { end: toUnix(end.value) });
     return el("tr", {},
-      el("td", {}, `${a.name || "(无中文名)"} #${a.id}`, el("div", { class: "hint mono" }, shortType(a.type))),
-      el("td", {}, a.handler ? el("span", { class: "tag ok" }, a.handler.replace(/ActivityHandler$/, "")) : el("span", { class: "tag" }, "无")),
-      el("td", {}, el("span", { class: "tag" + (a.running ? " ok" : "") }, a.running ? "运行中" : "未运行")),
-      el("td", { class: "hint", style: "white-space:pre-line" }, a.inDefault ? `${fmtTime(a.defaultBegin)}\n至 ${fmtTime(a.defaultEnd)}` : "无", o ? el("div", {}, el("span", { class: "tag bad" }, "后台已改")) : null),
-      el("td", {}, enabled), el("td", {}, begin), el("td", {}, end),
-      el("td", {},
-        el("button", { type: "button", class: "small", onclick: action(async () => {
-          const body = { activityId: a.id, enabled: enabled.checked, scheduleId: a.scheduleId };
-          const b = toUnix(begin.value), e = toUnix(end.value);
-          if (b !== a.defaultBegin || !a.inDefault) body.beginTime = b;
-          if (e !== a.defaultEnd || !a.inDefault) body.endTime = e;
-          await call("activity/save", body); toast("已保存，重启服务端后生效"); await load();
-        }) }, "保存"), " ",
-        o ? el("button", { type: "button", class: "small", onclick: action(async () => { await call("activity/reset", { activityId: a.id }); toast("已恢复默认，重启服务端后生效"); await load(); }) }, "恢复默认") : null));
+      el("td", {}, sw),
+      el("td", {}, el("div", { style: "display:flex;flex-direction:column" }, el("span", {}, a.name || "(无中文名)"), el("span", { class: "muted small" }, "活动 " + a.id + (a.override ? " · 后台已改" : "")))),
+      el("td", {}, begin), el("td", {}, end),
+      el("td", {}, el("span", { class: "badge " + (a.handler ? "ok" : "warn"), title: a.handler || a.type || "" }, a.handler ? "已实现" : "只有入口，玩法未实现")),
+      el("td", {}, el("span", { class: "badge " + (a.running ? "ok" : "") }, a.running ? "运行中" : "未运行")));
   }
   function render() {
     const term = $("v-search").value.trim().toLowerCase(), filter = $("v-filter").value;
     const shown = rows.filter((a) => (filter === "all" || (filter === "handler" ? a.handler : a.inDefault || a.override || a.running))
       && (!term || `${a.id} ${a.name || ""} ${a.type || ""}`.toLowerCase().includes(term)));
     $("v-list").replaceChildren(...shown.map(make));
-    $("v-count").textContent = `显示 ${shown.length} / ${rows.length} 个活动`;
+    const on = rows.filter((a) => state(a).enabled).length;
+    $("v-count").textContent = `开启 ${on} / 已配置 ${rows.filter((a) => a.inDefault || a.override).length} · 显示 ${shown.length} 个`;
   }
-  async function load() {
+  async function activities() {
     const data = await call("activity/list");
     rows = data.activities.sort((x, y) => (y.running - x.running) || (y.inDefault - x.inDefault) || (x.id - y.id));
-    $("v-file").textContent = data.file;
+    dirty.clear(); $("v-dirty").textContent = "";
     render();
   }
-  $("v-search").oninput = render; $("v-filter").onchange = render; $("v-refresh").onclick = action(load);
-  Admin.page("activity", load);
+  $("v-search").oninput = render; $("v-filter").onchange = render;
+  $("v-save").onclick = action(async () => {
+    if (!dirty.size) { toast("没有改动"); return; }
+    let saved = 0;
+    for (const [id, change] of dirty) {
+      const a = rows.find((r) => r.id === id), s = state(a);
+      const body = { activityId: id, enabled: s.enabled, scheduleId: a.scheduleId };
+      if (s.begin !== a.defaultBegin || !a.inDefault) body.beginTime = s.begin;
+      if (s.end !== a.defaultEnd || !a.inDefault) body.endTime = s.end;
+      try { await call("activity/save", body); saved++; } catch (e) { toast(`${a.name || id}：${e.message}`, "bad"); }
+    }
+    toast(`已保存 ${saved} 个活动，重启服务端后生效`);
+    await activities();
+  });
+  $("v-reset").onclick = action(async () => {
+    const changed = rows.filter((a) => a.override);
+    if (!changed.length && !dirty.size) { toast("没有需要恢复的"); return; }
+    if (changed.length && !confirm(`把 ${changed.length} 个后台改过的活动恢复成默认配置？`)) return;
+    for (const a of changed) await call("activity/reset", { activityId: a.id });
+    toast(changed.length ? "已恢复默认，重启服务端后生效" : "已放弃未保存的改动");
+    await activities();
+  });
+  Admin.page("schedule", async () => { await notices(); await activities(); });
 })();
 </script>
-<!-- PAGE SCRIPTS -->
+
+<script>
+/* 发邮件 */
+(() => {
+  const { $, el, call, action, toast, fmtTime, fmtNum, tone, itemName } = Admin;
+  let to = "one", picker = null;
+  const atts = new Map(); // id → {item, count}
+  document.querySelectorAll("[data-to]").forEach((b) => b.onclick = () => {
+    to = b.dataset.to; document.querySelectorAll("[data-to]").forEach((x) => x.classList.toggle("on", x === b));
+    $("m-one").classList.toggle("hidden", to !== "one"); $("m-all").classList.toggle("hidden", to !== "all");
+    $("m-all").textContent = `将发给库里全部 ${Admin.players.length} 个账号（含离线）`;
+    $("m-send").textContent = to === "all" ? "发给全服" : "发送";
+  });
+  const uidState = () => $("m-uid-state").replaceChildren(Admin.playerBadge($("m-uid").value));
+  $("m-uid").oninput = uidState; document.addEventListener("players", uidState);
+  $("m-when").onchange = () => $("m-at-wrap").classList.toggle("hidden", $("m-when").value !== "later");
+
+  function preview() {
+    $("p-title").textContent = $("m-title").value || "（标题）";
+    $("p-body").textContent = $("m-content").value;
+    const days = $("m-days").value;
+    $("p-meta").textContent = `发件人：${$("m-sender").value || "派蒙"} · ${days === "3650" ? "永久有效" : days + " 天后过期"}${$("m-star").checked ? " · 星标" : ""}`;
+    $("p-atts").replaceChildren(...[...atts.values()].map(({ item, count }) => el("div", { class: "att", style: "border-bottom-color:" + tone(item.rank)[0], title: itemName(item) },
+      itemName(item).slice(0, 4), el("span", { style: "color:#F3EEE3" }, fmtNum(count)))));
+  }
+  function renderAtts() {
+    $("m-att-count").textContent = atts.size;
+    $("m-atts").replaceChildren(...[...atts.entries()].map(([id, row]) => {
+      const count = el("input", { class: "input sm", type: "number", min: 1, value: row.count, style: "width:110px", "aria-label": "数量" });
+      count.oninput = () => { row.count = Math.max(1, Number(count.value) || 1); preview(); };
+      return el("div", { class: "row", style: "padding:8px 12px;border:1px solid var(--line);border-radius:8px;flex-wrap:nowrap" },
+        el("span", { class: "dot", style: "background:" + tone(row.item.rank)[0] }),
+        el("span", { style: "flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis" }, itemName(row.item)),
+        el("span", { class: "muted" }, "×"), count,
+        el("button", { type: "button", class: "btn icon danger", "aria-label": "移除附件", onclick: () => { atts.delete(id); renderAtts(); } }, "×"));
+    }));
+    if (!atts.size) $("m-atts").append(el("p", { class: "empty" }, "没有附件"));
+    preview();
+  }
+  const addAtt = (item, count = 1) => { const row = atts.get(item.id); if (row) row.count += count; else atts.set(item.id, { item, count }); renderAtts(); toast(`已加入 ${itemName(item)}`); };
+  for (const id of ["m-title", "m-content", "m-sender", "m-days", "m-star"]) $(id).addEventListener("input", preview);
+  $("m-days").addEventListener("change", preview); $("m-star").addEventListener("change", preview);
+  $("m-pick-toggle").onclick = action(async () => {
+    const box = $("m-picker"), open = box.classList.contains("hidden");
+    box.classList.toggle("hidden", !open);
+    $("m-pick-toggle").textContent = open ? "收起物品清单" : "从物品清单添加";
+    if (open && !picker) { box.classList.add("wrap"); picker = Admin.itemBrowser(box, (it) => addAtt(it), "加入附件"); await picker.reload(); }
+  });
+
+  /* 模板：存在本浏览器里，换电脑不带走 */
+  const TPL_KEY = "orpheus-mail-templates";
+  const readTpl = () => { try { return JSON.parse(localStorage.getItem(TPL_KEY) || "[]"); } catch (e) { return []; } };
+  function renderTpl() {
+    $("m-tpl").replaceChildren(el("option", { value: "" }, "载入模板…"), ...readTpl().map((t, i) => el("option", { value: i }, t.title)));
+  }
+  $("m-tpl-save").onclick = () => {
+    if (!$("m-title").value.trim()) { toast("先填标题", "bad"); return; }
+    const list = readTpl().filter((t) => t.title !== $("m-title").value);
+    list.unshift({ title: $("m-title").value, content: $("m-content").value, sender: $("m-sender").value, days: $("m-days").value,
+      atts: [...atts.values()].map((r) => ({ item: r.item, count: r.count })) });
+    try { localStorage.setItem(TPL_KEY, JSON.stringify(list.slice(0, 30))); toast("已存为模板（只存在这个浏览器里）"); } catch (e) { toast("浏览器不让存", "bad"); }
+    renderTpl();
+  };
+  $("m-tpl").onchange = () => {
+    const t = readTpl()[Number($("m-tpl").value)]; if (!t) return;
+    $("m-title").value = t.title; $("m-content").value = t.content; $("m-sender").value = t.sender; $("m-days").value = t.days;
+    atts.clear(); for (const r of t.atts) atts.set(r.item.id, { item: r.item, count: r.count });
+    renderAtts(); $("m-tpl").value = "";
+  };
+
+  async function history() {
+    const [{ history }, { scheduled }] = await Promise.all([call("mail/history"), call("mail/scheduled")]);
+    $("m-scheduled").replaceChildren(...scheduled.map((m) => el("div", { class: "list-line" }, el("span", {}, m.title),
+      el("span", { class: "row", style: "flex:none;gap:6px" }, el("span", { class: "muted" }, `${m.target === "all" ? "全服" : m.target} · ${fmtTime(m.sendAt)}`),
+        el("button", { type: "button", class: "btn sm danger", onclick: action(async () => { await call("mail/cancel", { id: m.id }); toast("已取消"); await history(); }) }, "取消")))));
+    if (!scheduled.length) $("m-scheduled").append(el("span", { class: "muted small" }, "没有"));
+    $("m-history").replaceChildren(...history.slice(0, 8).map((h) => el("div", { class: "list-line" }, el("span", {}, h.title),
+      el("span", { class: "muted", style: "flex:none" }, `${h.target === "all" ? "全服" : "单人"} · ${h.recipients} 人 · ${fmtTime(h.time)}`))));
+    if (!history.length) $("m-history").append(el("span", { class: "muted small" }, "还没有发过"));
+  }
+  $("m-send").onclick = action(async () => {
+    const target = to === "all" ? "all" : $("m-uid").value.trim();
+    if (!target) throw new Error("请填写收件人 UID");
+    if (to === "one" && !Admin.findPlayer(target)) throw new Error("没有这个 UID 的玩家");
+    if (!$("m-title").value.trim()) throw new Error("请填写标题");
+    const later = $("m-when").value === "later";
+    if (later && !$("m-at").value) throw new Error("请选择定时发送的时间");
+    if (target === "all" && !confirm(`确认给全服 ${Admin.players.length} 个账号（含离线）发送「${$("m-title").value}」？附件 ${atts.size} 种。`)) return;
+    const r = await call("mail/send", { target, title: $("m-title").value, content: $("m-content").value, sender: $("m-sender").value,
+      expireDays: Number($("m-days").value), star: $("m-star").checked, sendAt: later ? Admin.toUnix($("m-at").value) : 0,
+      items: [...atts.values()].map((x) => ({ id: x.item.id, count: x.count })) });
+    toast(r.scheduled ? `已排队，${fmtTime(r.sendAt)} 发送` : `已发送：${r.recipients} 人（在线 ${r.online}），共 ${r.mails} 封` + (r.failed.length ? `；找不到 ${r.failed.join(",")}` : ""));
+    await history();
+  });
+  Admin.page("mail", async () => { renderTpl(); renderAtts(); await history(); });
+})();
+</script>
+
+<script>
+/* 账户编辑：改动先进待保存列表，「保存」时一次提交（account/batch） */
+(() => {
+  const { $, el, call, action, toast, fmtNum, tone } = Admin;
+  const TABS = ["基本信息", "角色", "武器", "圣遗物", "背包", "货币"];
+  const PROP = { FIGHT_PROP_HP: "生命值", FIGHT_PROP_HP_PERCENT: "生命值%", FIGHT_PROP_ATTACK: "攻击力", FIGHT_PROP_ATTACK_PERCENT: "攻击力%",
+    FIGHT_PROP_DEFENSE: "防御力", FIGHT_PROP_DEFENSE_PERCENT: "防御力%", FIGHT_PROP_CRITICAL: "暴击率", FIGHT_PROP_CRITICAL_HURT: "暴击伤害",
+    FIGHT_PROP_CHARGE_EFFICIENCY: "充能效率", FIGHT_PROP_ELEMENT_MASTERY: "元素精通", FIGHT_PROP_HEAL_ADD: "治疗加成",
+    FIGHT_PROP_PHYSICAL_ADD_HURT: "物伤", FIGHT_PROP_FIRE_ADD_HURT: "火伤", FIGHT_PROP_WATER_ADD_HURT: "水伤", FIGHT_PROP_GRASS_ADD_HURT: "草伤",
+    FIGHT_PROP_ELEC_ADD_HURT: "雷伤", FIGHT_PROP_WIND_ADD_HURT: "风伤", FIGHT_PROP_ICE_ADD_HURT: "冰伤", FIGHT_PROP_ROCK_ADD_HURT: "岩伤" };
+  const prop = (p) => PROP[p] || (p || "-").replace(/^FIGHT_PROP_/, "");
+  const WISH = [[223, "纠缠之缘"], [224, "相遇之缘"]]; // 祈愿道具是背包材料，放在货币页一起改
+  const LIMIT = 300;
+  let tab = "角色", uid = 0, data = null, addable = [];
+  const pending = new Map(); // key → {label, from, to, change}
+  const filters = { 角色: "", 武器: "", 圣遗物: "", 背包: "" };
+
+  /** 记一项改动；值改回原样时自动移除 */
+  function stage(key, label, from, to, change) {
+    if (String(from) === String(to)) pending.delete(key); else pending.set(key, { label, from, to, change });
+    renderPending();
+  }
+  /** 同一对象多个字段合成一项（如角色的等级和命座） */
+  function stageFields(key, label, kind, ids, field, from, to) {
+    const old = pending.get(key) || { label, change: Object.assign({ kind }, ids), parts: {} };
+    if (String(from) === String(to)) delete old.parts[field]; else old.parts[field] = [from, to];
+    const fields = Object.keys(old.parts);
+    if (!fields.length) { pending.delete(key); renderPending(); return; }
+    old.change = Object.assign({ kind }, ids);
+    for (const f of fields) {
+      const value = old.parts[f][1];
+      if (f.startsWith("skill:")) { old.change.skills = old.change.skills || {}; old.change.skills[f.slice(6)] = value; }
+      else old.change[f] = value;
+    }
+    old.from = fields.map((f) => `${FIELD[f.split(":")[0]] || f} ${old.parts[f][0]}`).join("，");
+    old.to = fields.map((f) => old.parts[f][1]).join("，");
+    pending.set(key, old); renderPending();
+  }
+  const FIELD = { nickname: "昵称", worldLevel: "世界等级", exp: "阅历", signature: "签名", level: "等级",promoteLevel: "突破", constellation: "命座", fetterLevel: "好感", refinement: "精炼", locked: "上锁", skill: "天赋" };
+  function renderPending() {
+    $("a-pending").replaceChildren(...[...pending.entries()].map(([key, p]) => el("div", { class: "list-line", style: "font-size:14px" },
+      el("span", { style: "min-width:0" }, p.label), el("span", { class: "row", style: "flex:none;gap:4px" },
+        el("span", { class: "muted", style: "font-size:13px" }, p.to === "删除" ? "删除" : `${p.from} → ${p.to}`),
+        el("button", { type: "button", class: "btn icon danger", "aria-label": "撤销这项", onclick: () => { pending.delete(key); renderPending(); renderPanel(); } }, "×")))));
+    if (!pending.size) $("a-pending").append(el("span", { class: "muted small" }, "还没有改动"));
+    $("a-save").textContent = pending.size ? `保存 ${pending.size} 项` : "保存";
+  }
+  const num = (value, min, max, cls = "num") => el("input", { class: "input sm " + cls, type: "number", min, max, value });
+  const pendingValue = (key, field, fallback) => { const p = pending.get(key); return p && p.parts && p.parts[field] ? p.parts[field][1] : fallback; };
+  const watch = (input, onChange) => { input.addEventListener("change", () => { onChange(input.type === "checkbox" ? input.checked : Number(input.value)); input.closest("td") && input.closest("td").classList.add("changed"); }); return input; };
+  const searchBox = (name, placeholder) => { const s = el("input", { class: "input sm", type: "search", placeholder, value: filters[name], style: "flex:1 1 220px" }); s.oninput = () => { filters[name] = s.value; renderRows(); }; return s; };
+  const match = (name, text) => !filters[name].trim() || text.toLowerCase().includes(filters[name].trim().toLowerCase());
+  let renderRows = () => {};
+
+  function tabs() {
+    $("a-tabs").replaceChildren(...TABS.map((t) => el("button", { type: "button", role: "tab", "aria-selected": String(t === tab), onclick: () => { tab = t; tabs(); renderPanel(); } }, t)));
+  }
+  function table(head, tbody) { return el("div", { class: "table-box" }, el("table", {}, el("thead", {}, el("tr", {}, head.map((h) => el("th", {}, h)))), tbody)); }
+
+  function basic() {
+    const p = pending.get("player");
+    const val = (f, d) => (p && p.parts && p.parts[f] ? p.parts[f][1] : d);
+    const field = (label, f, from, input) => { input.value = val(f, from);
+      input.addEventListener("change", () => stageFields("player", "基本信息", "player", {}, f, from, input.type === "number" ? Number(input.value) : input.value));
+      return el("label", { class: "field" }, label, input); };
+    return [el("div", { class: "form-grid" },
+      field("昵称", "nickname", data.nickname, el("input", { class: "input", maxlength: 14 })),
+      field("冒险等级", "level", data.level, el("input", { class: "input", type: "number", min: 1, max: 60 })),
+      field("世界等级", "worldLevel", data.worldLevel, el("input", { class: "input", type: "number", min: 0, max: 9 })),
+      field("冒险阅历（当前等级内）", "exp", data.exp, el("input", { class: "input", type: "number", min: 0 })),
+      field("签名", "signature", data.signature, el("input", { class: "input", maxlength: 50, placeholder: "留空" }))),
+      el("p", { class: "note" }, "昵称和签名游戏里没有推送，玩家重新登录后显示；等级立刻同步。")];
+  }
+
+  function avatars() {
+    const pick = el("select", { class: "input sm", style: "max-width:260px" }, el("option", { value: "" }, `添加角色（${addable.length} 个未拥有）`),
+      ...addable.map((a) => el("option", { value: a.id }, `${a.name} #${a.id}`)));
+    const add = el("button", { type: "button", class: "btn sm outline", onclick: () => {
+      const a = addable.find((x) => String(x.id) === pick.value); if (!a) { toast("先选一个角色", "bad"); return; }
+      stage("add:" + a.id, "加入 " + a.name, "未拥有", "拥有", { kind: "avatar-add", avatarId: a.id }); } }, "加入");
+    const tbody = el("tbody");
+    renderRows = () => tbody.replaceChildren(...data.avatars.filter((a) => match("角色", a.name)).map((a) => {
+      const key = "avatar:" + a.id, ids = { avatarId: a.id };
+      const f = (field, from, input) => watch(input, (v) => stageFields(key, a.name, "avatar", ids, field, from, v));
+      const skills = a.skills.map((s) => { const i = num(pendingValue(key, "skill:" + s.id, s.level), 1, 15, "num"); i.title = s.kind; i.style.width = "52px"; return f("skill:" + s.id, s.level, i); });
+      return el("tr", {}, el("td", {}, a.name, el("div", { class: "muted small" }, a.weapon || "")),
+        el("td", {}, f("level", a.level, num(pendingValue(key, "level", a.level), 1, 90))),
+        el("td", {}, f("promoteLevel", a.promoteLevel, num(pendingValue(key, "promoteLevel", a.promoteLevel), 0, 6))),
+        el("td", {}, f("constellation", a.constellation, num(pendingValue(key, "constellation", a.constellation), 0, 6))),
+        el("td", {}, el("span", { class: "row", style: "gap:4px;flex-wrap:nowrap" }, skills)),
+        el("td", {}, f("fetterLevel", a.fetterLevel, num(pendingValue(key, "fetterLevel", a.fetterLevel), 1, 10))));
+    }));
+    renderRows();
+    return [el("div", { class: "row" }, searchBox("角色", "搜索角色"), pick, add),
+      table(["角色", "等级", "突破", "命座", "天赋（普攻 / 战技 / 爆发）", "好感"], tbody),
+      el("p", { class: "note" }, "突破阶段要和等级对得上（比如 80 级是 5 或 6）；不确定就只改等级，突破会自动对上。删除角色游戏里没有对应流程，不提供。")];
+  }
+
+  function equipment(relic) {
+    const name = relic ? "圣遗物" : "武器", list = relic ? data.relics : data.weapons;
+    const tbody = el("tbody");
+    renderRows = () => tbody.replaceChildren(...list.filter((it) => match(name, `${it.name} ${prop(it.mainProp)} ${it.equippedBy || ""}`)).slice(0, LIMIT).map((it) => {
+      const key = "item:" + it.guid, ids = { guid: it.guid };
+      const f = (field, from, input) => watch(input, (v) => stageFields(key, it.name, "item", ids, field, from, v));
+      const lock = el("input", { type: "checkbox", "aria-label": "上锁" }); lock.checked = pendingValue(key, "locked", it.locked);
+      const removing = pending.has("remove:" + it.guid);
+      const del = el("button", { type: "button", class: "btn sm danger", disabled: !!it.equippedBy || it.locked, title: it.equippedBy ? "装备中，先在游戏里卸下" : it.locked ? "已上锁" : "",
+        onclick: () => { stage("remove:" + it.guid, "删除 " + it.name, it.name, "删除", { kind: "item-remove", guid: it.guid }); renderRows(); } }, removing ? "待删除" : "删除");
+      const cells = relic
+        ? [el("td", {}, "+", f("level", it.level - 1, num(pendingValue(key, "level", it.level - 1), it.level - 1, 20))), el("td", {}, prop(it.mainProp)),
+           el("td", { class: "muted small" }, Object.entries(it.subProps || {}).map(([k, n]) => prop(k) + (n > 1 ? "×" + n : "")).join("、"))]
+        : [el("td", {}, f("level", it.level, num(pendingValue(key, "level", it.level), 1, 90))), el("td", {}, f("promoteLevel", it.promoteLevel, num(pendingValue(key, "promoteLevel", it.promoteLevel), 0, 6))),
+           el("td", {}, f("refinement", it.refinement, num(pendingValue(key, "refinement", it.refinement), 1, 5)))];
+      return el("tr", { style: removing ? "opacity:.5" : "" },
+        el("td", {}, el("span", { class: "row", style: "gap:8px;flex-wrap:nowrap" }, el("span", { class: "dot", style: "background:" + tone(it.rank)[0] }), it.name)),
+        ...cells, el("td", { class: "muted" }, it.equippedBy || "-"), el("td", {}, f("locked", it.locked, lock)), el("td", {}, del));
+    }));
+    renderRows();
+    return [el("div", { class: "row" }, searchBox(name, relic ? "按名称、部位、主词条、装备者筛选" : "按名称、装备者筛选"), el("span", { class: "muted small" }, `共 ${list.length} 件，最多显示 ${LIMIT}`)),
+      table(relic ? ["圣遗物", "等级", "主词条", "副词条", "装备于", "锁", ""] : ["武器", "等级", "突破", "精炼", "装备于", "锁", ""], tbody),
+      el("p", { class: "note" }, relic ? "圣遗物只能往上升级，每 4 级按游戏规则随机加一条或强化一条副词条。装备中或上锁的不能删。" : "装备中或上锁的不能删；改了装备中武器的等级，角色属性会跟着重算。")];
+  }
+
+  function materials() {
+    const tbody = el("tbody");
+    renderRows = () => tbody.replaceChildren(...data.materials.filter((m) => match("背包", `${m.id} ${m.name} ${m.category || ""}`)).slice(0, LIMIT).map(materialRow));
+    renderRows();
+    return [el("div", { class: "row" }, searchBox("背包", "按名称、分类或 ID 筛选"), el("span", { class: "muted small" }, `共 ${data.materials.length} 种，最多显示 ${LIMIT}；要加新物品请用「发物品」`)),
+      table(["道具", "数量", "分类", ""], tbody)];
+  }
+  function materialRow(m) {
+    const key = "material:" + m.id;
+    const input = watch(num(pending.has(key) ? pending.get(key).to : m.count, 0, 9999999, "wide"),
+      (v) => stage(key, m.name, m.count, v, { kind: "material", id: m.id, count: v }));
+    return el("tr", {}, el("td", {}, `${m.name} #${m.id}`), el("td", {}, input), el("td", { class: "muted small" }, m.category || "-"), el("td"));
+  }
+
+  function currencies() {
+    const tbody = el("tbody");
+    for (const c of data.currencies) {
+      const key = "currency:" + c.id;
+      const input = watch(num(pending.has(key) ? pending.get(key).to : c.value, 0, undefined, "wide"),
+        (v) => stage(key, c.name, fmtNum(c.value), v, { kind: "currency", id: c.id, value: v }));
+      tbody.append(el("tr", {}, el("td", {}, c.name), el("td", {}, input), el("td", { class: "muted small" }, c.id === 106 ? "上限按游戏规则" : ""), el("td")));
+    }
+    for (const [id, name] of WISH) {
+      const m = data.materials.find((x) => x.id === id) || { id, name, count: 0, category: "祈愿道具" };
+      tbody.append(materialRow(m));
+    }
+    return [table(["货币", "数量", "说明", ""], tbody)];
+  }
+
+  function renderPanel() {
+    if (!data) return;
+    const build = { 基本信息: basic, 角色: avatars, 武器: () => equipment(false), 圣遗物: () => equipment(true), 背包: materials, 货币: currencies }[tab];
+    renderRows = () => {};
+    $("a-panel").replaceChildren(...build());
+  }
+
+  async function load() {
+    uid = Number($("a-player").value);
+    pending.clear(); renderPending();
+    if (!uid) { data = null; $("a-body").classList.add("hidden"); $("a-hint").classList.remove("hidden"); return; }
+    data = await call("account/view?uid=" + uid);
+    addable = (await call("account/addable-avatars?uid=" + uid)).avatars;
+    $("a-hint").classList.add("hidden"); $("a-body").classList.remove("hidden");
+    $("a-initial").textContent = (data.nickname || "旅").slice(0, 1);
+    $("a-s-name").textContent = data.nickname || "(无昵称)"; $("a-s-level").textContent = data.level; $("a-s-wl").textContent = data.worldLevel;
+    tabs(); renderPanel();
+  }
+  function fillPlayers() {
+    const keep = $("a-player").value;
+    $("a-player").replaceChildren(el("option", { value: "" }, "请选择在线玩家"), ...Admin.players.map((p) =>
+      el("option", { value: p.uid, disabled: !p.online }, `${p.uid} · ${p.nickname || "(无昵称)"}${p.online ? " · 在线 AR" + p.level : " · 离线"}`)));
+    if ([...$("a-player").options].some((o) => o.value === keep && !o.disabled)) $("a-player").value = keep;
+  }
+  document.addEventListener("players", fillPlayers);
+  $("a-player").onchange = action(async () => {
+    if (pending.size && !confirm("有未保存的改动，换玩家会丢掉，继续？")) return;
+    await load();
+  });
+  $("a-reload").onclick = action(async () => { await Admin.loadPlayers(); if (uid) { if (pending.size && !confirm("刷新会丢掉未保存的改动，继续？")) return; await load(); } });
+  $("a-discard").onclick = () => { pending.clear(); renderPending(); renderPanel(); };
+  $("a-save").onclick = action(async () => {
+    if (!pending.size) { toast("没有改动"); return; }
+    const changes = [...pending.values()].map((p) => p.change);
+    const r = await call("account/batch", { uid, changes });
+    $("a-last").textContent = `已生效 ${r.applied}/${r.total} 项，备份 ${r.backupId}`;
+    if (r.error) toast(r.error, "bad"); else toast(`已保存 ${r.applied} 项，游戏里已同步`);
+    await load();
+  });
+  Admin.page("account", async () => { await Admin.loadPlayers(); fillPlayers(); renderPending(); });
+})();
+</script>
+
+<script>
+/* 发物品 */
+(() => {
+  const { $, el, call, action, toast, fmtNum, tone, itemName } = Admin;
+  const basket = new Map(); // id → {item, count}
+  const QUICK = [[201, "原石", 5, 1600], [202, "摩拉", 3, 1000000], [203, "创世结晶", 5, 6480], [223, "纠缠之缘", 5, 10], [224, "相遇之缘", 5, 10],
+    [104003, "大英雄的经验", 4, 100], [104013, "精锻用魔矿", 3, 100], [220007, "浓缩树脂", 4, 5]];
+  const add = (item, count = 1) => { const row = basket.get(item.id); if (row) row.count += count; else basket.set(item.id, { item, count }); render(); };
+  for (const [id, name, rank, count] of QUICK) $("g-quick").append(el("button", { type: "button", onclick: () => add({ id, name, rank }, count) }, `${name}×${fmtNum(count)}`));
+  function render() {
+    $("g-count").textContent = basket.size;
+    $("g-basket").replaceChildren(...[...basket.entries()].map(([id, row]) => {
+      const qty = el("input", { class: "input sm", type: "number", min: 1, value: row.count, "aria-label": "数量" });
+      qty.oninput = () => { row.count = Math.max(1, Number(qty.value) || 1); };
+      const step = (d) => () => { row.count = Math.max(1, row.count + d); qty.value = row.count; };
+      return el("div", { class: "basket-line" },
+        el("span", { class: "dot", style: "background:" + tone(row.item.rank)[0] }), el("span", { class: "name", title: itemName(row.item) }, itemName(row.item)),
+        el("button", { type: "button", class: "btn icon", "aria-label": "减少", onclick: step(-1) }, "−"), qty,
+        el("button", { type: "button", class: "btn icon", "aria-label": "增加", onclick: step(1) }, "+"),
+        el("button", { type: "button", class: "btn icon danger", "aria-label": "移除", onclick: () => { basket.delete(id); render(); } }, "×"));
+    }));
+    if (!basket.size) $("g-basket").append(el("p", { class: "empty" }, "还没有物品，从左边点「加入发放篮」"));
+    const uid = $("g-uid").value.trim();
+    $("g-send").textContent = uid ? `发给 UID ${uid}` : "发放";
+  }
+  const uidState = () => { $("g-uid-state").replaceChildren(Admin.playerBadge($("g-uid").value)); render(); };
+  $("g-uid").oninput = uidState; document.addEventListener("players", uidState);
+  $("g-send").onclick = action(async () => {
+    const uid = $("g-uid").value.trim(), p = Admin.findPlayer(uid);
+    if (!p) throw new Error("请填写存在的玩家 UID");
+    if (!basket.size) throw new Error("发放篮是空的");
+    const mode = document.querySelector("input[name=g-mode]:checked").value;
+    if (mode === "auto" && !p.online) throw new Error("这个玩家离线，直接进背包需要在线；请改用「走邮件」");
+    const r = await call("give/send", { uid: Number(uid), mode, items: [...basket.values()].map((x) => ({ id: x.item.id, count: x.count })) });
+    const text = `进背包 ${r.bag.length} 种，邮件 ${r.mail.length} 种（${r.mails} 封）` + (r.backupId ? `\n备份 ${r.backupId}` : "");
+    $("g-result").textContent = text; toast(text);
+    basket.clear(); render();
+  });
+  const browser = Admin.itemBrowser($("g-wrap"), (it) => add(it));
+  Admin.page("give", async () => { render(); await browser.reload(); });
+})();
+</script>
 </body>
 </html>
