@@ -90,6 +90,12 @@ public class PacketCodexDataFullNotify extends BasePacket {
                             }
                         });
 
+        player.getCodex().getUnlockedBook().forEach(bookId -> {
+            if (GameData.getCodexBookDataMap().containsKey(bookId)) {
+                bookTypeData.addCodexIdList(bookId).addHaveViewedList(true);
+            }
+        });
+
         player
                 .getCodex()
                 .getUnlockedReliquarySuitCodex()

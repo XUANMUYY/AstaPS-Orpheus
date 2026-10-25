@@ -7,6 +7,7 @@ import emu.grasscutter.game.home.SpecialFurnitureType;
 import emu.grasscutter.game.inventory.*;
 import emu.grasscutter.game.props.*;
 import emu.grasscutter.game.props.ItemUseAction.ItemUseAction;
+import emu.grasscutter.game.props.ItemUseAction.ItemUseUnsupported;
 import it.unimi.dsi.fastutil.ints.*;
 import java.util.*;
 import lombok.Getter;
@@ -108,6 +109,11 @@ public class ItemData extends GameResource {
 
     public boolean isEquip() {
         return this.itemType == ItemType.ITEM_RELIQUARY || this.itemType == ItemType.ITEM_WEAPON;
+    }
+
+    public boolean hasUnsupportedItemUseAction() {
+        return this.itemUseActions != null
+                && this.itemUseActions.stream().anyMatch(ItemUseUnsupported.class::isInstance);
     }
 
     @Override

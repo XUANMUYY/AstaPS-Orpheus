@@ -81,13 +81,14 @@ final class InventoryRewardAdmission {
                     || data.getItemType() == null) {
                 return InventoryAddResult.Status.INVALID_ITEM;
             }
-            if (data.isUseOnGain() && WeaponSkinData.isWeaponSkinItem(item.getItemId())) {
+            if (data.isUseOnGain() && !data.hasUnsupportedItemUseAction()
+                    && WeaponSkinData.isWeaponSkinItem(item.getItemId())) {
                 if (item.getCount() != 1 || data.getItemType() != ItemType.ITEM_MATERIAL) {
                     return InventoryAddResult.Status.INVALID_ITEM;
                 }
                 continue;
             }
-            if (data.isUseOnGain()) {
+            if (data.isUseOnGain() && !data.hasUnsupportedItemUseAction()) {
                 // Mail and other reward sources legitimately deliver avatar, namecard,
                 // glider and costume unlock cards. They consume no inventory slot.
                 // Count must be one: putItem invokes the direct-use action once per item.
