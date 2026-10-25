@@ -42,6 +42,7 @@ import static emu.grasscutter.scripts.constants.GroupKillPolicy.*;
 @SuppressWarnings("unused")
 public class ScriptLib {
     public static final Logger logger = Grasscutter.getLogger();
+    private static final String BLOSSOM_SCHEDULE_STATE_KEY = "__blossomScheduleState";
     private final FastThreadLocal<SceneScriptManager> sceneScriptManager;
     private final FastThreadLocal<SceneGroup> currentGroup;
     private final FastThreadLocal<ScriptArgs> callParams;
@@ -793,6 +794,14 @@ public class ScriptLib {
         return ((EntityGadget) gadget).getState();
     }
 
+    public int GetBlossomScheduleStateByGroupId(int groupId) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || targetGroupId <= 0) return -1;
+        return manager.getVariables(targetGroupId).getOrDefault(BLOSSOM_SCHEDULE_STATE_KEY, 0);
+    }
+
     public int GetGameHour() {
         logger.debug("[LUA] Call GetGameHour");
         return getSceneScriptManager().getScene().getWorld().getGameTimeHours();
@@ -1240,9 +1249,13 @@ public class ScriptLib {
         return 0;
     }
 
-    public int SetBlossomScheduleStateByGroupId(int groupId, int scene) {
-        logger.warn("[LUA] Call unimplemented SetBlossomScheduleStateByGroupId with {} {}", groupId, scene);
-
+    public int SetBlossomScheduleStateByGroupId(int groupId, int state) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || targetGroupId <= 0 || state < 0 || state > 3) return 1;
+        // 推断：原生 Blossom schedule 的组状态由 Lua 设置；沿用已有可持久化的组变量缓存。
+        manager.getVariables(targetGroupId).put(BLOSSOM_SCHEDULE_STATE_KEY, state);
         return 0;
     }
 
