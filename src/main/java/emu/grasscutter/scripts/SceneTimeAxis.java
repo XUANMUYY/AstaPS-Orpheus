@@ -17,6 +17,52 @@ public final class SceneTimeAxis {
     /** Delay from ScriptLib.InitTimeAxis — official lua units are seconds. */
     private final int delay;
     private final boolean loop;
+    private boolean paused;
+    private long pauseStartedMillis;
+    private volatile long pausedMillis;
+    private boolean cancelled;
+
+    public synchronized boolean pause() {
+        if (cancelled) return false;
+        if (!paused) {
+            paused = true;
+            pauseStartedMillis = System.currentTimeMillis();
+        }
+        return true;
+    }
+
+    public synchronized boolean resume() {
+        if (cancelled) return false;
+        if (paused) {
+            pausedMillis += System.currentTimeMillis() - pauseStartedMillis;
+            paused = false;
+            notifyAll();
+        }
+        return true;
+    }
+
+    synchronized boolean awaitUnpaused(long scheduledMillis, long offsetAtSchedule) {
+        while (!cancelled) {
+            if (paused) {
+                try {
+                    wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+                continue;
+            }
+            long remaining = scheduledMillis + pausedMillis - offsetAtSchedule - System.currentTimeMillis();
+            if (remaining <= 0) return true;
+            try {
+                wait(remaining);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return false;
+    }
 
     /** Schedules the task to run. */
     public void start() {
@@ -31,12 +77,20 @@ public final class SceneTimeAxis {
 
     /** Terminates a repeating task. */
     public void stop() {
+        synchronized (this) {
+            cancelled = true;
+            notifyAll();
+        }
         this.timer.cancel();
     }
 
     final class Task extends TimerTask {
+        private final long offsetAtSchedule = pausedMillis;
+
         @Override
         public void run() {
+            if (!awaitUnpaused(scheduledExecutionTime(), offsetAtSchedule)) return;
+            if (cancelled) return;
             // Invoke script event.
             SceneTimeAxis.this.handle.callEvent(
                     new ScriptArgs(SceneTimeAxis.this.groupId, EventType.EVENT_TIME_AXIS_PASS)

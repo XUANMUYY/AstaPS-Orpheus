@@ -1771,6 +1771,16 @@ public class SceneScriptManager {
         }
     }
 
+    public boolean pauseTimeAxis(String identifier) {
+        var axis = this.timeAxis.get(identifier);
+        return axis != null && axis.pause();
+    }
+
+    public boolean continueTimeAxis(String identifier) {
+        var axis = this.timeAxis.get(identifier);
+        return axis != null && axis.resume();
+    }
+
     /** Associates a scene cutscene with the groups waiting for its completion. */
     public synchronized void registerCutscene(int cutsceneId, int groupId) {
         if (destroyed || cutsceneId <= 0 || groupId <= 0) return;
