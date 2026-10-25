@@ -16,7 +16,10 @@ public class HandlerDungeonPlayerDieReq extends PacketHandler {
 
         Player player = session.getPlayer();
 
-        boolean result = player.getScene().respawnPlayer(player);
+        var scene = player.getScene();
+        var manager = scene != null ? scene.getDungeonManager() : null;
+        boolean result = manager != null && manager.getDungeonData().getId() == req.getDungeonId()
+                && manager.tryRevivePlayer(player);
 
         player.sendPacket(new PacketDungeonPlayerDieRsp(result ? Retcode.RET_SUCC : Retcode.RET_FAIL));
     }
