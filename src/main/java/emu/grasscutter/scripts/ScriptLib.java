@@ -624,9 +624,11 @@ public class ScriptLib {
     }
 
     public int CreateMonsterFaceAvatar(LuaTable var1) {
-        logger.warn("[LUA] Call unimplemented CreateMonsterFaceAvatar with {}", printTable(var1));
-
-        return 0;
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int result = emu.grasscutter.scripts.lib.ScriptLibB.createMonsterFaceAvatar(manager, group, var1);
+        if (result != 0) logger.warn("[LUA] CreateMonsterFaceAvatar failed in group {}", group == null ? 0 : group.id);
+        return result;
     }
 
     public int DelPlayerGroupVisionType(int[] uids, int[] var2) {
@@ -2008,5 +2010,68 @@ public class ScriptLib {
         }
 
         return configIds;
+    }
+
+    // ---- 任务卡 B 补的函数 ----
+    public int AutoPoolMonsterTide(int sourceId, int groupId, LuaTable poolIds, int pointArrayId,
+            LuaTable pointIds, LuaTable affixes, LuaTable params) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = manager == null ? null : manager.getGroupById(groupId);
+        if (group == null || !manager.startPoolMonsterTide(sourceId, group, poolIds,
+                pointArrayId, pointIds, affixes, params)) {
+            logger.warn("[LUA] AutoPoolMonsterTide missing group, pool, or supported points group={} source={} pointArray={}",
+                    groupId, sourceId, pointArrayId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int KillMonsterTide(int groupId, int sourceId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.killMonsterTide(groupId, sourceId)) {
+            logger.debug("[LUA] KillMonsterTide found no tide group={} source={}", groupId, sourceId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int GetDeathZoneStatus(int zoneId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null
+                || manager.getScene().getHost() == null || zoneId < 0) {
+            logger.debug("[LUA] GetDeathZoneStatus invalid scene or zone {}", zoneId);
+            return -1;
+        }
+        return emu.grasscutter.scripts.lib.ScriptLibB.deathZoneStatus(
+                manager.getScene().getHost(), manager.getScene().getId(), zoneId);
+    }
+
+    public int ChangeDeathZone(int zoneId, LuaTable options) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null
+                || !emu.grasscutter.scripts.lib.ScriptLibB.changeDeathZone(
+                        manager.getScene().getHost(), manager.getScene().getId(), zoneId, options)) {
+            logger.warn("[LUA] ChangeDeathZone invalid scene or options zone={}", zoneId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int EndPoolMonsterTide(int groupId, int sourceId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.stopPoolMonsterTide(groupId, sourceId, false)) {
+            logger.debug("[LUA] EndPoolMonsterTide found no tide group={} source={}", groupId, sourceId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int ClearPoolMonsterTide(int groupId, int sourceId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.stopPoolMonsterTide(groupId, sourceId, true)) {
+            logger.debug("[LUA] ClearPoolMonsterTide found no tide group={} source={}", groupId, sourceId);
+            return -1;
+        }
+        return 0;
     }
 }

@@ -145,6 +145,19 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter @Setter private Map<Integer, Set<Integer>> unlockedSceneAreas;
     /** Map area states a quest changed with QUEST_EXEC_CHANGE_MAP_AREA_STATE, by map area id. */
     private Map<Integer, Boolean> mapAreaStates;
+    /** ScriptLib 死域开关，按场景与死域编号保存。 */
+    private Map<String, Integer> deathZoneStatuses;
+
+    public int getDeathZoneStatus(int sceneId, int zoneId) {
+        if (deathZoneStatuses == null) return 0;
+        return deathZoneStatuses.getOrDefault(sceneId + ":" + zoneId, 0);
+    }
+
+    public void setDeathZoneStatus(int sceneId, int zoneId, int status) {
+        if (deathZoneStatuses == null) deathZoneStatuses = new ConcurrentHashMap<>();
+        deathZoneStatuses.put(sceneId + ":" + zoneId, status);
+        save();
+    }
     @Getter @Setter private Map<Integer, Set<Integer>> unlockedScenePoints;
     /** Separate first-entry reward receipts; handbook unlocks do not establish discovery. */
     private Map<Integer, Set<Integer>> rewardedDungeonEntries;
