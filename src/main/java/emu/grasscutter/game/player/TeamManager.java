@@ -28,6 +28,7 @@ import emu.grasscutter.utils.Utils;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import java.util.*;
+import java.util.function.IntFunction;
 import java.util.stream.Stream;
 import lombok.*;
 
@@ -56,6 +57,7 @@ public final class TeamManager extends BasePlayerDataManager {
     @Transient private List<TeamInfo> temporaryTeam;
     @Transient @Getter @Setter private boolean usingTrialTeam;
     @Transient @Getter @Setter private TeamInfo trialAvatarTeam;
+    @Transient private List<Integer> mirrorTrialAvatarIds = List.of();
 
     @Transient @Getter @Setter private Map<Integer, Avatar> trialAvatars;
 
@@ -1292,6 +1294,72 @@ public final class TeamManager extends BasePlayerDataManager {
             }
         }
         return nativeParams != null ? nativeParams : List.of();
+    }
+
+    static List<Integer> selectMirrorTrialAvatarIds(
+            String versions, int mainAvatarId, IntFunction<Integer> avatarIdForTrial) {
+        if (versions == null) return null;
+        var parsedVersions = new ArrayList<List<Integer>>();
+        for (String version : versions.split(";", -1)) {
+            var ids = new ArrayList<Integer>();
+            if (!version.isBlank()) {
+                for (String part : version.split(",", -1)) {
+                    try {
+                        int id = Integer.parseInt(part.trim());
+                        if (id > 0) ids.add(id);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                }
+            }
+            parsedVersions.add(ids);
+        }
+        for (var ids : parsedVersions) {
+            if (mainAvatarId > 0 && ids.stream().anyMatch(
+                    id -> Objects.equals(avatarIdForTrial.apply(id), mainAvatarId))) {
+                return ids;
+            }
+        }
+        return parsedVersions.get(0);
+    }
+
+    public List<Integer> selectMirrorTrialAvatarIds(String versions) {
+        return selectMirrorTrialAvatarIds(versions, this.getPlayer().getMainCharacterId(), id -> {
+            var params = this.getTrialAvatarParam(id);
+            return params.isEmpty() ? null : params.get(0);
+        });
+    }
+
+    public void lockMirrorTeam(List<Integer> trialIds, int mainQuestId) {
+        if (!trialIds.isEmpty()) {
+            if (this.getPlayer().getScene() == null || !this.getPlayer().hasSentLoginPackets()) {
+                throw new IllegalStateException("Mirror team requires an active player scene");
+            }
+            for (int id : trialIds) {
+                var params = this.getTrialAvatarParam(id);
+                if (params.size() < 2 || !GameData.getAvatarDataMap().containsKey(params.get(0))) {
+                    throw new IllegalArgumentException("Unknown mirror trial avatar " + id);
+                }
+            }
+        }
+        this.unlockMirrorTeam();
+        if (trialIds.isEmpty()) return;
+        var scene = this.getPlayer().getScene();
+        if (scene != null) {
+            // setupTrialAvatars(false) clears the list but leaves old roster entities in the scene.
+            for (var entity : new ArrayList<>(this.getActiveTeam())) {
+                scene.removeEntity(entity, VisionTypeOuterClass.VisionType.VisionType_VISION_REMOVE);
+            }
+        }
+        this.addTrialAvatars(trialIds, mainQuestId, false);
+        this.mirrorTrialAvatarIds = List.copyOf(trialIds);
+        this.getPlayer().sendPacket(new PacketAvatarTeamUpdateNotify(this.getPlayer()));
+    }
+
+    public void unlockMirrorTeam() {
+        if (this.mirrorTrialAvatarIds.isEmpty()) return;
+        this.removeTrialAvatar(this.mirrorTrialAvatarIds);
+        this.mirrorTrialAvatarIds = List.of();
     }
 
     public boolean addTrialAvatar(int avatarId, int questMainId, GrantReason reason) {
