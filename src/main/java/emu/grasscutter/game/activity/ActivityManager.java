@@ -113,7 +113,7 @@ public class ActivityManager extends BasePlayerManager {
         // activity entry. Push it for every activity running now.
         // One broken activity must not take the login down with it.
         activityConfigItemMap.keySet().stream()
-                .filter(this::isActivityOpen)
+                .filter(this::isActivityActive)
                 .forEach(
                         activityId -> {
                             try {
@@ -136,8 +136,6 @@ public class ActivityManager extends BasePlayerManager {
                         .map(map -> map.get(watcherTriggerType))
                         .filter(Objects::nonNull)
                         .flatMap(Collection::stream)
-                        .filter(watcher -> isActivityOpen(
-                                watcher.getActivityHandler().getActivityConfigItem().getActivityId()))
                         .toList();
 
         watchers.forEach(
@@ -169,7 +167,12 @@ public class ActivityManager extends BasePlayerManager {
 
     public boolean isActivityOpen(int activityId) {
         var activityConfig = activityConfigItemMap.get(activityId);
-        return activityConfig != null && activityConfig.isOpenAt(new Date());
+        if (activityConfig == null) {
+            return false;
+        }
+
+        var now = new Date();
+        return now.after(activityConfig.getOpenTime()) && now.before(activityConfig.getCloseTime());
     }
 
     public int getOpenDay(int activityId) {

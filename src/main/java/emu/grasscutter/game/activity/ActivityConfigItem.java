@@ -27,10 +27,4 @@ public class ActivityConfigItem {
             this.closeTime = endTime;
         }
     }
-
-    public boolean isOpenAt(Date now) {
-        return now != null && beginTime != null && endTime != null && openTime != null
-                && closeTime != null && !now.before(beginTime) && now.before(endTime)
-                && !now.before(openTime) && now.before(closeTime);
-    }
 }
