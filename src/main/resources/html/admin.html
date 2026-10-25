@@ -171,6 +171,43 @@
         </div></div>
       </div>
     </section>
+    <section data-page="account" class="hidden" style="display:grid;gap:16px">
+      <div class="panel"><h2>账户编辑</h2><div class="body">
+        <p class="note">只能改<b>在线</b>玩家。改动用游戏自己的接口实时同步到客户端，不会踢下线；命座往下调时会自动重载一次场景（画面闪一下）。每次保存前都会整档备份到 <span class="mono">backups/admin-account-*</span>。</p>
+        <div class="row"><label>玩家<select id="a-player"></select></label><button id="a-players" type="button" class="small">刷新玩家</button><button id="a-load" type="button" class="primary">读取</button><span class="hint" id="a-backup"></span></div>
+      </div></div>
+      <div id="a-body" class="hidden" style="display:grid;gap:16px">
+        <div class="cols">
+          <div class="panel"><h2>基本信息</h2><div class="body">
+            <div class="row">
+              <label>冒险等级<input id="a-level" type="number" min="1" max="60" style="width:90px"></label>
+              <label>世界等级<input id="a-wl" type="number" min="0" max="9" style="width:90px"></label>
+              <label>冒险阅历（当前级内）<input id="a-exp" type="number" min="0" style="width:120px"></label>
+              <button id="a-save-player" type="button">保存</button>
+            </div>
+          </div></div>
+          <div class="panel"><h2>货币</h2><div class="body"><table><tbody id="a-currencies"></tbody></table></div></div>
+        </div>
+        <div class="panel"><h2>角色</h2><div class="body">
+          <div class="row"><label>加入角色<select id="a-addable"></select></label><button id="a-add" type="button">加入</button><span class="hint">删除角色游戏里没有对应流程，不提供。</span></div>
+          <div class="scroll"><table><thead><tr><th>角色</th><th>等级</th><th>突破</th><th>命座</th><th>天赋（普攻 / 战技 / 爆发）</th><th>好感</th><th>武器</th><th></th></tr></thead><tbody id="a-avatars"></tbody></table></div>
+        </div></div>
+        <div class="panel"><h2>武器</h2><div class="body">
+          <input id="a-wfilter" type="search" placeholder="按名称筛选">
+          <div class="scroll"><table><thead><tr><th>武器</th><th>等级</th><th>突破</th><th>精炼</th><th>装备于</th><th>锁</th><th></th></tr></thead><tbody id="a-weapons"></tbody></table></div>
+        </div></div>
+        <div class="panel"><h2>圣遗物</h2><div class="body">
+          <input id="a-rfilter" type="search" placeholder="按名称、部位、主词条筛选">
+          <div class="scroll"><table><thead><tr><th>圣遗物</th><th>等级</th><th>主词条</th><th>副词条</th><th>装备于</th><th>锁</th><th></th></tr></thead><tbody id="a-relics"></tbody></table></div>
+          <p class="hint">圣遗物只能往上升级，每 4 级按游戏规则随机加一条或强化一条副词条。最多显示 300 件，用筛选找。</p>
+        </div></div>
+        <div class="panel"><h2>背包材料</h2><div class="body">
+          <input id="a-mfilter" type="search" placeholder="按名称、分类或 ID 筛选">
+          <div class="scroll"><table><thead><tr><th>物品</th><th>分类</th><th>数量</th><th></th></tr></thead><tbody id="a-materials"></tbody></table></div>
+          <p class="hint">改成 0 等于全部扣掉。要加新材料请用「发物品」页。最多显示 300 条。</p>
+        </div></div>
+      </div>
+    </section>
     <!-- PAGES -->
   </main>
 </section>
@@ -458,6 +495,132 @@ const Admin = (() => {
     basket.clear();
   });
   Admin.page("give", async () => { await Admin.fillPlayers($("g-player")); await picker.reload(); });
+})();
+</script>
+<script>
+/* B4 账户编辑 */
+(() => {
+  const { $, el, call, action, toast } = Admin;
+  const PROP = { FIGHT_PROP_HP: "生命值", FIGHT_PROP_HP_PERCENT: "生命值%", FIGHT_PROP_ATTACK: "攻击力", FIGHT_PROP_ATTACK_PERCENT: "攻击力%",
+    FIGHT_PROP_DEFENSE: "防御力", FIGHT_PROP_DEFENSE_PERCENT: "防御力%", FIGHT_PROP_CRITICAL: "暴击率", FIGHT_PROP_CRITICAL_HURT: "暴击伤害",
+    FIGHT_PROP_CHARGE_EFFICIENCY: "元素充能效率", FIGHT_PROP_ELEMENT_MASTERY: "元素精通", FIGHT_PROP_HEAL_ADD: "治疗加成",
+    FIGHT_PROP_PHYSICAL_ADD_HURT: "物理伤害加成", FIGHT_PROP_FIRE_ADD_HURT: "火元素伤害加成", FIGHT_PROP_WATER_ADD_HURT: "水元素伤害加成",
+    FIGHT_PROP_GRASS_ADD_HURT: "草元素伤害加成", FIGHT_PROP_ELEC_ADD_HURT: "雷元素伤害加成", FIGHT_PROP_WIND_ADD_HURT: "风元素伤害加成",
+    FIGHT_PROP_ICE_ADD_HURT: "冰元素伤害加成", FIGHT_PROP_ROCK_ADD_HURT: "岩元素伤害加成" };
+  const prop = (p) => PROP[p] || p || "-";
+  const num = (value, min, max, width = 64) => el("input", { type: "number", min, max, value, style: `width:${width}px` });
+  let uid = 0, data = null;
+  const LIMIT = 300;
+
+  async function save(path, body) {
+    const r = await call("account/" + path, Object.assign({ uid }, body));
+    $("a-backup").textContent = "已保存，备份 " + r.backupId;
+    toast("已保存");
+    return r.result;
+  }
+
+  function renderCurrencies() {
+    $("a-currencies").replaceChildren();
+    for (const c of data.currencies) {
+      const input = num(c.value, 0, undefined, 140);
+      $("a-currencies").append(el("tr", {}, el("td", {}, c.name), el("td", {}, input),
+        el("td", {}, el("button", { type: "button", class: "small", onclick: action(async () => { const r = await save("currency", { id: c.id, value: Number(input.value) }); input.value = r.value; }) }, "保存"))));
+    }
+  }
+
+  function avatarRow(a) {
+    const level = num(a.level, 1, 90), promote = num(a.promoteLevel, 0, 6, 52), cons = num(a.constellation, 0, 6, 52), fetter = num(a.fetterLevel, 1, 10, 52);
+    const skillInputs = a.skills.slice(0, 3).map((s) => { const i = num(s.level, 1, 15, 52); i.title = `${s.kind} #${s.id}`; return [s, i]; });
+    const row = el("tr", {}, el("td", {}, a.name), el("td", {}, level), el("td", {}, promote), el("td", {}, cons),
+      el("td", {}, skillInputs.map(([, i]) => i)), el("td", {}, fetter), el("td", { class: "hint" }, a.weapon || "-"),
+      el("td", {}, el("button", { type: "button", class: "small", onclick: action(async () => {
+        const body = { avatarId: a.id };
+        if (Number(level.value) !== a.level) body.level = Number(level.value);
+        if (Number(promote.value) !== a.promoteLevel) body.promoteLevel = Number(promote.value);
+        if (Number(cons.value) !== a.constellation) body.constellation = Number(cons.value);
+        if (Number(fetter.value) !== a.fetterLevel) body.fetterLevel = Number(fetter.value);
+        const changed = skillInputs.filter(([s, i]) => Number(i.value) !== s.level);
+        if (changed.length) body.skills = Object.fromEntries(changed.map(([s, i]) => [s.id, Number(i.value)]));
+        if (Object.keys(body).length === 1) { toast("没有改动"); return; }
+        row.replaceWith(avatarRow(await save("avatar", body)));
+      }) }, "保存")));
+    return row;
+  }
+
+  function equipRow(it, relic) {
+    const lock = el("input", { type: "checkbox" }); lock.checked = it.locked;
+    const level = relic ? num(it.level - 1, it.level - 1, 20, 52) : num(it.level, 1, 90);
+    const promote = relic ? null : num(it.promoteLevel, 0, 6, 52);
+    const refine = relic ? null : num(it.refinement, 1, 5, 52);
+    const cells = relic
+      ? [el("td", {}, "+", level), el("td", {}, prop(it.mainProp)), el("td", { class: "hint" }, Object.entries(it.subProps || {}).map(([k, n]) => prop(k) + (n > 1 ? `×${n}` : "")).join("、"))]
+      : [el("td", {}, level), el("td", {}, promote), el("td", {}, refine)];
+    const row = el("tr", {}, el("td", { class: Admin.rankClass(it.rank) }, it.name), ...cells,
+      el("td", { class: "hint" }, it.equippedBy || "-"), el("td", {}, lock),
+      el("td", {},
+        el("button", { type: "button", class: "small", onclick: action(async () => {
+          const body = { guid: it.guid, locked: lock.checked };
+          if (relic) { if (Number(level.value) !== it.level - 1) body.level = Number(level.value); }
+          else {
+            if (Number(level.value) !== it.level) body.level = Number(level.value);
+            if (Number(promote.value) !== it.promoteLevel) body.promoteLevel = Number(promote.value);
+            if (Number(refine.value) !== it.refinement) body.refinement = Number(refine.value);
+          }
+          row.replaceWith(equipRow(await save("item", body), relic));
+        }) }, "保存"), " ",
+        el("button", { type: "button", class: "small danger", onclick: action(async () => {
+          if (!confirm(`删除「${it.name}」？`)) return;
+          await save("item/remove", { guid: it.guid }); row.remove();
+        }) }, "删除")));
+    return row;
+  }
+
+  function renderList(tbody, rows, filterId, text, make) {
+    const term = $(filterId).value.trim().toLowerCase();
+    tbody.replaceChildren();
+    const shown = rows.filter((r) => !term || text(r).toLowerCase().includes(term)).slice(0, LIMIT);
+    for (const r of shown) tbody.append(make(r));
+    if (!shown.length) tbody.append(el("tr", {}, el("td", { colspan: 8, class: "hint" }, "没有")));
+  }
+  const renderWeapons = () => renderList($("a-weapons"), data.weapons, "a-wfilter", (w) => w.name, (w) => equipRow(w, false));
+  const renderRelics = () => renderList($("a-relics"), data.relics, "a-rfilter", (r) => `${r.name} ${prop(r.mainProp)}`, (r) => equipRow(r, true));
+  const renderMaterials = () => renderList($("a-materials"), data.materials, "a-mfilter", (m) => `${m.id} ${m.name} ${m.category || ""}`, (m) => {
+    const count = num(m.count, 0, 9999999, 120);
+    return el("tr", {}, el("td", {}, `${m.name} #${m.id}`), el("td", { class: "hint" }, m.category || "-"), el("td", {}, count),
+      el("td", {}, el("button", { type: "button", class: "small", onclick: action(async () => { const r = await save("material", { id: m.id, count: Number(count.value) }); m.count = r.count; count.value = r.count; }) }, "保存")));
+  });
+  $("a-wfilter").oninput = renderWeapons; $("a-rfilter").oninput = renderRelics; $("a-mfilter").oninput = renderMaterials;
+
+  async function load() {
+    uid = Number($("a-player").value);
+    if (!uid) throw new Error("请先选一个在线玩家");
+    data = await call("account/view?uid=" + uid);
+    $("a-body").classList.remove("hidden");
+    $("a-level").value = data.level; $("a-wl").value = data.worldLevel; $("a-exp").value = data.exp;
+    renderCurrencies();
+    $("a-avatars").replaceChildren(...data.avatars.map(avatarRow));
+    renderWeapons(); renderRelics(); renderMaterials();
+    const { avatars } = await call("account/addable-avatars?uid=" + uid);
+    $("a-addable").replaceChildren(el("option", { value: "" }, `选择角色（${avatars.length} 个未拥有）`), ...avatars.map((a) => el("option", { value: a.id }, `${a.name} #${a.id}`)));
+  }
+  $("a-players").onclick = action(() => Admin.fillPlayers($("a-player"), { onlineOnly: true }));
+  $("a-load").onclick = action(load);
+  $("a-save-player").onclick = action(async () => {
+    const body = {};
+    if (Number($("a-level").value) !== data.level) body.level = Number($("a-level").value);
+    if (Number($("a-wl").value) !== data.worldLevel) body.worldLevel = Number($("a-wl").value);
+    if (Number($("a-exp").value) !== data.exp) body.exp = Number($("a-exp").value);
+    if (!Object.keys(body).length) { toast("没有改动"); return; }
+    const r = await save("player", body);
+    Object.assign(data, r); $("a-level").value = r.level; $("a-wl").value = r.worldLevel; $("a-exp").value = r.exp;
+  });
+  $("a-add").onclick = action(async () => {
+    const id = Number($("a-addable").value);
+    if (!id) throw new Error("请先选角色");
+    await save("avatar/add", { avatarId: id });
+    await load();
+  });
+  Admin.page("account", () => Admin.fillPlayers($("a-player"), { onlineOnly: true }));
 })();
 </script>
 <!-- PAGE SCRIPTS -->
