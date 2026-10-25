@@ -12,6 +12,7 @@ import emu.grasscutter.data.excels.DailyTaskLevelData;
 import emu.grasscutter.data.excels.DailyTaskRewardData;
 import emu.grasscutter.data.excels.RewardPreviewData;
 import emu.grasscutter.database.DatabaseHelper;
+import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ActionReason;
 import emu.grasscutter.game.world.Position;
@@ -853,13 +854,6 @@ public class DailyTaskManager {
 			return;
 		}
 
-		/*
-		 * If this kill finished commission #4, award the daily completion
-		 * bonus immediately. Until the proper Katheryne/claim proto is
-		 * identified, this acts as the server-side equivalent of claiming it.
-		 */
-		this.tryAutoClaimScoreReward();
-
         DailyTaskGroupLifecycle.progressChanged(this, scene, groupId);
 		this.save();
 		this.syncAll();
@@ -1102,19 +1096,13 @@ public class DailyTaskManager {
 					task);
 		}
 
-		/*
-		 * /dt finish should behave exactly like a naturally completed
-		 * commission with regard to the four-task completion bonus.
-		 */
-		this.tryAutoClaimScoreReward();
-
 		this.save();
 		this.syncAll();
 
 		return true;
 	}
 
-	private boolean tryAutoClaimScoreReward() {
+	private boolean tryClaimScoreReward() {
 		if (this.player == null) {
 			return false;
 		}
@@ -1130,23 +1118,32 @@ public class DailyTaskManager {
 		int rewardId =
 				this.getScoreRewardId();
 
-		if (!this.grantPreviewReward(
-				rewardId,
-				ActionReason.DailyTaskScore)) {
+		List<ItemParamData> items = this.getScoreRewardItems();
+		if (rewardId <= 0 || items.isEmpty()
+				|| items.stream().anyMatch(item -> item == null || item.getId() <= 0
+						|| item.getCount() <= 0 || GameData.getItemDataMap().get(item.getId()) == null)
+				|| !this.player.getInventory()
+						.addItems(
+								items.stream()
+										.map(item -> new GameItem(item.getId(), item.getCount()))
+										.toList(),
+								ActionReason.DailyTaskScore)
+						.allAccepted()) {
 			Grasscutter.getLogger()
 					.warn(
-							"[DailyTask] Failed to automatically grant the four-commission reward {} to UID {}.",
+							"[DailyTask] Failed to claim the four-commission reward {} for UID {}.",
 							rewardId,
 							this.player.getUid());
 
 			return false;
 		}
 
+		this.player.save();
 		this.scoreRewardTaken = true;
 
 		Grasscutter.getLogger()
 				.info(
-						"[DailyTask] Automatically granted four-commission reward {} to UID {}.",
+						"[DailyTask] Claimed four-commission reward {} for UID {}.",
 						rewardId,
 						this.player.getUid());
 
@@ -1164,9 +1161,7 @@ public class DailyTaskManager {
 	}
 
 	/**
-	 * The items the four-commission bonus pays out. The reward is granted automatically the moment
-	 * the fourth commission is finished, but the client still asks for it and wants the list back to
-	 * show, so this reads the same preview the grant used.
+	 * The items the four-commission bonus pays out when the client claims it.
 	 */
 	public List<ItemParamData> getScoreRewardItems() {
 		RewardPreviewData reward =
@@ -1181,7 +1176,7 @@ public class DailyTaskManager {
 	}
 
 	public synchronized boolean claimScoreReward() {
-		if (!this.tryAutoClaimScoreReward()) {
+		if (!this.tryClaimScoreReward()) {
 			return false;
 		}
 
