@@ -8,6 +8,7 @@ import emu.grasscutter.Grasscutter;
 import emu.grasscutter.config.Configuration;
 import emu.grasscutter.game.entity.EntityGadget;
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.quest.enums.QuestContent;
 import emu.grasscutter.game.world.Position;
 import emu.grasscutter.game.world.Scene;
 import emu.grasscutter.net.packet.PacketOpcodes;
@@ -153,6 +154,12 @@ public final class SnezhnayaTrainSystem {
         player.sendPacket(new PacketIceCreature(
                 PacketOpcodes.SnezhnayaTrainCallNotify,
                 SnezhnayaTrainCallNotify.newBuilder().setStationId(station).build()));
+        // Inference: the resolved station is the quest range; its param_str coordinate is not checked here.
+        if (train != null && station > 0 && player.getScene() != null
+                && player.getScene().getEntityById(train.entityId) instanceof EntityGadget) {
+            player.getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_CALL_PLAYER_TRAIN_IN_RANGE,
+                    player.getSceneId(), station);
+        }
     }
 
     /** cmd 28390: the player picked a destination; the train starts running. */

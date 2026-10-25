@@ -105,6 +105,12 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter @Setter private int currentRealmId;
     @Getter @Setter private transient boolean isInEditMode;
     @Getter @Setter private int widgetId;
+    private Map<Integer, String> questAvatarNames = new HashMap<>();
+
+    public Map<Integer, String> getQuestAvatarNames() {
+        if (questAvatarNames == null) questAvatarNames = new HashMap<>();
+        return questAvatarNames;
+    }
     @Getter @Setter private int sceneId;
     @Getter @Setter private int regionId;
     @Getter private int mainCharacterId;
@@ -1750,6 +1756,9 @@ public class Player implements PlayerHook, FieldFetch {
         getQuestManager().onLogin();
 
         session.send(new PacketPlayerDataNotify(this));
+        if (!getQuestAvatarNames().isEmpty()) {
+            session.send(new PacketAvatarRenameInfoNotify(getQuestAvatarNames()));
+        }
         session.send(new PacketStoreWeightLimitNotify());
         session.send(new PacketPlayerStoreNotify(this));
         session.send(new PacketAvatarDataNotify(this));

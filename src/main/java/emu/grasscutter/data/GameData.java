@@ -87,6 +87,8 @@ public final class GameData {
     private static final Map<String, AbilityEmbryoEntry> abilityEmbryos = new HashMap<>();
 
     // ExcelConfigs
+    @Getter private static final Int2ObjectMap<FeatureTagGroupData> featureTagGroupDataMap =
+            new Int2ObjectOpenHashMap<>();
     @Getter
     private static final Int2ObjectMap<ActivityCondExcelConfigData> activityCondExcelConfigDataMap =
             new Int2ObjectOpenHashMap<>();
