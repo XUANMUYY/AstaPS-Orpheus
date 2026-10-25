@@ -511,14 +511,15 @@ public class GameHome {
         List<Integer> allHomesComfort = new ArrayList<>();
         int highestComfort = 0;
         // Use HomeComfortInfoNotify data since comfort value isn't stored
-        if (player.getRealmList() == null) {
+        if (player.getRealmList() == null || player.getRealmList().isEmpty()) {
             return List.of(0, 0);
         }
 
         // Calculate comfort value for each home
         for (int moduleId : player.getRealmList()) {
-            var homeScene = player.getHome().getHomeSceneItem(moduleId + 2000);
-            allHomesComfort.add(homeScene.calComfort());
+            var homeScene = getHomeSceneItem(moduleId + 2000);
+            var roomScene = getMainHouseItem(moduleId + 2000);
+            allHomesComfort.add(moduleComfort(homeScene.calComfort(), roomScene.calComfort()));
         }
 
         // Get highest comfort value
@@ -544,6 +545,10 @@ public class GameHome {
         } else if (highestComfort >= 2000) {
             return List.of(8, 2);
         } else return List.of(4, 2);
+    }
+
+    static int moduleComfort(int outdoorComfort, int indoorComfort) {
+        return outdoorComfort + indoorComfort;
     }
 
     private int getExpRequired(int level) {
