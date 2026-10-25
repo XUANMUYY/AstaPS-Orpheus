@@ -66,6 +66,10 @@ public class TrialAvatarPlayerData {
         boolean passedDungeon;
         boolean receivedReward;
 
+        public boolean isClaimable() {
+            return passedDungeon && !receivedReward;
+        }
+
         public static RewardInfoItem create(int trialAvatarIndexId, int rewardId) {
             return RewardInfoItem.of()
                     .trialAvatarIndexId(trialAvatarIndexId)
