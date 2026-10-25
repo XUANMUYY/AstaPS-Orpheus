@@ -62,6 +62,8 @@ public class World implements Iterable<Player> {
 
     @Getter private boolean isMultiplayer = false;
     @Getter private boolean timeLocked;
+    // 客户端 ClientLockGameTimeNotify 加的锁；客户端解锁时只解自己加的，不动任务 exec 加的锁。
+    private boolean clientTimeLocked;
 
     private long lastUpdateTime;
     @Getter protected int tickCount = 0;
@@ -759,6 +761,24 @@ public class World implements Iterable<Player> {
         this.updateTime();
         this.getPlayers()
                 .forEach(player -> player.setProperty(PlayerProperty.PROP_IS_GAME_TIME_LOCKED, locked));
+    }
+
+    /**
+     * 客户端请求锁定或解锁游戏时间。推断：时间已被任务锁住时，客户端加锁不接管，解锁也不放开。
+     *
+     * @return 世界时间锁是否因此改变。
+     */
+    public boolean applyClientTimeLock(boolean locked) {
+        if (locked) {
+            if (this.timeLocked) return false;
+            this.clientTimeLocked = true;
+            this.lockTime(true);
+            return true;
+        }
+        if (!this.clientTimeLocked) return false;
+        this.clientTimeLocked = false;
+        this.lockTime(false);
+        return true;
     }
 
     @NotNull @Override
