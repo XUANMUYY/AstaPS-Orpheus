@@ -68,7 +68,8 @@ public class ChatSystem implements ChatSystemHandler {
     }
 
     public void handlePullRecentChatReq(Player player) {
-        this.ensureServerConversation(player);
+        // A request always gets its response, even with no console conversation to show.
+        if (!this.ensureServerConversation(player)) player.sendPacket(new PacketPullRecentChatRsp(List.of()));
     }
 
     /********************
@@ -264,7 +265,7 @@ public class ChatSystem implements ChatSystemHandler {
      * Sends the console conversation (welcome messages on first use) so the bot chat is there right
      * after login, not only once the client pulls it after a teleport.
      */
-    public void ensureServerConversation(Player player) {
+    public boolean ensureServerConversation(Player player) {
         var serverHistory = copyHistory(player.getUid(), GameConstants.SERVER_CONSOLE_UID);
         if (serverHistory.isEmpty() && GAME_INFO.joinOptions.sendWelcomeMessages) {
             this.sendServerWelcomeMessages(player);
@@ -272,12 +273,13 @@ public class ChatSystem implements ChatSystemHandler {
         }
 
         if (serverHistory.isEmpty()) {
-            return;
+            return false;
         }
 
         int historyLength = serverHistory.size();
         var recentMessages = serverHistory.subList(Math.max(historyLength - 3, 0), historyLength);
         player.sendPacket(new PacketPullRecentChatRsp(recentMessages));
         player.sendPacket(new PacketPullPrivateChatRsp(serverHistory));
+        return true;
     }
 }
