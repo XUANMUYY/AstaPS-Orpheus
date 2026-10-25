@@ -2,17 +2,14 @@ package emu.grasscutter.server.packet.send;
 
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.GetShopmallDataRspOuterClass.GetShopmallDataRsp;
-import emu.grasscutter.game.shop.ShopSystem;
 import java.util.List;
 
 public class PacketGetShopmallDataRsp extends BasePacket {
 
-    public PacketGetShopmallDataRsp(ShopSystem shopSystem) {
-        this(shopSystem.getShopData().keySet().intStream().sorted().boxed().toList());
-    }
-
-    PacketGetShopmallDataRsp(List<Integer> shop_malls) {
+    public PacketGetShopmallDataRsp() {
         super(PacketOpcodes.GetShopmallDataRsp);
+
+        List<Integer> shop_malls = List.of(900, 1052, 902, 1001, 903);
 
         GetShopmallDataRsp proto =
                 GetShopmallDataRsp.newBuilder().addAllShopTypeList(shop_malls).build();
