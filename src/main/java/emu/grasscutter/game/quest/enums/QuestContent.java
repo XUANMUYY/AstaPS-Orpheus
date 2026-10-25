@@ -72,6 +72,7 @@ public enum QuestContent implements QuestTrigger {
     QUEST_CONTENT_CAPTURE_USE_CAPTURETAG_LIST(144), // missing, currently unused
     QUEST_CONTENT_CAPTURE_USE_MATERIAL_LIST(145), // missing, finish
     QUEST_CONTENT_ENTER_VEHICLE(147),
+    QUEST_CONTENT_LEAVE_VEHICLE(1101), // name from the 7.1 quest data; the value is internal only
     QUEST_CONTENT_SCENE_LEVEL_TAG_EQ(148), // missing, finish
     QUEST_CONTENT_LEAVE_SCENE(149),
     QUEST_CONTENT_LEAVE_SCENE_RANGE(150), // missing, fail
