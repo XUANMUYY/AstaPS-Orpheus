@@ -22,6 +22,8 @@ public class DungeonData extends GameResource {
     private DungeonPlayType playType;
     private DungeonInvolveType involveType;
     @Getter private int limitLevel;
+    // DUNGEON_STATE_RELEASE / DUNGEON_STATE_TEST；测试副本不对玩家开放。
+    @Getter private String stateType;
     @Getter private int passCond;
     // Native 7.1 name for the next segment of a chained story dungeon.
     @Getter @SerializedName(value = "passJumpDungeon", alternate = {"DBMHBKIDAJH"})
@@ -67,6 +69,11 @@ public class DungeonData extends GameResource {
             return DungeonInvolveType.INVOLVE_NONE;
         }
         return involveType;
+    }
+
+    /** 是否已开放。缺省按开放处理，只有明确标成测试状态的才算未开放。 */
+    public boolean isReleased() {
+        return stateType == null || "DUNGEON_STATE_RELEASE".equals(stateType);
     }
 
     /**

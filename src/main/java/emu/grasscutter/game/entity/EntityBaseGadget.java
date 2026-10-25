@@ -6,6 +6,7 @@ import emu.grasscutter.data.binout.config.ConfigEntityGadget;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.quest.enums.QuestContent;
 import emu.grasscutter.game.world.*;
+import emu.grasscutter.net.proto.SceneEntityAiInfoOuterClass.SceneEntityAiInfo;
 import emu.grasscutter.scripts.data.ScriptArgs;
 import emu.grasscutter.server.event.entity.EntityDamageEvent;
 import lombok.Getter;
@@ -35,6 +36,14 @@ public abstract class EntityBaseGadget extends GameEntity {
         this.rotation = rotation != null ? rotation.clone() : new Position();
         this.campId = campId;
         this.campType = campType;
+    }
+
+    /**
+     * 机关、掉落物、载具下发时不标记「已进入战斗」。带战斗锁定配置的机关（如风神瞳）
+     * 被标成战斗中后，7.1 客户端会把镜头一直锁在它身上，走出锁定范围才松开。
+     */
+    public static SceneEntityAiInfo.Builder gadgetAiInfo() {
+        return SceneEntityAiInfo.newBuilder().setIsEnteredCombat(false);
     }
 
     public abstract int getGadgetId();
