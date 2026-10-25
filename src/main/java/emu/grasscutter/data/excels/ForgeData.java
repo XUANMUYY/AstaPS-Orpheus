@@ -18,7 +18,6 @@ public class ForgeData extends GameResource {
     private int forgeType;
     private int showItemId;
     private int resultItemId;
-    private int mainRandomDropId;
     private int resultItemCount;
     private int forgeTime;
     private int queueNum;

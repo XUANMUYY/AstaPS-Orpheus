@@ -4,7 +4,6 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.common.ItemParamData;
 import emu.grasscutter.data.excels.*;
 import emu.grasscutter.game.inventory.GameItem;
-import emu.grasscutter.game.drop.DropSystem;
 import emu.grasscutter.game.player.*;
 import emu.grasscutter.game.props.*;
 import emu.grasscutter.net.proto.ForgeQueueDataOuterClass.ForgeQueueData;
@@ -121,13 +120,6 @@ public final class ForgingManager extends BasePlayerManager {
 
         ForgeData forgeData = GameData.getForgeDataMap().get(req.getForgeId());
 
-        if (forgeData.getMainRandomDropId() > 0
-                && !player.getServer().getDropSystem()
-                        .hasUsableDungeonRewardRoot(forgeData.getMainRandomDropId())) {
-            this.player.sendPacket(new PacketForgeStartRsp(Retcode.RET_FAIL));
-            return;
-        }
-
         // Check if the player has sufficient forge points.
         int requiredPoints = forgeData.getForgePoint() * req.getForgeCount();
         if (requiredPoints > this.player.getForgePoints()) {
@@ -187,15 +179,16 @@ public final class ForgingManager extends BasePlayerManager {
         // Give finished items to the player.
         ForgeData data = GameData.getForgeDataMap().get(forge.getForgeId());
 
-        List<GameItem> outputItems = forgeOutput(data, finished, player.getServer().getDropSystem());
-        if (outputItems.isEmpty()) return;
-        List<GameItem> awardedItems = new ArrayList<>(outputItems.size());
-        for (GameItem item : outputItems) {
-            var event = new PlayerForgeItemEvent(this.player, item);
-            if (!event.call()) return;
-            awardedItems.add(event.getItemForged());
-        }
-        this.player.getInventory().addItems(awardedItems, ActionReason.ForgeOutput);
+        int resultId = data.getResultItemId() > 0 ? data.getResultItemId() : data.getShowItemId();
+        ItemData resultItemData = GameData.getItemDataMap().get(resultId);
+        GameItem addItem = new GameItem(resultItemData, data.getResultItemCount() * finished);
+
+        // Call the PlayerForgeItemEvent.
+        var event = new PlayerForgeItemEvent(this.player, addItem);
+        if (!event.call()) return;
+
+        addItem = event.getItemForged();
+        this.player.getInventory().addItem(addItem);
 
         // Battle pass trigger handler
         this.player
@@ -227,7 +220,7 @@ public final class ForgingManager extends BasePlayerManager {
                 new PacketForgeQueueManipulateRsp(
                         Retcode.RET_SUCC,
                         ForgeQueueManipulateType.ForgeQueueManipulateType_RECEIVE_OUTPUT,
-                        awardedItems,
+                        List.of(addItem),
                         List.of(),
                         List.of()));
     }
@@ -248,24 +241,21 @@ public final class ForgingManager extends BasePlayerManager {
             }
 
             ForgeData data = GameData.getForgeDataMap().get(forge.getForgeId());
-            List<GameItem> rolledItems = forgeOutput(data, finished, player.getServer().getDropSystem());
-            if (rolledItems.isEmpty()) continue;
-            List<GameItem> awardedItems = new ArrayList<>(rolledItems.size());
-            boolean cancelled = false;
-            for (GameItem item : rolledItems) {
-                var event = new PlayerForgeItemEvent(this.player, item);
-                if (!event.call()) {
-                    cancelled = true;
-                    break;
-                }
-                awardedItems.add(event.getItemForged());
+            int resultId = data.getResultItemId() > 0 ? data.getResultItemId() : data.getShowItemId();
+            ItemData resultItemData = GameData.getItemDataMap().get(resultId);
+            GameItem addItem = new GameItem(resultItemData, data.getResultItemCount() * finished);
+
+            var event = new PlayerForgeItemEvent(this.player, addItem);
+            if (!event.call()) {
+                continue;
             }
-            if (cancelled) continue;
-            this.player.getInventory().addItems(awardedItems, ActionReason.ForgeOutput);
+
+            addItem = event.getItemForged();
+            this.player.getInventory().addItem(addItem);
             this.player
                     .getBattlePassManager()
                     .triggerMission(WatcherTriggerType.TRIGGER_DO_FORGE, 0, finished);
-            outputItems.addAll(awardedItems);
+            outputItems.add(addItem);
             claimedQueueIndexes.add(i);
 
             int unfinished = forge.getUnfinishedCount(currentTime);
@@ -298,23 +288,6 @@ public final class ForgingManager extends BasePlayerManager {
         this.player.sendPacket(
                 new PacketTakeAllForgeOutputRsp(
                         Retcode.RET_SUCC.getNumber(), outputItems, List.of(), List.of()));
-    }
-
-    static List<GameItem> forgeOutput(ForgeData data, int count, DropSystem drops) {
-        if (data.getMainRandomDropId() > 0) {
-            if (drops == null || !drops.hasUsableDungeonRewardRoot(data.getMainRandomDropId())) {
-                return List.of();
-            }
-            List<GameItem> output = new ArrayList<>();
-            for (int i = 0; i < count; i++) {
-                output.addAll(drops.handleDungeonRewardDrop(data.getMainRandomDropId(), false));
-            }
-            return output;
-        }
-        ItemData item = GameData.getItemDataMap().get(data.getResultItemId());
-        return item == null || count <= 0
-                ? List.of()
-                : List.of(new GameItem(item, data.getResultItemCount() * count));
     }
 
     private synchronized void cancelForge(int queueId) {
