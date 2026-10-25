@@ -61,6 +61,8 @@ public final class WebConsoleHandler implements Router {
         javalin.get("/console/api/quest/job", ctx -> quest(ctx, "job"));
         javalin.post("/console/api/quest/undo", ctx -> quest(ctx, "undo"));
         javalin.get("/console/api/quest/backups", ctx -> quest(ctx, "backups"));
+        javalin.post("/console/api/quest/preview", ctx -> quest(ctx, "preview"));
+        javalin.post("/console/api/quest/describe", ctx -> quest(ctx, "describe"));
         emu.grasscutter.server.http.console.admin.AdminApi.register(
                 new emu.grasscutter.server.http.console.admin.AdminRouter(javalin, this::authorized));
     }
@@ -79,7 +81,12 @@ public final class WebConsoleHandler implements Router {
             else if (operation.equals("tree")) response = service.tree(Integer.parseInt(ctx.queryParam("uid")));
             else if (operation.equals("backups")) response = service.backups(Integer.parseInt(ctx.queryParam("uid")));
             else if (operation.equals("job")) response = service.job(ctx.queryParam("id"));
-            else {
+            else if (operation.equals("preview")) response = service.previewGoal(JsonParser.parseString(ctx.body()).getAsJsonObject().get("goal"));
+            else if (operation.equals("describe")) {
+                var ids = new java.util.ArrayList<Integer>();
+                JsonParser.parseString(ctx.body()).getAsJsonObject().getAsJsonArray("ids").forEach(e -> ids.add(e.getAsInt()));
+                response = service.describe(ids);
+            } else {
                 var body = JsonParser.parseString(ctx.body()).getAsJsonObject();
                 int uid = body.get("uid").getAsInt();
                 var overrides = new java.util.HashSet<String>();

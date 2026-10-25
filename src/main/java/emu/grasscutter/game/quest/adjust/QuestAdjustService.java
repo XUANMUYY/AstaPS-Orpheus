@@ -77,8 +77,32 @@ public final class QuestAdjustService {
         plans.put(result.planId(), new Cached(result, System.currentTimeMillis() + Duration.ofMinutes(30).toMillis()));
         return result;
     }
+    /** 选目标页面反复调用的只读查询共用一个解析器；quests.json 或分类目录改了就重读。计划和执行仍各自现读。 */
+    private ProgressGoalResolver readOnlyResolver; private long readOnlyStamp;
+    private synchronized ProgressGoalResolver readOnlyResolver() throws IOException {
+        long stamp = Files.getLastModifiedTime(Path.of("data/admin-catalog/quests.json")).toMillis() * 31
+                + Files.getLastModifiedTime(Path.of("data/quest-adjust/classification.json")).toMillis();
+        if (readOnlyResolver == null || stamp != readOnlyStamp) {
+            readOnlyResolver = ProgressGoalResolver.load(catalog, FileUtils.getResourcePath(""), Path.of("data/admin-catalog/quests.json"));
+            readOnlyStamp = stamp;
+        }
+        return readOnlyResolver;
+    }
+    /** 只读：目标会覆盖哪些主任务（不需要玩家在线）。 */
+    public Object previewGoal(JsonElement goal) throws IOException {
+        return readOnlyResolver().preview(ProgressGoalResolver.input(goal, Path.of("data/quest-adjust/goals")));
+    }
+    /** 只读：子任务 / 主任务 ID 归属到哪个主任务、哪一章。 */
+    public Object describe(Collection<Integer> ids) throws IOException {
+        if (ids.size() > 500) throw new IllegalArgumentException("一次最多查询 500 个 ID");
+        return Map.of("items", readOnlyResolver().describe(ids));
+    }
     public Object selectionOptions() throws IOException {
-        return ProgressGoalResolver.load(catalog, FileUtils.getResourcePath(""), Path.of("data/admin-catalog/quests.json")).options();
+        var resolver = readOnlyResolver();
+        var result = new LinkedHashMap<String, Object>();
+        if (resolver.options() instanceof Map<?, ?> map) map.forEach((k, v) -> result.put(String.valueOf(k), v));
+        result.put("chapters", resolver.chapterOptions());
+        return result;
     }
     private QuestPlanner.Plan plan(int uid, Collection<Integer> targets, String mode, Set<String> overrides) {
         if (locks.containsKey(uid)) throw new IllegalStateException("该玩家正在调整，请等待完成");

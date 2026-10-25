@@ -88,6 +88,40 @@ public final class ProgressGoalResolver {
     }
     public Resolved resolveDiagnostic(ProgressGoal goal) { return resolve(goal, true); }
     public Object options() { return selection.options(); }
+    /** 只读：有主任务的章节，带章节表的 tag（游戏里的先后顺序）和是否魔神任务章节，后台按它排序和分组。 */
+    public List<Map<String, Object>> chapterOptions() {
+        var used = new HashSet<Integer>(); parents.values().forEach(p -> { if (!excluded(p)) used.add(p.chapterId()); });
+        return chapters.values().stream().filter(c -> used.contains(c.id()))
+                .map(c -> Map.<String, Object>of("id", c.id(), "titleZh", c.chapterTitleZh(), "tag", c.tag(), "archon", c.archon())).toList();
+    }
+    /** 只读：一个目标会落到哪些主任务上，生成计划前给后台预览范围；不读玩家存档。 */
+    public Map<String, Object> preview(ProgressGoal goal) {
+        var resolved = resolveDiagnostic(goal);
+        var rows = resolved.parentIds().stream().map(id -> {
+            var p = parents.get(id);
+            return Map.<String, Object>of("id", id, "titleZh", p == null ? "" : p.titleZh(), "chapterId", p == null ? 0 : p.chapterId());
+        }).toList();
+        return Map.of("parents", rows, "chapters", resolved.chapterIds(), "targets", resolved.targetSubIds().size(),
+                "excluded", resolved.forbiddenParents().size(), "omitted", resolved.omittedParents(), "issues", resolved.resolutionIssues());
+    }
+    /** 只读：把子任务或主任务 ID 归到主任务上，给阻断项显示「属于哪个主任务」。 */
+    public List<Map<String, Object>> describe(Collection<Integer> ids) {
+        var result = new ArrayList<Map<String, Object>>();
+        for (int id : ids) {
+            var sub = catalog.subs().get(id);
+            int main = sub != null ? sub.mainId() : catalog.mains().containsKey(id) ? id : 0;
+            var p = parents.get(main);
+            var row = new LinkedHashMap<String, Object>();
+            row.put("id", id);
+            row.put("subName", sub == null || sub.name() == null ? "" : sub.name());
+            row.put("mainId", main);
+            row.put("mainTitle", p != null && !p.titleZh().isBlank() ? p.titleZh() : main > 0 && catalog.mains().get(main) != null ? catalog.mains().get(main).name() : "");
+            row.put("chapterId", p == null ? 0 : p.chapterId());
+            row.put("chapterTitle", p != null && chapters.containsKey(p.chapterId()) ? chapters.get(p.chapterId()).chapterTitleZh() : "");
+            result.add(row);
+        }
+        return result;
+    }
     private Resolved resolve(ProgressGoal goal, boolean diagnostic) {
         var selectedChapters = new TreeSet<Integer>(); var selectedParents = new TreeSet<Integer>();
         var forbidden = new TreeSet<Integer>(); var omitted = new TreeSet<Integer>(); var issues = new ArrayList<QuestPlanner.Issue>();
