@@ -4,6 +4,7 @@ import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.*;
 import emu.grasscutter.data.common.ItemParamData;
 import emu.grasscutter.data.excels.CombineData;
+import emu.grasscutter.data.excels.ReliquaryDecomposeConfigData;
 import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ActionReason;
@@ -134,20 +135,22 @@ public class CombineManger extends BaseGameSystem {
     public synchronized void decomposeReliquaries(
             Player player, int configId, int count, List<Long> input) {
         List<Integer> possibleDrops = reliquaryDecomposeData.get(configId);
-        if (possibleDrops == null) {
+        ReliquaryDecomposeConfigData config =
+                GameData.getReliquaryDecomposeConfigDataMap().get(configId);
+        if (possibleDrops == null || possibleDrops.isEmpty() || config == null) {
             player.sendPacket(
                     new PacketReliquaryDecomposeRsp(Retcode.RET_RELIQUARY_DECOMPOSE_PARAM_ERROR));
             return;
         }
 
-        if (input.size() != count * 3) {
+        if (!config.accepts(count, input.size()) || new HashSet<>(input).size() != input.size()) {
             player.sendPacket(
                     new PacketReliquaryDecomposeRsp(Retcode.RET_RELIQUARY_DECOMPOSE_PARAM_ERROR));
             return;
         }
 
         for (long guid : input) {
-            if (player.getInventory().getItemByGuid(guid) == null) {
+            if (!config.accepts(player.getInventory().getItemByGuid(guid))) {
                 player.sendPacket(
                         new PacketReliquaryDecomposeRsp(Retcode.RET_RELIQUARY_DECOMPOSE_PARAM_ERROR));
                 return;
