@@ -134,3 +134,6 @@ __pycache__/
 
 # Editable reward configuration, populated beside the server JAR on first launch.
 /rewards/
+
+# 后台运行时数据（定时邮件、公告等）
+/data/admin/
