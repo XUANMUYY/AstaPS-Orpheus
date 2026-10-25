@@ -16,6 +16,10 @@ public class FurnitureMakeSlotItem {
     int beginTime;
     int durTime;
 
+    public boolean isFinished(long now) {
+        return (long) beginTime + durTime <= now;
+    }
+
     public FurnitureMakeDataOuterClass.FurnitureMakeData toProto() {
         return FurnitureMakeDataOuterClass.FurnitureMakeData.newBuilder()
                 .setIndex(index)
