@@ -182,6 +182,13 @@ public class GameMainQuest {
 
         this.save();
         try {
+            emu.grasscutter.game.achievement.ServerAchievementTriggers.onParentQuestFinished(
+                    this.getOwner(), this.getParentQuestId());
+        } catch (Throwable t) {
+            Grasscutter.getLogger().warn(
+                    "[Achievement] main quest {} hook failed: {}", this.getParentQuestId(), t.toString());
+        }
+        try {
             emu.grasscutter.game.player.PushTipsManager.of(this.getOwner()).onParentQuestFinished(this.getParentQuestId());
         } catch (Throwable t) {
             Grasscutter.getLogger().warn("[PushTips] main quest hook failed: {}", t.toString());

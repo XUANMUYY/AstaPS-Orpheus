@@ -5,6 +5,7 @@ import emu.grasscutter.*;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.excels.*;
 import emu.grasscutter.data.excels.quest.QuestData;
+import emu.grasscutter.game.achievement.ServerAchievementTriggers;
 import emu.grasscutter.game.dungeons.enums.DungeonPassConditionType;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.player.PushTipsManager;
@@ -278,6 +279,11 @@ public class GameQuest {
                 .getActivityManager()
                 .triggerWatcher(
                         WatcherTriggerType.TRIGGER_FINISH_QUEST_AND, String.valueOf(this.subQuestId));
+        try {
+            ServerAchievementTriggers.onSubQuestFinished(this.getOwner(), this.subQuestId);
+        } catch (Throwable t) {
+            Grasscutter.getLogger().warn("[Achievement] quest {} hook failed: {}", this.subQuestId, t.toString());
+        }
         try {
             var questManager = this.getOwner().getQuestManager();
             PushTipsManager.of(this.getOwner()).onQuestFinished(this.subQuestId, id -> {

@@ -460,6 +460,14 @@ public class GadgetChest extends GadgetContent {
                     1);
         } catch (Throwable ignored) {
         }
+        try {
+            if (getGadget().getScene().getSceneType() == SceneType.SCENE_WORLD) {
+                emu.grasscutter.game.achievement.ServerAchievementTriggers.onWorldChestOpened(
+                        player, getGadget().getGadgetId());
+            }
+        } catch (Throwable t) {
+            Grasscutter.getLogger().warn("[Achievement] chest hook failed: {}", t.toString());
+        }
     }
 
     private void scheduleDespawn(EntityGadget entityGadget) {
