@@ -403,7 +403,7 @@ public class SceneScriptManager {
      * Store only the latest quest-owned scene suite for a (scene, group) pair.
      * A successful reset to suite 0 drops the override entirely.
      */
-    static boolean rememberQuestGroupSuite(
+    public static boolean rememberQuestGroupSuite(
             List<QuestGroupSuite> saved, int sceneId, int groupId, int suiteId) {
         if (saved == null || sceneId <= 0 || groupId <= 0 || suiteId < 0) return false;
         synchronized (saved) {

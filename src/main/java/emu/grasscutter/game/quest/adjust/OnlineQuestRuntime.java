@@ -148,9 +148,12 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
                         mismatches.add(type + p);
                 } else if (type.equals("QUEST_EXEC_REFRESH_GROUP_SUITE")) {
                     int scene = Integer.parseInt(p.get(0));
+                    // 记录挂在本步所属主任务上；getSceneGroupSuite 会滤掉已完成主任务，最后一步的刷新会被误判。
+                    var owner = player.getQuestManager().getMainQuests().get(step.mainId());
+                    var saved = owner == null ? List.<QuestGroupSuite>of() : owner.getQuestGroupSuites();
                     for (var pair : p.get(1).split(";")) {
                         var v = pair.split(","); int group = Integer.parseInt(v[0].trim()), suite = Integer.parseInt(v[1].trim());
-                        boolean found = player.getQuestManager().getSceneGroupSuite(scene).stream().anyMatch(s -> s.getGroup() == group && s.getSuite() == suite);
+                        boolean found = saved.stream().anyMatch(s -> s.getScene() == scene && s.getGroup() == group && s.getSuite() == suite);
                         if (suite > 0 && !found) mismatches.add(type + p);
                     }
                 }
