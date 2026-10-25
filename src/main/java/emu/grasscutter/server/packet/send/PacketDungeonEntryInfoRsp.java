@@ -49,10 +49,10 @@ public class PacketDungeonEntryInfoRsp extends BasePacket {
         }
         var dungeonIds = new LinkedHashSet<Integer>();
         if (pointData.getDungeonIds() != null) {
-            for (int id : pointData.getDungeonIds()) if (id > 0) dungeonIds.add(id);
+            for (int id : pointData.getDungeonIds()) if (isListable(id)) dungeonIds.add(id);
         }
         if (additional != null) {
-            for (Integer id : additional) if (id != null && id > 0) dungeonIds.add(id);
+            for (Integer id : additional) if (id != null && isListable(id)) dungeonIds.add(id);
         }
         var point = DungeonEntryPointInfo.newBuilder()
                 .setPointId(pointData.getId())
@@ -62,6 +62,16 @@ public class PacketDungeonEntryInfoRsp extends BasePacket {
             point.addDungeonEntryList(DungeonEntryInfo.newBuilder().setDungeonId(id));
         }
         return point.build();
+    }
+
+    /**
+     * 入口点数据会挂着测试副本（如蒙德 3/20 的 75），客户端没有它的名字和奖励，列表里会出现空白条目。
+     * 只列出表里存在且已开放的副本。
+     */
+    static boolean isListable(int dungeonId) {
+        if (dungeonId <= 0) return false;
+        DungeonData data = GameData.getDungeonDataMap().get(dungeonId);
+        return data != null && data.isReleased();
     }
 
     private static int pickRecommend(Collection<Integer> dungeonIds, int playerLevel) {
