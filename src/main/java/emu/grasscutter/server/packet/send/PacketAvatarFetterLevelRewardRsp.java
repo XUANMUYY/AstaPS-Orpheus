@@ -2,10 +2,13 @@ package emu.grasscutter.server.packet.send;
 
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.AvatarFetterLevelRewardRspOuterClass.AvatarFetterLevelRewardRsp;
+import java.util.List;
 
 public class PacketAvatarFetterLevelRewardRsp extends BasePacket {
 
-    public PacketAvatarFetterLevelRewardRsp(long guid, int fetterLevel, int rewardId) {
+    /** The 7.1 "obtained" popup lists the rewards in field 4, not the single reward_id. */
+    public PacketAvatarFetterLevelRewardRsp(
+            long guid, int fetterLevel, int rewardId, List<Integer> grantedRewardIds) {
         super(PacketOpcodes.AvatarFetterLevelRewardRsp);
 
         AvatarFetterLevelRewardRsp proto =
@@ -14,6 +17,7 @@ public class PacketAvatarFetterLevelRewardRsp extends BasePacket {
                         .setFetterLevel(fetterLevel)
                         .setRetcode(0)
                         .setRewardId(rewardId)
+                        .addAllRewardIdList(grantedRewardIds)
                         .build();
 
         this.setData(proto);
