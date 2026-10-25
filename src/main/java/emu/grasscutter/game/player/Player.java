@@ -1753,6 +1753,8 @@ public class Player implements PlayerHook, FieldFetch {
         session.send(new PacketStoreWeightLimitNotify());
         session.send(new PacketPlayerStoreNotify(this));
         session.send(new PacketAvatarDataNotify(this));
+        // The official login also sends the team presets on their own; the team screen listens for it.
+        session.send(new PacketAvatarTeamAllDataNotify(this));
         session.send(new PacketCraftingAvatarDataNotify());
         session.send(new PacketAvatarWeaponSkinDataNotify(this));
         // 登录时下发头像/头像框数据：否则重登后个人主页的头像框会显示成"?"，要重新应用一次才恢复。
@@ -1771,6 +1773,10 @@ public class Player implements PlayerHook, FieldFetch {
 
         session.send(new PacketFinishedParentQuestNotify(this));
         session.send(new PacketBattlePassAllDataNotify(this));
+        // 7.1 also carries the new-style pass data. Data only: unlocking its open states stays with
+        // whatever condition normally opens them.
+        session.send(new PacketBeyondBattlePassAllDataNotify(this));
+        session.send(new PacketBeyondBattlePassCurScheduleUpdateNotify(this));
         session.send(new PacketQuestListNotify(this));
         session.send(new PacketQuestGlobalVarNotify(this));
         // Tips met before they were tracked, so the codex matches this account's progress.

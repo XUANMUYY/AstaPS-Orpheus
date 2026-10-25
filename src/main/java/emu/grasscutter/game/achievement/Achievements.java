@@ -16,6 +16,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
+import java.util.function.IntPredicate;
 import javax.annotation.Nullable;
 import lombok.*;
 import org.bson.types.ObjectId;
@@ -115,6 +116,20 @@ public class Achievements {
 
         a.setCurProgress(progress);
         return AchievementControlReturns.success(this.notifyOtherAchievements(a));
+    }
+
+    /** Apply server-derived progress with one save and bounded update packets. */
+    public synchronized void progressBatch(Map<Integer, Integer> progressById) {
+        if (progressById.isEmpty()) return;
+        var batch = new UpdateBatch();
+        for (var entry : progressById.entrySet()) {
+            var achievement = this.getAchievement(entry.getKey());
+            if (achievement == null || this.isFinished(entry.getKey())
+                    || entry.getValue() <= achievement.getCurProgress()) continue;
+            achievement.setCurProgress(entry.getValue());
+            this.updateRelatedAchievements(achievement, batch);
+        }
+        this.finishBulkUpdate(batch);
     }
 
     /**
@@ -369,12 +384,11 @@ public class Achievements {
         }
 
         List<GameItem> rewards = Lists.newArrayList();
+        List<Integer> paidIds = Lists.newArrayList();
         for (int i : ids) {
             var goalData = GameData.getAchievementGoalDataMap().get(i);
-            if (goalData == null) {
-                Grasscutter.getLogger().warn("null returned while getting goal reward data!");
-                continue;
-            }
+            if (goalData == null || !isGoalComplete(i, GameData.getAchievementDataMap().values(),
+                    this::isFinished)) continue;
 
             var data = GameData.getRewardDataMap().get(goalData.getFinishRewardId());
             if (data == null) {
@@ -382,6 +396,7 @@ public class Achievements {
                 continue;
             }
 
+            int before = rewards.size();
             data.getRewardItemList()
                     .forEach(
                             itemParamData -> {
@@ -393,15 +408,32 @@ public class Achievements {
 
                                 rewards.add(new GameItem(itemData, itemParamData.getCount()));
                             });
-
-            this.takenGoalRewardIdList.add(i);
-            this.save();
+            if (rewards.size() == before) continue;
+            paidIds.add(i);
         }
 
+        if (paidIds.isEmpty()) {
+            this.player.sendPacket(new PacketTakeAchievementGoalRewardRsp());
+            return;
+        }
         this.player.getInventory().addItems(rewards, ActionReason.AchievementGoalReward);
+        this.takenGoalRewardIdList.addAll(paidIds);
+        this.save();
         this.player.sendPacket(
                 new PacketTakeAchievementGoalRewardRsp(
-                        ids, rewards.stream().map(GameItem::toItemParam).toList()));
+                        paidIds, rewards.stream().map(GameItem::toItemParam).toList()));
+    }
+
+    static boolean isGoalComplete(
+            int goalId, Collection<AchievementData> data, IntPredicate finished) {
+        boolean found = false;
+        for (var achievement : data) {
+            if (achievement == null || !achievement.isUsed() || achievement.getGoalId() != goalId)
+                continue;
+            found = true;
+            if (!finished.test(achievement.getId())) return false;
+        }
+        return found;
     }
 
     public boolean isRewardTaken(int achievementId) {
@@ -430,6 +462,7 @@ public class Achievements {
         }
 
         this.registerNewAchievementsIfExist();
+        ServerAchievementTriggers.backfillQuests(this.player);
         this.player.sendPacket(new PacketAchievementAllDataNotify(this.player));
         AchievementWatchers.sendAll(this.player);
     }

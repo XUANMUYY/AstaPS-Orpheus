@@ -27,5 +27,5 @@ public interface ChatSystemHandler {
 
     void handlePullRecentChatReq(Player player);
 
-    void ensureServerConversation(Player player);
+    boolean ensureServerConversation(Player player);
 }

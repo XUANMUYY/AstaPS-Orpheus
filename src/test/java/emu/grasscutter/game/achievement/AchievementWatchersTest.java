@@ -14,10 +14,15 @@ final class AchievementWatchersTest {
     }
 
     @Test
-    void namedAndEmptyParamsAreSkipped() {
-        assertTrue(
+    void listsNamesAndEmptyParams() {
+        assertTrue(AchievementWatchers.paramsMatch(new String[] {"1, 2;3"}, List.of(2)));
+        assertTrue(AchievementWatchers.paramsMatch(new String[] {"1;2", "7,8"}, List.of(1, 8)));
+        assertFalse(AchievementWatchers.paramsMatch(new String[] {"1,2"}, List.of(3)));
+        assertFalse(AchievementWatchers.paramsMatch(new String[] {"1,2"}, List.of()));
+        assertFalse(
                 AchievementWatchers.paramsMatch(
                         new String[] {"3", "SitPointOnStatue_ForAchievement"}, List.of(3)));
+        assertFalse(AchievementWatchers.paramsMatch(new String[] {"1,Named"}, List.of(1)));
         assertTrue(AchievementWatchers.paramsMatch(new String[] {"", ""}, List.of()));
         assertTrue(AchievementWatchers.paramsMatch(null, List.of()));
     }
