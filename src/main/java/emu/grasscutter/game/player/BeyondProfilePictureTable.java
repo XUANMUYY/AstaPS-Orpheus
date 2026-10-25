@@ -49,7 +49,8 @@ public final class BeyondProfilePictureTable {
                         if (idv == null) continue;
                         Object icon = r.get("iconPath");
                         Object up = r.get("unlockParam");
-                        Object ut = r.get("AJFEJFNMCKP");
+                        // 7.1 表里解锁类型的字段名是 NLAPNBMECDF；AJFEJFNMCKP 是旧的猜测，留作兜底。
+                        Object ut = r.get("NLAPNBMECDF") != null ? r.get("NLAPNBMECDF") : r.get("AJFEJFNMCKP");
                         list.add(new Entry(((Number) idv).intValue(), icon == null ? "" : String.valueOf(icon), up instanceof Number ? ((Number) up).intValue() : 0, ut == null ? "" : String.valueOf(ut)));
                     }
                 }

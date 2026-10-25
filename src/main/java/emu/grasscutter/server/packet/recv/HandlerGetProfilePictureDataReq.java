@@ -1,6 +1,8 @@
 package emu.grasscutter.server.packet.recv;
 
 import emu.grasscutter.Grasscutter;
+import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.player.ProfileUnlocks;
 import emu.grasscutter.net.packet.Opcodes;
 import emu.grasscutter.net.packet.PacketHandler;
 import emu.grasscutter.net.packet.PacketOpcodes;
@@ -11,31 +13,28 @@ import emu.grasscutter.server.packet.send.PacketGetAllUnlockNameCardRsp;
 /** 7.1 头像/头像框列表。
  * 请求：客户端打开更换界面 -> GetProfilePictureDataReq(27037, len=0)
  * 应答：22477 = MFLHNBCGNJP { repeated uint32 @4 = 头像序号；@15 = 头像框 id；int32 @9 = retcode }
- * 内容照抄实测成功那组：f4 = 1..50，f15 = 210001..210049，retcode 0
+ * 字段名见 kitkat 7.1：_profile_picture_id_list = 4，_profile_frame_id_list = 15，retcode = 9；内容按解锁条件计算
  * 注意：客户端刚发请求时界面尚未就绪，立即回包会被丢，因此 立即发 + 800ms 再补发。 */
 @Opcodes(PacketOpcodes.GetProfilePictureDataReq)
 public class HandlerGetProfilePictureDataReq extends PacketHandler {
     public static final int MIAO_PROFILE_RSP = 22477;
-    public static String avatarSeqList() {
-        StringBuilder a = new StringBuilder();
-        for (emu.grasscutter.game.player.BeyondProfilePictureTable.Entry e : emu.grasscutter.game.player.BeyondProfilePictureTable.all()) { if (a.length() > 0) a.append(','); a.append(e.id); }
-        return a.toString();
+    /** 按原版条件算出的已解锁头像，见 {@link ProfileUnlocks}。 */
+    public static String avatarSeqList(Player player) {
+        return join(ProfileUnlocks.pictures(player));
     }
-    public static String frameIdList() {
+    /** 默认框加上持有对应道具的头像框。 */
+    public static String frameIdList(Player player) {
+        return join(ProfileUnlocks.frames(player));
+    }
+    private static String join(java.util.List<Integer> ids) {
         StringBuilder b = new StringBuilder();
-        for (int i : new int[] {100000, 100011, 100012, 100013, 100014}) { if (b.length() > 0) b.append(','); b.append(i); }
+        for (int i : ids) { if (b.length() > 0) b.append(','); b.append(i); }
         return b.toString();
     }
     public static void sendProfileList(GameSession session, String tag) {
         var player = session.getPlayer();
         if (player == null) return;
-        // [v32] 先把头像/头像框的解锁条件在客户端侧伪造为已满足（任务/道具/角色），再发列表
-        try {
-            player.getProgressManager().forgeProfilePictureUnlocks();
-        } catch (Throwable t) {
-            Grasscutter.getLogger().warn("MIAO forgeProfilePicture call fail: {}", t.toString());
-        }
-        session.send(new PacketListProbe(player, MIAO_PROFILE_RSP, 4, 15, 9, avatarSeqList(), frameIdList()));
+        session.send(new PacketListProbe(player, MIAO_PROFILE_RSP, 4, 15, 9, avatarSeqList(player), frameIdList(player)));
         Grasscutter.getLogger()
                 .debug(
                         "MIAO nameCardList size={} list={}",

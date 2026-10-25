@@ -83,7 +83,7 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter private String nickname;
     @Getter private String signature;
     @Getter private int headImage;
-    @Getter private int profileFrameId = 100011;
+    @Getter private int profileFrameId = ProfileUnlocks.DEFAULT_FRAME_ID;
     @Getter private Map<Integer, Set<Integer>> sceneTags;
     @Getter private int nameCardId = 210001;
     @Getter @Setter private int dataMigrationVersion;
@@ -1722,6 +1722,8 @@ public class Player implements PlayerHook, FieldFetch {
         session.send(new PacketAvatarWeaponSkinDataNotify(this));
         // 登录时下发头像/头像框数据：否则重登后个人主页的头像框会显示成"?"，要重新应用一次才恢复。
         // (HandlerMiao21517 修复头像框时发的也是这一组：25989+6326+4162。)
+        // 旧版默认装着要靠地方传奇解锁的 100011，换回默认框。
+        ProfileUnlocks.resetLockedFrame(this);
         session.send(new PacketBeyondProfilePictureDataNotify(this));
         session.send(new PacketBeyondPlayerDetailRsp(this));
         session.send(new PacketGetPlayerSocialDetailRsp(this.getSocialDetail(), 0));

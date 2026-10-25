@@ -338,68 +338,6 @@ public final class PlayerProgressManager extends BasePlayerDataManager {
         }
     }
 
-    /**
-     * [v32] 把头像表里“需要任务/道具/角色才能解锁”的条目，在客户端侧全部伪造为已满足，
-     * 让头像选择界面不再画锁：
-     *  - BY_PARENT_QUEST -> forgeQuest(questId, 0, 3=FINISHED)
-     *  - BY_ITEM        -> 直接发放对应道具
-     *  - BY_AVATAR      -> 跳过
-     */
-    public void forgeProfilePictureUnlocks() {
-        try {
-            java.util.List<Integer> quests = new java.util.ArrayList<>();
-            java.util.Set<Integer> seen = new java.util.HashSet<>();
-            int items = 0, avatars = 0;
-            for (BeyondProfilePictureTable.Entry e : BeyondProfilePictureTable.all()) {
-                if (e.unlockParam <= 0) continue;
-                String t = e.unlockType == null ? "" : e.unlockType;
-                if (t.contains("BY_PARENT_QUEST")) {
-                    if (seen.add(e.unlockParam)) {
-                        quests.add(e.unlockParam);
-                    }
-                } else if (t.contains("BY_ITEM")) {
-                    try {
-                        boolean ok = this.player.getInventory().addItem(e.unlockParam, 1);
-                        if (ok) {
-                            items++;
-                            var gi = this.player.getInventory().getItemById(e.unlockParam);
-                            if (gi != null) {
-                                var used =
-                                        this.player
-                                                .getServer()
-                                                .getInventorySystem()
-                                                .useItem(this.player, 0, gi.getGuid(), 1, 0, false);
-                                if (used != null) {
-                                    this.player.sendPacket(
-                                            new emu.grasscutter.server.packet.send.PacketUseItemRsp(
-                                                    0, used));
-                                    this.player.getInventory().addItem(e.unlockParam, 1);
-                                }
-                            }
-                        }
-                    } catch (Throwable ex) {
-                        emu.grasscutter.Grasscutter.getLogger()
-                                .warn("MIAO BY_ITEM fail item={} {}", e.unlockParam, ex.toString());
-                    }
-                }
-            }
-            if (!quests.isEmpty()) {
-                int[] ids = new int[quests.size()];
-                for (int i = 0; i < ids.length; i++) ids[i] = quests.get(i);
-                this.player.sendPacket(new emu.grasscutter.server.packet.send.PacketFinishedParentQuestUpdateNotify(ids));
-            }
-            try {
-                this.player.sendPacket(new emu.grasscutter.server.packet.send.PacketProfilePictureUnlockNotify(this.player));
-            } catch (Throwable t) {
-                emu.grasscutter.Grasscutter.getLogger().warn("MIAO unlockNotify fail: {}", t.toString());
-            }
-            emu.grasscutter.Grasscutter.getLogger()
-                    .debug("MIAO forgeProfilePicture parentQuests={} items={} avatars={}", quests.size(), items, avatars);
-        } catch (Throwable t) {
-            emu.grasscutter.Grasscutter.getLogger().warn("MIAO forgeProfilePicture fail: {}", t.toString());
-        }
-    }
-
     /** Refresh post-activation interactions without modifying quest or area progression. */
     public void refreshStatueGoddessInteractions(int sceneId, int pointId) {
         var entry = GameData.getScenePointEntryById(sceneId, pointId);
