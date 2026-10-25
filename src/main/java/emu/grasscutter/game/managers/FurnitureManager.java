@@ -143,8 +143,9 @@ public class FurnitureManager extends BasePlayerManager {
             return;
         }
 
-        // pay the speedup item
-        if (isFastFinish && !player.getInventory().payItem(107013, 1)) {
+        // Finished furniture needs no speedup item; unfinished furniture needs one before claiming.
+        if (!isMakeFinished(slotItem.get(), Utils.getCurrentSeconds())
+                && (!isFastFinish || !player.getInventory().payItem(107013, 1))) {
             player
                     .getSession()
                     .send(
@@ -153,19 +154,11 @@ public class FurnitureManager extends BasePlayerManager {
             return;
         }
 
-        // check if player can take
-        //        if (slotItem.get().getBeginTime() + slotItem.get().getDurTime() >=
-        // Utils.getCurrentSeconds() && !isFastFinish) {
-        //            player.getSession().send(new
-        // PacketTakeFurnitureMakeRsp(Retcode.RET_FURNITURE_MAKE_UNFINISH_VALUE, makeId, null, null));
-        //            return;
-        //        }
-
         player.getInventory().addItem(makeData.getFurnitureItemID(), makeData.getCount());
         player.getHome().getFurnitureMakeSlotItemList().remove(slotItem.get());
-
-        // Should be for first craft, but until first craft check exists add exp for each item crafted
-        player.getInventory().addItem(121, makeData.getExp(), ActionReason.FurnitureMakeTake);
+        if (player.getHome().markFurnitureCrafted(makeData.getFurnitureItemID())) {
+            player.getInventory().addItem(121, makeData.getExp(), ActionReason.FurnitureMakeTake);
+        }
 
         player
                 .getSession()
@@ -182,5 +175,9 @@ public class FurnitureManager extends BasePlayerManager {
                                         .map(FurnitureMakeSlotItem::toProto)
                                         .toList()));
         player.getHome().save();
+    }
+
+    static boolean isMakeFinished(FurnitureMakeSlotItem slot, int now) {
+        return (long) slot.getBeginTime() + slot.getDurTime() <= now;
     }
 }
