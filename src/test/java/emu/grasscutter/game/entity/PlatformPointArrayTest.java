@@ -17,7 +17,7 @@ class PlatformPointArrayTest {
         f.scene.packets.clear();
         f.scene.manager.events.clear();
 
-        assertEquals(-1, f.lib.SetPlatformPointArray(174002, 41, new int[] {1, 2}, new LuaTable()));
+        assertEquals(0, f.lib.SetPlatformPointArray(174002, 41, new int[] {1, 2}, new LuaTable()));
         var route = assertInstanceOf(PointArrayRoute.class, f.gadget.getRouteConfig());
         assertEquals(41, route.getPointArrayId());
         assertEquals(1, f.scene.packets.size());
@@ -29,7 +29,7 @@ class PlatformPointArrayTest {
         f.polls(10);
         assertTrue(f.scene.manager.events.isEmpty());
 
-        assertEquals(-1, f.lib.SetPlatformPointArray(174002, 41, new int[] {9}, new LuaTable()));
+        assertEquals(0, f.lib.SetPlatformPointArray(174002, 41, new int[] {9}, new LuaTable()));
         assertEquals(1, f.scene.packets.size());
     }
 }

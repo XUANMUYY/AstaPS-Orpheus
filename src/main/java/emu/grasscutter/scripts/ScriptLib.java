@@ -1435,7 +1435,7 @@ public class ScriptLib {
             val configRoute = (PointArrayRoute) routeConfig;
 
             if (configRoute.getPointArrayId() == pointArrayId) {
-                return -1;
+                return 0;
             }
 
             configRoute.setPointArrayId(pointArrayId);
@@ -1443,7 +1443,7 @@ public class ScriptLib {
 
         sceneScriptManager.get().getScene().broadcastPacket(new PacketPlatformChangeRouteNotify(entityGadget));
 
-        return -1;
+        return 0;
     }
 
     public int SetPlatformRouteId(int entityConfigId, int routeId) {
