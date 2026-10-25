@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+option java_package = "emu.grasscutter.net.proto";
+
+// kitkat 7.1 rename cooldown payload; field 1 remains obfuscated.
+message FBBKMKEDGPH {
+  uint32 HBMEFMAMOPB = 1;
+  fixed32 cd_time = 2;
+}

@@ -9,6 +9,7 @@ import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.EntityType;
 import emu.grasscutter.game.quest.enums.QuestContent;
+import emu.grasscutter.game.quest.QuestVehicleFeatureTags;
 import emu.grasscutter.net.proto.VehicleInteractTypeOuterClass.VehicleInteractType;
 import emu.grasscutter.net.proto.VehicleMemberOuterClass.VehicleMember;
 import emu.grasscutter.net.proto.VisionTypeOuterClass.VisionType;
@@ -289,5 +290,7 @@ public final class NatsaurusVehicleHelper {
                         VehicleInteractType.VehicleInteractType_VEHICLE_INTERACT_OUT);
         player.getQuestManager().queueEvent(
                 QuestContent.QUEST_CONTENT_LEAVE_VEHICLE, vehicle.getGadgetId());
+        QuestVehicleFeatureTags.queue(player, vehicle.getGadgetId(),
+                QuestContent.QUEST_CONTENT_LEAVE_FEATURE_TAG_VEHICLE);
     }
 }

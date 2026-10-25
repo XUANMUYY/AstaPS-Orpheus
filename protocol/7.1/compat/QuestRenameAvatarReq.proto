@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+option java_package = "emu.grasscutter.net.proto";
+
+// kitkat 7.1 QuestRenameAvatarReq fields 6, 10, 12.
+message QuestRenameAvatarReq {
+  string avatar_name = 6;
+  bool is_check = 10;
+  uint32 rename_id = 12;
+}

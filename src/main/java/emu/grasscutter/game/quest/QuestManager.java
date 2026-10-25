@@ -797,6 +797,10 @@ public final class QuestManager extends BasePlayerManager {
                             if (hasContent(quest, QuestContent.QUEST_CONTENT_PRESENT_AT_SPECIFIC_SCENE)) {
                                 queueEvent(QuestContent.QUEST_CONTENT_PRESENT_AT_SPECIFIC_SCENE, getPlayer().getSceneId());
                             }
+                            if (player.getWidgetId() > 0
+                                    && hasContent(quest, QuestContent.QUEST_CONTENT_SPECIFIC_WIDGET_ATTACHED)) {
+                                queueEvent(QuestContent.QUEST_CONTENT_SPECIFIC_WIDGET_ATTACHED, player.getWidgetId());
+                            }
                             // 全局变量比较：开始时变量已满足的完成条件直接记上；失败条件只在变量变化时判，
                             // 不在接取瞬间判失败（推断，避免前面剧情的变量差一点就立即失败回滚）。
                             for (var condition : quest.getQuestData().getFinishCond()) {

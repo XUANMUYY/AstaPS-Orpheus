@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+option java_package = "emu.grasscutter.net.proto";
+
+import "FBBKMKEDGPH.proto";
+
+message QuestRenameAvatarRsp {
+  FBBKMKEDGPH PLDMEKAFKCJ = 13;
+  string avatar_name = 7;
+  int32 retcode = 3;
+  bool is_check = 6;
+  uint32 rename_id = 12;
+}

@@ -7,6 +7,7 @@ import emu.grasscutter.data.excels.ItemData;
 import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.player.*;
 import emu.grasscutter.game.props.ActionReason;
+import emu.grasscutter.game.quest.enums.QuestContent;
 import emu.grasscutter.net.proto.CookRecipeDataOuterClass;
 import emu.grasscutter.net.proto.PlayerCookArgsReqOuterClass.PlayerCookArgsReq;
 import emu.grasscutter.net.proto.PlayerCookReqOuterClass.PlayerCookReq;
@@ -154,6 +155,11 @@ public class CookingManager extends BasePlayerManager {
         int rspQuality = quality == 0 ? MANUAL_PERFECT_COOK_QUALITY : quality;
         this.player.sendPacket(
                 new PacketPlayerCookRsp(cookResults, rspQuality, count, recipeId, proficiency));
+        // kitkat 7.1 fields 10 and 7 are the cooking gadget group and config, not the recipe id.
+        for (GameItem item : cookResults) {
+            this.player.getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_FINISH_ANY_FOOD_COOK,
+                    req.getEBPHDCJFJEF(), req.getMJAKDGHIIFB(), item.getItemId());
+        }
     }
 
     public void handleCookArgsReq(PlayerCookArgsReq req) {
