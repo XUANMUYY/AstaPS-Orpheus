@@ -38,9 +38,13 @@ class BannersConfigTest {
     void eachBannerUsesItsOwnPrefabByDefault() throws Exception {
         var byId = new java.util.HashMap<Integer, String>();
         load().forEach(b -> byId.put(b.getScheduleId(), b.getPrefabPath()));
-        assertEquals("GachaShowPanel_A280", byId.get(1001));
-        assertEquals("GachaShowPanel_A281", byId.get(1002));
-        assertEquals("GachaShowPanel_A282", byId.get(1003));
+        // 在可用名单里的用自己的；不在名单里的按 fallbackPrefabPath 借用
+        assertEquals("GachaShowPanel_A310", byId.get(1001));
+        assertEquals("GachaShowPanel_A311", byId.get(1002));
+        assertEquals("GachaShowPanel_A280", byId.get(1003));
+        assertEquals("GachaShowPanel_A307", byId.get(1011));
+        assertEquals("GachaShowPanel_A307", byId.get(1012));
+        assertEquals("GachaShowPanel_A280", byId.get(1013));
         assertEquals("GachaShowPanel_A022", byId.get(1004));
     }
 
@@ -48,7 +52,7 @@ class BannersConfigTest {
     void tabOrderIsCharacterCharacter2WeaponStandard() throws Exception {
         var order =
                 load().stream()
-                        .filter(b -> !b.isDisabled())
+                        .filter(b -> !b.isDisabled() && b.isActiveAt(NOW_71_SECOND_HALF))
                         .sorted(java.util.Comparator.comparingInt(GachaBanner::getTabSortId).reversed())
                         .map(GachaBanner::getScheduleId)
                         .toList();
@@ -99,11 +103,14 @@ class BannersConfigTest {
         var limited =
                 load().stream().filter(b -> b.getBannerType() != GachaBanner.BannerType.STANDARD
                         && b.getBannerType() != GachaBanner.BannerType.CHRONICLE).toList();
-        assertEquals(3, limited.size());
+        assertEquals(6, limited.size());
+        long firstHalf = 1791000000L; // 2026-10-03
         for (var b : limited) {
             assertEquals(223, b.getCostItem());
-            assertTrue(b.isActiveAt(NOW_71_SECOND_HALF));
-            assertFalse(b.isActiveAt(1790000000L)); // 7.1 上半，已下架
+            boolean isFirst = b.getScheduleId() >= 1011;
+            assertEquals(isFirst, b.isActiveAt(firstHalf));
+            assertEquals(!isFirst, b.isActiveAt(NOW_71_SECOND_HALF));
+            assertFalse(b.isActiveAt(1790000000L)); // 7.1 开服之前
             assertFalse(b.isActiveAt(1793700000L)); // 7.1 下半结束之后
         }
     }
