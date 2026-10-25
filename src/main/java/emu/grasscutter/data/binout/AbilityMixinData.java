@@ -198,6 +198,8 @@ public class AbilityMixinData implements Serializable {
     public DynamicFloat detectWindow = DynamicFloat.ONE;
     public String globalValueKey;
     public List<String> stateIDs = new ArrayList<>();
+    /** AttachToGadgetStateMixin：机关处于这个状态时挂上 modifierName；不写就是 0（Default）。 */
+    public int gadgetState;
     public String stateID;
     public DynamicFloat defaultGlobalValueOnCreate = DynamicFloat.ZERO;
     public List<DynamicFloat> ratioSteps = new ArrayList<>();
@@ -209,6 +211,9 @@ public class AbilityMixinData implements Serializable {
     public boolean forceStopWhenRemoved = true;
     public boolean FKAJIEOFOAB = true;
     public List<String> getModifierNames() {
+        if (modifierName == null || modifierName.isJsonNull()) {
+            return List.of();
+        }
         if (modifierName.isJsonArray()) {
             java.lang.reflect.Type listType = (new TypeToken<List<String>>() {}).getType();
             List<String> list = (new Gson()).fromJson(modifierName, listType);

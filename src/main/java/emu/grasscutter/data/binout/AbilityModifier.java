@@ -123,6 +123,7 @@ public class AbilityModifier implements Serializable {
             CallLuaTask,
             ChangeEnviroWeather,
             ChangeFollowDampTime,
+            ChangeGadgetState,
             ChangeGadgetUIInteractHint,
             ChangePlayMode,
             ChangeTag,

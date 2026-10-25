@@ -41,6 +41,7 @@ public final class PredicateEvaluator {
         }
         return switch (type) {
             case "ByHasModifier"      -> byHasModifier(pred, ability, resolved);
+            case "ByTargetGadgetState" -> byTargetGadgetState(pred, resolved);
             case "ByTargetGlobalValue" -> byTargetGlobalValue(pred, ability, resolved);
             case "ByTargetHPRatio"    -> byTargetHPRatio(pred, ability, resolved);
             default -> true;
@@ -148,6 +149,14 @@ public final class PredicateEvaluator {
             }
         }
         return false;
+    }
+
+    /** 目标机关当前状态是否等于 gadgetState（不写就是 0）；目标不是场景机关时不成立。 */
+    static boolean byTargetGadgetState(Map<String, Object> pred, GameEntity target) {
+        if (!(target instanceof emu.grasscutter.game.entity.EntityGadget gadget)) return false;
+        Object state = pred.get("gadgetState");
+        int expected = state instanceof Number n ? n.intValue() : 0;
+        return gadget.getState() == expected;
     }
 
     private static boolean byHasModifier(Map<String, Object> pred, Ability ability, GameEntity target) {

@@ -305,6 +305,10 @@ public final class GameData {
     private static final Int2ObjectMap<GadgetData> gadgetDataMap = new Int2ObjectOpenHashMap<>();
 
     @Getter
+    private static final Int2ObjectMap<GadgetInteractData> gadgetInteractDataMap =
+            new Int2ObjectOpenHashMap<>();
+
+    @Getter
     private static final Int2ObjectMap<GatherData> gatherDataMap = new Int2ObjectOpenHashMap<>();
 
     @Getter
