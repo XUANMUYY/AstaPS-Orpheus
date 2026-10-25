@@ -25,7 +25,7 @@ public class TriggerInTimeChallengeFactoryHandler implements ChallengeFactoryHan
             int challengeIndex,
             int challengeId,
             int timeLimit,
-            int param4,
+            int eventType,
             int triggerTag,
             int triggerCount,
             Scene scene,
@@ -44,6 +44,6 @@ public class TriggerInTimeChallengeFactoryHandler implements ChallengeFactoryHan
                 List.of(timeLimit, triggerCount),
                 timeLimit, // Limit
                 triggerCount, // Goal
-                List.of(new InTimeTrigger(), new TriggerGroupTriggerTrigger(Integer.toString(triggerTag))));
+                List.of(new InTimeTrigger(), new TriggerGroupTriggerTrigger(eventType, Integer.toString(triggerTag))));
     }
 }

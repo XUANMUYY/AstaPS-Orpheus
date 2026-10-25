@@ -8,6 +8,12 @@ import emu.grasscutter.scripts.data.SceneGroup;
 public interface ChallengeFactoryHandler {
     boolean isThisType(ChallengeType challengeType);
 
+    default WorldChallenge build(
+            int challengeIndex, int challengeId, int[] params, Scene scene, SceneGroup group) {
+        return build(challengeIndex, challengeId, params[0], params[1], params[2],
+                params.length > 3 ? params[3] : 0, scene, group);
+    }
+
     WorldChallenge build(
             int challengeIndex,
             int challengeId,

@@ -176,6 +176,21 @@ public class BlossomManager {
                         && entry.getGadgetId() == gadgetId);
     }
 
+    /** Native Lua expects 1 for Mora and 3 for Revelation at the selected camp. */
+    public int getRefreshTypeByGroupId(int groupId) {
+        return refreshTypeForGroup(activeScriptedSpawns(), groupId);
+    }
+
+    static int refreshTypeForGroup(List<SpawnDataEntry> active, int groupId) {
+        for (var entry : active) {
+            if (entry.getGroup() == null || entry.getGroup().getGroupId() != groupId) continue;
+            var type = BlossomType.valueOf(entry.getGadgetId());
+            if (type == BlossomType.GOLD) return 1;
+            if (type == BlossomType.BLUE) return 3;
+        }
+        return 0;
+    }
+
     private List<SpawnDataEntry> authoredCandidates() {
         if (scriptedSpawnCandidates == null) {
             scriptedSpawnCandidates = scriptedCandidates(GameDepot.getSpawnLists(), scene.getId());
@@ -514,6 +529,47 @@ public class BlossomManager {
     public boolean hasRewardChest(EntityGadget chest) {
         synchronized (activeChests) {
             return activeChests.stream().anyMatch(active -> active.getChest() == chest);
+        }
+    }
+
+    /** Bind an authored Lua flower to the existing resin and reward claim flow. */
+    public boolean registerScriptedChest(int groupId, EntityGadget chest) {
+        synchronized (blossomActivities) {
+            synchronized (activeChests) {
+                if (activeChests.stream().anyMatch(activity -> activity.getChest() == chest)) return true;
+                EntityGadget source = createdEntity.stream()
+                        .filter(gadget -> gadget.getGroupId() == groupId
+                                && BlossomType.valueOf(gadget.getGadgetId()) != null)
+                        .findFirst().orElse(null);
+                if (source == null) {
+                    var spawn = activeScriptedSpawns().stream()
+                            .filter(entry -> entry.getGroup().getGroupId() == groupId)
+                            .findFirst().orElse(null);
+                    if (spawn == null) return false;
+                    source = new EntityGadget(scene, spawn.getGadgetId(), spawn.getPos(), spawn.getRot());
+                    source.setGroupId(groupId);
+                    source.setConfigId(spawn.getConfigId());
+                    source.setSpawnEntry(spawn);
+                }
+                EntityGadget chosen = source;
+                var activity = blossomActivities.stream()
+                        .filter(candidate -> candidate.getGadget() == chosen)
+                        .findFirst().orElse(null);
+                if (activity == null) activity = new BlossomActivity(source, List.of(), -1, getWorldLevel());
+                else {
+                    activity.clearEncounterSummons();
+                    blossomActivities.remove(activity);
+                    scene.setChallenge(null);
+                }
+                var meta = chest.getMetaGadget();
+                if (meta == null) return false;
+                meta.boss_chest = new emu.grasscutter.scripts.data.SceneBossChest();
+                meta.boss_chest.resin = 20;
+                chest.buildContent();
+                activity.attachScriptedChest(chest);
+                activeChests.add(activity);
+                return true;
+            }
         }
     }
 

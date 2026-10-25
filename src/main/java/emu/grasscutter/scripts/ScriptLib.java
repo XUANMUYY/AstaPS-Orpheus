@@ -5,6 +5,7 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.game.activity.ActivityManager;
 import emu.grasscutter.game.dungeons.DungeonManager;
 import emu.grasscutter.game.dungeons.challenge.DungeonChallenge;
+import emu.grasscutter.game.dungeons.challenge.FatherChallenge;
 import emu.grasscutter.game.dungeons.challenge.enums.FatherChallengeProperty;
 import emu.grasscutter.game.dungeons.challenge.factory.ChallengeFactory;
 import emu.grasscutter.game.entity.*;
@@ -44,6 +45,7 @@ import static emu.grasscutter.scripts.constants.GroupKillPolicy.*;
 public class ScriptLib {
     public static final Logger logger = Grasscutter.getLogger();
     private static final String BLOSSOM_SCHEDULE_STATE_KEY = "__blossomScheduleState";
+    private static final String BLOSSOM_SCHEDULE_PROGRESS_KEY = "__blossomScheduleProgress";
     private final FastThreadLocal<SceneScriptManager> sceneScriptManager;
     private final FastThreadLocal<SceneGroup> currentGroup;
     private final FastThreadLocal<ScriptArgs> callParams;
@@ -225,6 +227,21 @@ public class ScriptLib {
 
     public synchronized int ActiveChallenge(int challengeId, int challengeIndex, int timeLimitOrGroupId, int groupId, int objectiveKills, int param5) {
         logger.debug("[LUA] Call ActiveChallenge with {},{},{},{},{},{}", challengeId, challengeIndex, timeLimitOrGroupId, groupId, objectiveKills, param5);
+        return startChallenge(challengeId, challengeIndex, new int[] {timeLimitOrGroupId, groupId, objectiveKills, param5});
+    }
+
+    public synchronized int StartChallenge(int challengeId, int challengeIndex, LuaTable conditions) {
+        if (conditions == null || conditions.length() < 3 || conditions.length() > 6) return 1;
+        int[] parameters = new int[conditions.length()];
+        for (int i = 0; i < parameters.length; i++) {
+            LuaValue value = conditions.get(i + 1);
+            if (!value.isnumber() || !value.isint()) return 1;
+            parameters[i] = value.toint();
+        }
+        return startChallenge(challengeId, challengeIndex, parameters);
+    }
+
+    private int startChallenge(int challengeId, int challengeIndex, int[] parameters) {
 
         var scene = getSceneScriptManager().getScene();
         var existingChallenge = scene.getChallenge();
@@ -254,9 +271,9 @@ public class ScriptLib {
                             towerManager
                                     .getClass()
                                     .getMethod("resolveAbyssChallengeTimeLimit", int.class);
-                    int corrected = (Integer) m.invoke(towerManager, timeLimitOrGroupId);
-                    if (corrected != timeLimitOrGroupId) {
-                        timeLimitOrGroupId = corrected;
+                    int corrected = (Integer) m.invoke(towerManager, parameters[0]);
+                    if (corrected != parameters[0]) {
+                        parameters[0] = corrected;
                     }
                 } catch (ReflectiveOperationException ignored) {
                     // Method absent on older jars — keep lua timeLimit as-is.
@@ -266,31 +283,24 @@ public class ScriptLib {
                         players.isEmpty() ? -1 : players.get(0).getUid(),
                         challengeId,
                         challengeIndex,
-                        timeLimitOrGroupId,
+                        parameters[0],
                         getSceneScriptManager()
-                                .getVariables(groupId)
+                                .getVariables(parameters[1])
                                 .getOrDefault("stage", -1));
             }
         }
 
-        var challenge = ChallengeFactory.getChallenge(
-                challengeId,
-                challengeIndex,
-                timeLimitOrGroupId,
-                groupId,
-                objectiveKills,
-                param5,
-                scene,
-                getCurrentGroup().get()
-        );
+        var challenge = ChallengeFactory.getChallenge(challengeId, challengeIndex, parameters, scene, getCurrentGroup().get());
 
         if (challenge == null) {
             return 1;
         }
 
+        challenge.setSourceRegionEntityId(currentChallengeSourceRegion(scene));
+
         if (challenge instanceof DungeonChallenge dungeonChallenge) {
 
-            dungeonChallenge.setStage(getSceneScriptManager().getVariables(groupId).getOrDefault("stage", -1) == 0);
+            dungeonChallenge.setStage(getSceneScriptManager().getVariables(parameters[1]).getOrDefault("stage", -1) == 0);
         }
 
         scene.setChallenge(challenge);
@@ -298,10 +308,40 @@ public class ScriptLib {
         return 0;
     }
 
-    public int AddBlossomScheduleProgressByGroupId(int groupId) {
-        logger.warn("[LUA] Call unimplemented AddBlossomScheduleProgressByGroupId with {}", groupId);
+    private int currentChallengeSourceRegion(Scene scene) {
+        var event = callParams.getIfExists();
+        int entityId = event == null ? 0 : event.source_eid;
+        return entityId != 0 && scene.getScriptManager().getRegionById(entityId) != null
+                ? entityId : 0;
+    }
 
+    public int AddBlossomScheduleProgressByGroupId(int groupId) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || targetGroupId <= 0) return 1;
+        var variables = manager.getVariables(targetGroupId);
+        int target = blossomFinishProgress(
+                GameData.getBlossomCampDataMap().values(), targetGroupId);
+        int previous = variables.getOrDefault(BLOSSOM_SCHEDULE_PROGRESS_KEY, 0);
+        if (previous >= target) return 0;
+        int progress = previous + 1;
+        variables.put(BLOSSOM_SCHEDULE_PROGRESS_KEY, progress);
+        if (progress == target) {
+            manager.callEvent(new ScriptArgs(targetGroupId,
+                    EventType.EVENT_BLOSSOM_PROGRESS_FINISH));
+        }
         return 0;
+    }
+
+    static int blossomFinishProgress(
+            Collection<emu.grasscutter.data.excels.BlossomCampData> camps, int groupId) {
+        for (var camp : camps) {
+            if (camp.getNewGroupVec() != null && camp.getNewGroupVec().contains(groupId)
+                    && camp.getFinishProgress() > 0) return camp.getFinishProgress();
+        }
+        // 推断：older groups absent from BlossomGroups have one completion action.
+        return 1;
     }
 
     public int AddExtraGroupSuite(int groupId, int suite) {
@@ -374,10 +414,28 @@ public class ScriptLib {
         return 0;
     }
 
-    public int AttachChildChallenge(int var1, int var2, int var3, int[] var4, LuaTable var5, LuaTable var6) {
-        logger.warn("[LUA] Call unimplemented AttachChildChallenge with {} {} {} {} {} {}", var1, var2, var3, var4, var5, var6);
-
-        return 0;
+    public int AttachChildChallenge(int fatherIndex, int childIndex, int childId, int[] params,
+                                    LuaTable uidList, LuaTable weights) {
+        var scene = getSceneScriptManager().getScene();
+        if (!(scene.getChallenge() instanceof FatherChallenge father)
+                || father.getChallengeIndex() != fatherIndex || params == null
+                || params.length < 2 || params.length > 6 || weights == null) return 1;
+        int successWeight = weights.get("success").optint(-1);
+        int failWeight = weights.get("fail").optint(-1);
+        if (successWeight < 0 || failWeight < 0 || uidList == null) return 1;
+        var uids = new ArrayList<Integer>();
+        for (int i = 1; i <= uidList.length(); i++) {
+            var uid = uidList.get(i);
+            if (!uid.isint() || uid.toint() <= 0) return 1;
+            uids.add(uid.toint());
+        }
+        // The older child forms (for example 9019) omit an unused third parameter.
+        var factoryParams = params.length == 2 ? new int[] {params[0], params[1], 0} : params;
+        var child = ChallengeFactory.getChallenge(childIndex, childId, factoryParams, scene,
+                getCurrentGroup().orElse(null));
+        if (child == null || child.getGroup() == null) return 1;
+        child.setUidList(List.copyOf(uids));
+        return father.attach(child, successWeight, failWeight) ? 0 : 1;
     }
 
     public int AutoMonsterTide(int sourceId, int groupId, Integer[] ordersConfigId, int tideCount, int sceneLimit, int param6) {
@@ -520,8 +578,21 @@ public class ScriptLib {
     }
 
     public int CreateBlossomChestByGroupId(int groupId, int var2) {
-        logger.warn("[LUA] Call unimplemented CreateBlossomChestByGroupId with {} {}", groupId, var2);
-
+        var manager = sceneScriptManager.getIfExists();
+        var current = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && current != null ? current.id : groupId;
+        if (manager == null || manager.getScene() == null || targetGroupId <= 0 || var2 <= 0)
+            return 1;
+        var group = manager.getGroupById(targetGroupId);
+        if (group == null || group.gadgets == null) return 1;
+        var definition = group.gadgets.get(var2);
+        if (definition == null || !definition.is_blossom_chest) return 1;
+        var scene = manager.getScene();
+        if (scene.getEntityByConfigId(var2, targetGroupId) != null) return 0;
+        var chest = manager.createGadget(targetGroupId, group.block_id, definition);
+        if (chest == null || scene.getBlossomManager() == null
+                || !scene.getBlossomManager().registerScriptedChest(targetGroupId, chest)) return 1;
+        manager.addEntity(chest);
         return 0;
     }
 
@@ -543,9 +614,18 @@ public class ScriptLib {
         return 0;
     }
 
-    public int CreateFatherChallenge(int var1, int var2, int var3, LuaTable var4) {
-        logger.warn("[LUA] Call unimplemented CreateFatherChallenge with {} {} {} {}", var1, var2, var3, var4);
-
+    public int CreateFatherChallenge(int index, int id, int duration, LuaTable goals) {
+        var scene = getSceneScriptManager().getScene();
+        if (goals == null || duration <= 0 || goals.get("success").optint(0) <= 0
+                || goals.get("fail").optint(0) <= 0) return 1;
+        var existing = scene.getChallenge();
+        if (existing != null && existing.inProgress()) return 1;
+        var challenge = ChallengeFactory.getChallenge(index, id,
+                new int[] {duration, goals.get("success").toint(), goals.get("fail").toint()},
+                scene, getCurrentGroup().orElse(null));
+        if (!(challenge instanceof FatherChallenge father) || father.getGroup() == null) return 1;
+        father.setSourceRegionEntityId(currentChallengeSourceRegion(scene));
+        scene.setChallenge(father);
         return 0;
     }
 
@@ -773,6 +853,12 @@ public class ScriptLib {
         return 0;
     }
 
+    public int GetEffigyChallengeLimitTime() {
+        // 推断：没有已选的 Effigy 限时条件时，Lua 用 -1 表示采用关卡自身的默认时限。
+        // 当前服务端尚无 Effigy 条件选择状态，不能虚构一个扣减秒数。
+        return -1;
+    }
+
     public int GetEntityIdByConfigId(int configId) {
         logger.warn("[LUA] Call GetEntityIdByConfigId with {}", configId);
 
@@ -805,6 +891,15 @@ public class ScriptLib {
         int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
         if (manager == null || targetGroupId <= 0) return -1;
         return manager.getVariables(targetGroupId).getOrDefault(BLOSSOM_SCHEDULE_STATE_KEY, 0);
+    }
+
+    public int GetBlossomRefreshTypeByGroupId(int groupId) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || manager.getScene() == null || targetGroupId <= 0
+                || manager.getScene().getBlossomManager() == null) return 0;
+        return manager.getScene().getBlossomManager().getRefreshTypeByGroupId(targetGroupId);
     }
 
     public int GetGameHour() {
@@ -1090,10 +1185,11 @@ public class ScriptLib {
     }
 
     public int ModifyFatherChallengeProperty(int challengeId, int propertyTypeIndex, int value) {
-        val propertyType = FatherChallengeProperty.values()[propertyTypeIndex];
-        logger.warn("[LUA] Call unimplemented ModifyFatherChallengeProperty with {} {} {}", challengeId, propertyType.name(), value);
-
-        return 0;
+        var properties = FatherChallengeProperty.values();
+        if (propertyTypeIndex < 0 || propertyTypeIndex >= properties.length) return 1;
+        var challenge = getSceneScriptManager().getScene().getChallenge();
+        return challenge instanceof FatherChallenge father && father.getChallengeIndex() == challengeId
+                && father.modify(properties[propertyTypeIndex], value) ? 0 : 1;
     }
 
     public int MoveAvatarByPointArray(int uid, int pointArrayId, LuaTable route,
@@ -1175,15 +1271,32 @@ public class ScriptLib {
     }
 
     public int RefreshBlossomDropRewardByGroupId(int groupId) {
-        logger.warn("[LUA] Call unimplemented RefreshBlossomDropRewardByGroupId with {}", groupId);
-
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || manager.getScene() == null || targetGroupId <= 0
+                || manager.getGroupInstanceById(targetGroupId) == null
+                || manager.getScene().getBlossomManager() == null) return 1;
+        // 推断：loot is rolled from the native type/world-level table at claim time.
+        // Re-publish its current preview instead of fixing a shared drop before players claim.
+        manager.getScene().getBlossomManager().notifyIcon();
         return 0;
     }
 
     public int RefreshBlossomGroup(LuaTable var1) {
-        logger.warn("[LUA] Call unimplemented RefreshBlossomGroup with {}", printTable(var1));
-
-        return 0;
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int groupId = var1.get("group_id").optint(0);
+        if (groupId == 0 && group != null) groupId = group.id;
+        int suite = var1.get("suite").optint(0);
+        if (manager == null || groupId <= 0 || suite <= 0) return 1;
+        var instance = manager.getGroupInstanceById(groupId);
+        if (instance == null || instance.getLuaGroup() == null
+                || instance.getLuaGroup().getSuiteByIndex(suite) == null) return 1;
+        // 推断：is_delay_unload affects entity teardown timing; the current group API
+        // only supports immediate replacement. Keep the native suite and exclude_prev behavior.
+        return manager.refreshGroup(instance, suite,
+                var1.get("exclude_prev").optboolean(false)) == suite ? 0 : 1;
     }
 
     public int RefreshGroup(LuaTable table) {
@@ -1290,6 +1403,7 @@ public class ScriptLib {
         if (manager == null || targetGroupId <= 0 || state < 0 || state > 3) return 1;
         // 推断：原生 Blossom schedule 的组状态由 Lua 设置；沿用已有可持久化的组变量缓存。
         manager.getVariables(targetGroupId).put(BLOSSOM_SCHEDULE_STATE_KEY, state);
+        if (state == 1) manager.getVariables(targetGroupId).put(BLOSSOM_SCHEDULE_PROGRESS_KEY, 0);
         return 0;
     }
 
@@ -1669,10 +1783,12 @@ public class ScriptLib {
         return 0;
     }
 
-    public int StartFatherChallenge(int var1) {
-        logger.warn("[LUA] Call unimplemented StartFatherChallenge with {}", var1);
-
-        return 0;
+    public int StartFatherChallenge(int index) {
+        var challenge = getSceneScriptManager().getScene().getChallenge();
+        if (!(challenge instanceof FatherChallenge father)
+                || father.getChallengeIndex() != index || father.inProgress()) return 1;
+        father.start();
+        return father.inProgress() ? 0 : 1;
     }
 
     public int StartGallery(int galleryId) {
@@ -1716,8 +1832,13 @@ public class ScriptLib {
         var scene = getSceneScriptManager().getScene();
         if (LiyueCloudDungeonSupport.isTargetScene(scene) && var1 >= 100 && var1 <= 102)
             return LiyueCloudDungeonSupport.stopFireChallenge(scene, var1, var2);
-        logger.warn("[LUA] Call unimplemented StopChallenge with {} {}", var1, var2);
-
+        if (var2 != 0 && var2 != 1) return 1;
+        var challenge = scene.getChallenge();
+        if (challenge instanceof FatherChallenge father && father.inProgress()
+                && father.activeChild(var1) != null) challenge = father.activeChild(var1);
+        if (challenge == null || !challenge.inProgress() || challenge.getChallengeIndex() != var1) return 1;
+        if (var2 == 1) challenge.done();
+        else challenge.fail();
         return 0;
     }
 
