@@ -18,6 +18,12 @@ public class ActivityConfigItem {
 
     transient ActivityHandler activityHandler;
 
+    public boolean isOpenAt(Date now) {
+        return beginTime != null && endTime != null && openTime != null && closeTime != null
+                && !now.before(beginTime) && now.before(endTime)
+                && !now.before(openTime) && now.before(closeTime);
+    }
+
     void onLoad() {
         if (openTime == null) {
             this.openTime = beginTime;
