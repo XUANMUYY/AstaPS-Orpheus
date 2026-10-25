@@ -206,6 +206,60 @@ public final class PushTipsManager {
         return unlocked;
     }
 
+    /** 获得物品：TRIGGER_OBTAIN_MATERIAL_NUM 列出的任一物品入包即解锁（推断：数量要求都是 1）。 */
+    public int onItemObtained(int itemId) {
+        return this.unlockByTrigger(
+                WatcherTriggerType.TRIGGER_OBTAIN_MATERIAL_NUM, itemId, "item " + itemId);
+    }
+
+    /** 使用道具：TRIGGER_USE_ITEM。 */
+    public int onItemUsed(int itemId) {
+        return this.unlockByTrigger(WatcherTriggerType.TRIGGER_USE_ITEM, itemId, "use item " + itemId);
+    }
+
+    /** 消耗材料：TRIGGER_COST_MATERIAL。 */
+    public int onMaterialCost(int itemId) {
+        return this.unlockByTrigger(
+                WatcherTriggerType.TRIGGER_COST_MATERIAL, itemId, "cost item " + itemId);
+    }
+
+    /** 整个任务完成：TRIGGER_FINISH_PARENT_QUEST_OR。 */
+    public int onParentQuestFinished(int mainQuestId) {
+        return this.unlockByTrigger(
+                WatcherTriggerType.TRIGGER_FINISH_PARENT_QUEST_OR, mainQuestId, "main quest " + mainQuestId);
+    }
+
+    /** 冒险等级达到参数值：TRIGGER_PLAYER_LEVEL。 */
+    public int onPlayerLevel(int level) {
+        return this.unlockWhere(
+                WatcherTriggerType.TRIGGER_PLAYER_LEVEL, params -> reached(params, level), "player level " + level);
+    }
+
+    /** 世界等级升到参数值：TRIGGER_WORLD_LEVEL_UP。跨级升级时中间各级的提示一起解锁。 */
+    public int onWorldLevel(int level) {
+        return this.unlockWhere(
+                WatcherTriggerType.TRIGGER_WORLD_LEVEL_UP, params -> reached(params, level), "world level " + level);
+    }
+
+    /** 子任务完成：TRIGGER_FINISH_QUEST_AND 列出的子任务全部完成才解锁。 */
+    public int onQuestFinished(int subQuestId, IntPredicate questFinished) {
+        int unlocked = this.onQuestFinished(subQuestId);
+        unlocked += this.unlockWhere(
+                WatcherTriggerType.TRIGGER_FINISH_QUEST_AND,
+                params -> {
+                    var ids = paramIds(params);
+                    return ids.contains(subQuestId)
+                            && ids.stream().allMatch(id -> id == subQuestId || questFinished.test(id));
+                },
+                "quests ending with " + subQuestId);
+        return unlocked;
+    }
+
+    private static boolean reached(String[] params, int value) {
+        var ids = paramIds(params);
+        return !ids.isEmpty() && ids.get(0) <= value;
+    }
+
     /** A sub quest finished: unlock the tips whose TRIGGER_FINISH_QUEST_OR lists it. */
     public int onQuestFinished(int subQuestId) {
         return this.unlockByTrigger(
@@ -219,6 +273,11 @@ public final class PushTipsManager {
     }
 
     private int unlockByTrigger(WatcherTriggerType type, int id, String source) {
+        return this.unlockWhere(type, params -> paramListContains(params, id), source);
+    }
+
+    private int unlockWhere(
+            WatcherTriggerType type, java.util.function.Predicate<String[]> matches, String source) {
         var state = this.codex().getPushTipsState();
         int unlocked = 0;
         // Copy: unlock() may touch the same collections while we walk the catalog.
@@ -227,7 +286,7 @@ public final class PushTipsManager {
             var watcher = this.catalog.watcher(tip.getWatcherId());
             if (watcher == null || !watcher.isUsed() || watcher.getTriggerConfig() == null) continue;
             if (watcher.getTriggerConfig().getTriggerType() != type) continue;
-            if (!paramListContains(watcher.getTriggerConfig().getParamList(), id)) continue;
+            if (!matches.test(watcher.getTriggerConfig().getParamList())) continue;
             if (this.unlock(tip.getPushTipsId(), source + " via watcher " + tip.getWatcherId())) {
                 unlocked++;
             }
@@ -364,7 +423,7 @@ public final class PushTipsManager {
     static List<Integer> paramIds(String[] paramList) {
         var ids = new ArrayList<Integer>();
         if (paramList == null || paramList.length == 0 || paramList[0] == null) return ids;
-        for (var part : paramList[0].split(",")) {
+        for (var part : paramList[0].split("[,;]")) {
             try {
                 ids.add(Integer.parseInt(part.trim()));
             } catch (NumberFormatException ignored) {
@@ -377,7 +436,7 @@ public final class PushTipsManager {
     /** {@code paramList[0]} is a comma separated id list; true if it holds {@code id}. */
     static boolean paramListContains(String[] paramList, int id) {
         if (paramList == null || paramList.length == 0 || paramList[0] == null) return false;
-        for (var part : paramList[0].split(",")) {
+        for (var part : paramList[0].split("[,;]")) {
             var text = part.trim();
             if (text.isEmpty()) continue;
             try {

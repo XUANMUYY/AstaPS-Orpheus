@@ -230,6 +230,32 @@ final class PushTipsManagerTest {
     }
 
     @Test
+    void serverJudgedTriggersUnlock() {
+        catalog.addWatcher(
+                "{\"id\":10024,\"triggerConfig\":{\"triggerType\":\"TRIGGER_OBTAIN_MATERIAL_NUM\","
+                        + "\"paramList\":[\"101226;101227\",\"\"]},\"progress\":1}");
+        catalog.addTip("{\"pushTipsId\":6001,\"codexType\":\"CODEX_ADVENTURE\",\"watcherId\":10024}", 60100021);
+        catalog.addWatcher(
+                "{\"id\":3003,\"triggerConfig\":{\"triggerType\":\"TRIGGER_WORLD_LEVEL_UP\","
+                        + "\"paramList\":[\"3\",\"\"]},\"progress\":1}");
+        catalog.addTip("{\"pushTipsId\":6002,\"codexType\":\"CODEX_ADVENTURE\",\"watcherId\":3003}", 60100022);
+        catalog.addWatcher(
+                "{\"id\":1138,\"triggerConfig\":{\"triggerType\":\"TRIGGER_FINISH_QUEST_AND\","
+                        + "\"paramList\":[\"11,12\",\"\"]},\"progress\":1}");
+        catalog.addTip("{\"pushTipsId\":6003,\"codexType\":\"CODEX_ADVENTURE\",\"watcherId\":1138}", 60100023);
+
+        assertEquals(0, manager.onItemObtained(101225));
+        assertEquals(1, manager.onItemObtained(101227), "分号分隔的编号也认");
+
+        assertEquals(0, manager.onWorldLevel(2));
+        assertEquals(1, manager.onWorldLevel(4), "跨级升级时达到的等级提示也解锁");
+
+        assertEquals(0, manager.onQuestFinished(11, id -> false), "另一个子任务还没完成");
+        assertEquals(1, manager.onQuestFinished(12, id -> id == 11));
+        assertEquals(PushTipsManager.STATE_START, manager.states().get(6003));
+    }
+
+    @Test
     void typeEventUnlocksWindCrystalTutorial() {
         // 官方 8001 / 提示 1037：靠近风神瞳时客户端按 TRIGGER_WIND_CRYSTAL 上报，不带观察器号。
         catalog.addWatcher(

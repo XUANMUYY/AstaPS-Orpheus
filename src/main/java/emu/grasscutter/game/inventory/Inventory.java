@@ -276,6 +276,11 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
             } catch (Exception e) {
                 Grasscutter.getLogger().debug("addItemObtainedHistory failed", e);
             }
+            try {
+                emu.grasscutter.game.player.PushTipsManager.of(this.player).onItemObtained(itemId);
+            } catch (Throwable t) {
+                Grasscutter.getLogger().warn("[PushTips] item hook failed: {}", t.toString());
+            }
             if (inserted.changedItem() != null) {
                 changedItems.add(inserted.changedItem());
                 // Use this grant's quantity, not the total of an existing stack.
@@ -633,6 +638,11 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
     }
 
     private GameItem payVirtualItem(int itemId, int count) {
+        try {
+            emu.grasscutter.game.player.PushTipsManager.of(this.player).onMaterialCost(itemId);
+        } catch (Throwable t) {
+            Grasscutter.getLogger().warn("[PushTips] cost hook failed: {}", t.toString());
+        }
         switch (itemId) {
             case 201 -> // Primogem
             player.setPrimogems(player.getPrimogems() - count);

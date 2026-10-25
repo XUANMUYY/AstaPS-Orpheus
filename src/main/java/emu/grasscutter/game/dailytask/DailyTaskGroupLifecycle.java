@@ -626,11 +626,24 @@ public final class DailyTaskGroupLifecycle {
             SceneGroupInstance instance,
             int suite,
             boolean excludePrevious) {
+        return refresh(scripts, instance, suite, excludePrevious, false);
+    }
+
+    /** Scene reloads retain ordinary puzzle progress; commission snapshots keep their own policy. */
+    public static int load(SceneScriptManager scripts, SceneGroupInstance instance, int suite) {
+        return refresh(scripts, instance, suite, false, true);
+    }
+
+    private static int refresh(SceneScriptManager scripts, SceneGroupInstance instance,
+            int suite, boolean excludePrevious, boolean loading) {
+        java.util.function.IntSupplier ordinary = () -> loading
+                ? scripts.restoreGroup(instance, suite)
+                : scripts.refreshGroup(instance, suite, excludePrevious);
         var scene = scripts.getScene();
         if (scene == null || scene.getWorld() == null || scene.getWorld().getHost() == null)
-            return scripts.refreshGroup(instance, suite, excludePrevious);
+            return ordinary.getAsInt();
         var manager = scene.getWorld().getHost().getDailyTaskManager();
-        if (!owner(manager, scene)) return scripts.refreshGroup(instance, suite, excludePrevious);
+        if (!owner(manager, scene)) return ordinary.getAsInt();
         var state = scene.getDailyTaskGroups();
         var plan =
                 state == null || state.manager != manager
@@ -642,7 +655,7 @@ public final class DailyTaskGroupLifecycle {
                     && state.managed.remove(instance.getGroupId()))
                 instance.setDailyTaskSnapshot(
                         null); // Explicit external loader owns this activation.
-            return scripts.refreshGroup(instance, suite, excludePrevious);
+            return ordinary.getAsInt();
         }
         String text = instance.getDailyTaskSnapshot();
         if (text == null) return scripts.refreshGroup(instance, suite, excludePrevious);

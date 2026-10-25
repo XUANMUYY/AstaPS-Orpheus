@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 class NativeDropGraphSafetyTest {
     @Test void allNativeServerTablesMeetTheNewBudgets() throws Exception {
         var source = JsonParser.parseString(Files.readString(
-                Path.of("data/Server/DropTableExcelConfigData.json"))).getAsJsonArray();
+                Path.of("src/test/resources/native-snapshots/DropTableExcelConfigData.json"))).getAsJsonArray();
         var graph = new LootRecursionSafety.Graph();
         var nodes = new HashMap<Integer, LootRecursionSafety.Graph.Node>();
         for (var row : source) {

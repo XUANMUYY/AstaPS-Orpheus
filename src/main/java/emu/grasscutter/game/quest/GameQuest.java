@@ -279,7 +279,11 @@ public class GameQuest {
                 .triggerWatcher(
                         WatcherTriggerType.TRIGGER_FINISH_QUEST_AND, String.valueOf(this.subQuestId));
         try {
-            PushTipsManager.of(this.getOwner()).onQuestFinished(this.subQuestId);
+            var questManager = this.getOwner().getQuestManager();
+            PushTipsManager.of(this.getOwner()).onQuestFinished(this.subQuestId, id -> {
+                var other = questManager.getQuestById(id);
+                return other != null && other.getState() == QuestState.QUEST_STATE_FINISHED;
+            });
         } catch (Throwable t) {
             Grasscutter.getLogger()
                     .warn("[PushTips] quest {} hook failed: {}", this.subQuestId, t.toString());

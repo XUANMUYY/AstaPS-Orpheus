@@ -42,6 +42,13 @@ public final class ChestTypeResolver {
         return fromNativeJsonName(data == null ? null : data.getJsonName());
     }
 
+    public static boolean isNativeInteract(EntityGadget gadget) {
+        var data = gadget.getGadgetData();
+        String name = data == null ? null : data.getJsonName();
+        return "SearchPoint".equals(name)
+                || (name != null && name.startsWith("SceneObj_Area_Common_Property_Ani_Prop_BGM_"));
+    }
+
     /** Recognize the native ordinary chest prefabs without guessing unknown gadget identities. */
     static String fromNativeJsonName(String jsonName) {
         if (jsonName == null) return null;

@@ -1421,10 +1421,11 @@ public class Scene {
                 groupInstance = cachedInstance;
             }
 
+            // 任务调整补齐的终态优先；否则按上游做法恢复已保存的套件，不重置谜题进度。
             if (!this.getScriptManager().restoreQuestAdjustGroup(groupInstance))
-                emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.refresh(
-                    this.getScriptManager(), groupInstance,
-                    emu.grasscutter.game.quest.LiyueSceneGroupRecovery.selectSuite(this, groupInstance), false);
+                emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.load(
+                        this.getScriptManager(), groupInstance,
+                        emu.grasscutter.game.quest.LiyueSceneGroupRecovery.selectSuite(this, groupInstance));
 
             this.loadedGroups.add(group);
         }

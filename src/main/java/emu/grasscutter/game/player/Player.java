@@ -693,6 +693,11 @@ public class Player implements PlayerHook, FieldFetch {
             this.updateProfile();
 
             this.getProgressManager().tryUnlockOpenStates();
+            try {
+                emu.grasscutter.game.player.PushTipsManager.of(this).onPlayerLevel(level);
+            } catch (Throwable t) {
+                Grasscutter.getLogger().warn("[PushTips] player level hook failed: {}", t.toString());
+            }
             this.getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_PLAYER_LEVEL_UP, level);
             this.getQuestManager().queueEvent(QuestCond.QUEST_COND_PLAYER_LEVEL_EQUAL_GREATER, level);
             // Keep ley-line markers synchronized after any Adventure Rank change,
@@ -723,6 +728,11 @@ public class Player implements PlayerHook, FieldFetch {
             if (this.world.getHost() == this)
                 this.world.setWorldLevel(level);
             this.updateProfile();
+            try {
+                emu.grasscutter.game.player.PushTipsManager.of(this).onWorldLevel(level);
+            } catch (Throwable t) {
+                Grasscutter.getLogger().warn("[PushTips] world level hook failed: {}", t.toString());
+            }
             return true;
         }
         return false;

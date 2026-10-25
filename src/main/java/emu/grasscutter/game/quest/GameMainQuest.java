@@ -181,6 +181,11 @@ public class GameMainQuest {
         this.getOwner().getSession().send(new PacketCodexDataUpdateNotify(this));
 
         this.save();
+        try {
+            emu.grasscutter.game.player.PushTipsManager.of(this.getOwner()).onParentQuestFinished(this.getParentQuestId());
+        } catch (Throwable t) {
+            Grasscutter.getLogger().warn("[PushTips] main quest hook failed: {}", t.toString());
+        }
 
         // Add rewards
         MainQuestData mainQuestData = GameData.getMainQuestDataMap().get(this.getParentQuestId());

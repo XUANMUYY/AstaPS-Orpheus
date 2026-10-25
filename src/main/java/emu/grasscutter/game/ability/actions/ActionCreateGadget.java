@@ -109,7 +109,16 @@ public class ActionCreateGadget extends AbilityActionHandler {
                 ? resolveTarget(ability, target, action.target)
                 : ability.getOwner();
         if (entity == null) return false;
-
+        
+        // Kachina's client owns Turbo Twirly, including riding, energy and expiry.
+        // A second server top can linger or interrupt riding.
+        if (action.gadgetID == 41100001
+                && entity instanceof EntityAvatar avatar
+                && avatar.getAvatar() != null
+                && avatar.getAvatar().getAvatarId() == 10000100) {
+            purgeAvatarSkillObjShells(ability, id -> id == 41100001);
+            return true;
+        }
         // The client owns these chains and spawns its own copies, so ours are only ever duplicates -
         // and duplicates the owner can see, since addEntity below broadcasts to everyone while a
         // client-made gadget is deliberately not echoed back to its own client.

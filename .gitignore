@@ -88,6 +88,14 @@ mappings.js
 BuildConfig.java
 data/hk4e/announcement/
 
+# Live server state. Never track per-server/player progress in the source repository.
+/data/artifact_transmuter_state.json
+/data/investigation_elite_respawn.json
+/data/nodkrai_explore_claimed.json
+/data/nodkrai_guard_respawn.json
+/data/snezhnaya_explore_claimed.json
+/data/snezhnaya_guard_respawn.json
+
 # lombok
 /.apt_generated/
 
