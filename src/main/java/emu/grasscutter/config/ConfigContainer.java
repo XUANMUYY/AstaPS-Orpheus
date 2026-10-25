@@ -271,6 +271,8 @@ public class ConfigContainer {
         public volatile String password = null;
         /* How long a login stays valid. */
         public int sessionHours = 12;
+        /* The client injection patch file the admin settings page edits. */
+        public volatile String clientPatchFile = "F:\\Fork Reversed\\Genshin Impact\\ForkClient\\lunagc-patch.json";
 
         public String effectivePassword() {
             return password == null || password.isBlank() ? null : password;
