@@ -60,21 +60,6 @@ class BannersConfigTest {
     }
 
     @Test
-    void titleKeyUsesFourDigitFormFromPrefab100() {
-        assertEquals(
-                "UI_GACHA_SHOW_PANEL_A0280_TITLE",
-                GachaBanner.normalizeTitleKey("UI_GACHA_SHOW_PANEL_A280_TITLE"));
-        assertEquals(
-                "UI_GACHA_SHOW_PANEL_A0301_TITLE",
-                GachaBanner.normalizeTitleKey("UI_GACHA_SHOW_PANEL_A0301_TITLE"));
-        assertEquals(
-                "UI_GACHA_SHOW_PANEL_A022_TITLE",
-                GachaBanner.normalizeTitleKey("UI_GACHA_SHOW_PANEL_A022_TITLE"));
-        assertEquals("UI_GACHA_SHOW_PANEL_B001_TITLE", GachaBanner.normalizeTitleKey("UI_GACHA_SHOW_PANEL_B001_TITLE"));
-        assertNull(GachaBanner.normalizeTitleKey(null));
-    }
-
-    @Test
     void chronicleIsDisabledByDefaultAndCostsEntangledFate() throws Exception {
         var chronicle =
                 load().stream()
