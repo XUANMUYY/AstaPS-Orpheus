@@ -20,6 +20,7 @@ public final class CondCompensation {
         if (!c.paramStr().isBlank()) p.add("param_str=" + c.paramStr());
         var type = c.type();
         String action;
+        if (WorldEffects.get().condition(c) != null) return new QuestPlanner.Effect(type, p, WorldEffects.DISPOSITION);
         if (type.equals("QUEST_CONTENT_UNLOCK_TRANS_POINT")) action = state.contains("unlockedScenePoints", c.p(0), c.p(1)) ? "already_set; pending_reward_unchanged" : "unlockTransPoint; reward_pending";
         else if (type.equals("QUEST_CONTENT_UNLOCK_ANY_TRANS_POINT")) action = "check_existing_points; do_not_invent_point";
         else if (type.equals("QUEST_CONTENT_UNLOCK_AREA") || type.equals("QUEST_CONTENT_ENTER_AREA")) action = "unlockSceneArea";
@@ -43,7 +44,11 @@ public final class CondCompensation {
         var player = quest.getOwner();
         for (var c : conditions) {
             var type = c.type();
-            if (type.equals("QUEST_CONTENT_UNLOCK_TRANS_POINT")) {
+            var worldEffect = WorldEffects.get().condition(c);
+            if (worldEffect != null) {
+                WorldEffects.get().apply(player, quest.getSubQuestId(), worldEffect, journal);
+                if (type.equals("QUEST_CONTENT_LUA_NOTIFY")) satisfyProgress(quest, c);
+            } else if (type.equals("QUEST_CONTENT_UNLOCK_TRANS_POINT")) {
                 var point = GameData.getScenePointEntryById(c.p(0), c.p(1));
                 if (point == null) throw new IllegalStateException("补偿点位资源缺失 " + c.param());
                 player.getProgressManager().unlockTransPoint(c.p(0), c.p(1),

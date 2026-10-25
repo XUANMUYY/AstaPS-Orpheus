@@ -1,0 +1,718 @@
+{
+  "note": "逐组审计世界终态，通用于任何账号。键与InstancedScenes一致；exec以类型:subId索引且必须匹配execParams。操作group省略时沿用条目group；inferred标注推断，详见docs/任务调整-世界效果补偿审计.md。",
+  "entries": {
+    "QUEST_CONTENT_CLEAR_GROUP_MONSTER:133001305": {
+      "scene": 3,
+      "group": 133001305,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            1307
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            2
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133001305.lua:13-15,60-73 suite2；任务37303 beginExec选择suite2，唯一怪物1307死亡；本组无触发器、宝箱或变量。",
+      "inferred": false
+    },
+    "QUEST_CONTENT_CLEAR_GROUP_MONSTER:133002233": {
+      "scene": 3,
+      "group": 133002233,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            870,
+            871,
+            872
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            2
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133002233.lua:77-100 suite2；任务39703选择suite2，只清870/871/872；该suite无触发器，不误改suite3的is_monster_killed或杀掉suite1史莱姆。",
+      "inferred": false
+    },
+    "QUEST_CONTENT_CLEAR_GROUP_MONSTER:133003151": {
+      "scene": 3,
+      "group": 133003151,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            620
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            2
+          ]
+        },
+        {
+          "op": "variable",
+          "value": 0,
+          "name": "boss_exist"
+        },
+        {
+          "op": "quest_progress",
+          "value": 1,
+          "name": "133003151"
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133003151.lua:75-78,176-199 suite2/ANY_MONSTER_DIE_608；任务suite2的620死亡，ANY_MONSTER_DIE_608写boss_exist=0和进度133003151；本阶段不生成suite1死亡回调的宝箱。",
+      "inferred": false
+    },
+    "QUEST_CONTENT_CLEAR_GROUP_MONSTER:133004015": {
+      "scene": 3,
+      "group": 133004015,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            17,
+            18,
+            19
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133004015.lua:13-19,60-66 suite1；任务38801显式刷新全部17/18/19；组suite1为空，无触发器、宝箱或变量。",
+      "inferred": false
+    },
+    "QUEST_CONTENT_LUA_NOTIFY:133003079": {
+      "scene": 3,
+      "group": 133003439,
+      "operations": [
+        {
+          "op": "remove",
+          "ids": [
+            3834
+          ]
+        },
+        {
+          "op": "create_gadget",
+          "ids": [
+            4115
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133003439.lua:80-102 ANY_GADGET_DIE_510；3834死亡才通知并创建4115；永久移除3834，宝箱保持可领取，不补掉落。",
+      "inferred": false
+    },
+    "QUEST_CONTENT_LUA_NOTIFY:133003136": {
+      "scene": 3,
+      "group": 133003136,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            623,
+            1443,
+            1444
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1
+          ]
+        },
+        {
+          "op": "gadget_state",
+          "ids": [
+            4125
+          ],
+          "value": 0
+        },
+        {
+          "op": "replaceable",
+          "value": 1
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133003136.lua:76-89,101-131 ANY_MONSTER_DIE_511；清空任务suite1的623/1443/1444后解锁4125；不删除suite2的另一批丘丘人。；scene3_group133003136.lua:127-128 SetGroupReplaceable(true)，scene3_block3003.lua:125含is_replaceable元数据，终态同时持久保留可替换标记。",
+      "inferred": false
+    },
+    "QUEST_CONTENT_LUA_NOTIFY:133003435": {
+      "scene": 3,
+      "group": 133003435,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            1442
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133003435.lua:60-74,85-103 ANY_MONSTER_DIE_517；suite1唯一怪物1442死亡后通知，无宝箱和变量；后续finishExec自行换suite2。",
+      "inferred": false
+    },
+    "QUEST_CONTENT_LUA_NOTIFY:133003910": {
+      "scene": 3,
+      "group": 133003910,
+      "operations": [],
+      "supersededBy": {
+        "subId": 39815,
+        "type": "QUEST_EXEC_REFRESH_GROUP_SUITE",
+        "param": [
+          "3",
+          "133003910,1"
+        ]
+      },
+      "evidence": "resources/Scripts/Scene/3/scene3_group133003910.lua:92-113、133-390 的13个ANY_GADGET_DIE与QUEST_START_910037都只给133003910计数+1，具体毁掉哪些设施无法唯一还原；但 BinOutput/Quest/398.json 中 39815 的 finishExec REFRESH_GROUP_SUITE 3,133003910,1 会把组切到空的 suite1（营地整体消失）。因此只在同一计划随后完成39815时补偿：计数照常补齐，组状态交给39815覆盖；停在中间时保持阻断。",
+      "inferred": false
+    },
+    "QUEST_CONTENT_LUA_NOTIFY:39003_success": {
+      "scene": 3,
+      "group": 133007227,
+      "operations": [
+        {
+          "op": "variable",
+          "value": 0,
+          "name": "Quest_Flag"
+        },
+        {
+          "op": "gadget_state",
+          "ids": [
+            963
+          ],
+          "value": 903
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1
+          ]
+        },
+        {
+          "op": "create_gadget",
+          "ids": [
+            981
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133007227.lua:123-159 GADGET_STATE_CHANGE_294/TIMER_EVENT_326；Action03写持久模型963，移除suite2、Quest_Flag=0，定时器创建入场特效981；特效跨加载恢复属于推断。",
+      "inferred": true
+    },
+    "QUEST_CONTENT_LUA_NOTIFY:39005_success": {
+      "scene": 3,
+      "group": 133007228,
+      "operations": [
+        {
+          "op": "variable",
+          "value": 7,
+          "name": "Point_Value"
+        },
+        {
+          "op": "variable",
+          "value": 7,
+          "name": "Temp_Point_Value"
+        },
+        {
+          "op": "variable",
+          "value": 1,
+          "name": "Quest_Flag"
+        },
+        {
+          "op": "gadget_state",
+          "ids": [
+            965
+          ],
+          "value": 903
+        },
+        {
+          "op": "remove",
+          "ids": [
+            980
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133007228.lua:151-159,214-224 GADGET_STATE_CHANGE_304；Action03写模型965、提交光柱掩码、永久删除980并移除suite2；三束光1+2+4=7由成功解谜反推，标为推断。原脚本Quest_Flag确为1，保留。",
+      "inferred": true
+    },
+    "QUEST_CONTENT_LUA_NOTIFY:39006_success": {
+      "scene": 3,
+      "group": 133007229,
+      "operations": [
+        {
+          "op": "variable",
+          "value": 7,
+          "name": "Point_Value"
+        },
+        {
+          "op": "variable",
+          "value": 7,
+          "name": "Temp_Point_Value"
+        },
+        {
+          "op": "variable",
+          "value": 0,
+          "name": "Quest_Flag"
+        },
+        {
+          "op": "gadget_state",
+          "ids": [
+            969
+          ],
+          "value": 903
+        },
+        {
+          "op": "remove",
+          "ids": [
+            975
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133007229.lua:191-199,217-227 GADGET_STATE_CHANGE_297；Action03写模型969、提交光柱掩码、Quest_Flag=0，永久删除975并移除suite2；三束光1+2+4=7由成功解谜反推，标为推断。",
+      "inferred": true
+    },
+    "QUEST_CONTENT_LUA_NOTIFY:39007_success": {
+      "scene": 3,
+      "group": 133007230,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            422,
+            423,
+            424
+          ]
+        },
+        {
+          "op": "variable",
+          "value": 1,
+          "name": "first_touch_done"
+        },
+        {
+          "op": "variable",
+          "value": 1,
+          "name": "seal_battle_done"
+        },
+        {
+          "op": "variable",
+          "value": 7,
+          "name": "Point_Value"
+        },
+        {
+          "op": "variable",
+          "value": 7,
+          "name": "Temp_Point_Value"
+        },
+        {
+          "op": "variable",
+          "value": 0,
+          "name": "Quest_Flag"
+        },
+        {
+          "op": "gadget_state",
+          "ids": [
+            973
+          ],
+          "value": 903
+        },
+        {
+          "op": "remove",
+          "ids": [
+            976
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133007230.lua:258-313 GADGET_STATE_CHANGE_230006；成功封印战后才能进入Action03分支，写模型973、提交掩码、Quest_Flag=0，永久删除976并移除suite2；掩码7是成功解谜推断。",
+      "inferred": true
+    },
+    "QUEST_EXEC_NOTIFY_GROUP_LUA:38001": {
+      "scene": 3,
+      "group": 133003151,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            620
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            2
+          ]
+        },
+        {
+          "op": "variable",
+          "value": 0,
+          "name": "boss_exist"
+        },
+        {
+          "op": "quest_progress",
+          "value": 1,
+          "name": "133003151"
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133003151.lua:109-144,166-199 QUEST_FINISH_124/464 + ANY_MONSTER_DIE_608/127；QUEST_FINISH_124刷新suite2；按任务要求直接采用战后ANY_MONSTER_DIE_608的boss_exist=0和进度，不执行刷怪通知。",
+      "inferred": false,
+      "execParams": [
+        [
+          "3",
+          "133003151"
+        ]
+      ]
+    },
+    "QUEST_EXEC_NOTIFY_GROUP_LUA:38003": {
+      "scene": 3,
+      "group": 133003151,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            620
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1
+          ]
+        },
+        {
+          "op": "variable",
+          "value": 0,
+          "name": "boss_exist"
+        },
+        {
+          "op": "create_gadget",
+          "ids": [
+            2616
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133003151.lua:109-144,166-199 QUEST_FINISH_124/464 + ANY_MONSTER_DIE_608/127；QUEST_FINISH_464刷新suite1；采用重生遗迹守卫再次被击败后的ANY_MONSTER_DIE_127结果：boss_exist=0，2616宝箱可领取。额外完成这场重生战斗属于推断。",
+      "inferred": true,
+      "execParams": [
+        [
+          "3",
+          "133003151"
+        ]
+      ]
+    },
+    "QUEST_EXEC_NOTIFY_GROUP_LUA:39004": {
+      "scene": 3,
+      "group": 133007230,
+      "operations": [
+        {
+          "op": "variable",
+          "value": 1,
+          "name": "Quest_Flag",
+          "group": 133007228
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1,
+            2
+          ],
+          "group": 133007228
+        },
+        {
+          "op": "variable",
+          "value": 1,
+          "name": "Quest_Flag",
+          "group": 133007229
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1,
+            2
+          ],
+          "group": 133007229
+        },
+        {
+          "op": "monsters_dead",
+          "ids": [
+            422,
+            423,
+            424
+          ]
+        },
+        {
+          "op": "variable",
+          "value": 1,
+          "name": "first_touch_done"
+        },
+        {
+          "op": "variable",
+          "value": 1,
+          "name": "seal_battle_done"
+        },
+        {
+          "op": "variable",
+          "value": 1,
+          "name": "Quest_Flag"
+        },
+        {
+          "op": "gadget_state",
+          "ids": [
+            973
+          ],
+          "value": 0
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1,
+            2
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133007230.lua:158-178,200-239 QUEST_FINISH_315/ENTER_REGION_230001/SEAL_BATTLE_END_303；133007230:158-178,200-239 SEAL_BATTLE_END_303/ENTER_REGION_230001：只模拟封印战成功，first_touch_done=seal_battle_done=1、移除怪物suite3、模型Default，保留解谜suite2，不提前设置Action03。133007228.lua:207-210 QUEST_FINISH_310及133007229.lua:210-213 QUEST_FINISH_312仅启用谜题suite2。",
+      "inferred": false,
+      "execParams": [
+        [
+          "3",
+          "133007228"
+        ],
+        [
+          "3",
+          "133007229"
+        ],
+        [
+          "3",
+          "133007230"
+        ]
+      ]
+    },
+    "QUEST_EXEC_NOTIFY_GROUP_LUA:39403": {
+      "scene": 3,
+      "group": 133007183,
+      "operations": [
+        {
+          "op": "remove",
+          "ids": [
+            7
+          ],
+          "group": 133007004
+        },
+        {
+          "op": "remove",
+          "ids": [
+            300
+          ],
+          "group": 133007076
+        },
+        {
+          "op": "remove",
+          "ids": [
+            304
+          ],
+          "group": 133007078
+        },
+        {
+          "op": "remove",
+          "ids": [
+            306
+          ],
+          "group": 133007079
+        },
+        {
+          "op": "remove",
+          "ids": [
+            1
+          ],
+          "group": 133007001
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133007183.lua:93-125 QUEST_FINISH_185；QUEST_FINISH_185永久删除133007004/7、133007076/300、133007078/304、133007079/306、133007001/1；缓存实例也记录销毁，已加载实体静默移除，不发掉落。",
+      "inferred": false,
+      "execParams": [
+        [
+          "3",
+          "133007183"
+        ]
+      ]
+    },
+    "QUEST_EXEC_REFRESH_GROUP_MONSTER:38801": {
+      "scene": 3,
+      "group": 133004015,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            17,
+            18,
+            19
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133004015.lua:13-19,60-66 suite1；任务38801显式刷新全部17/18/19；组suite1为空，无触发器、宝箱或变量。；重放begin/前序刷怪exec提前采用同一战后终态，避免先刷怪再补偿。",
+      "inferred": false,
+      "execParams": [
+        [
+          "133004015"
+        ]
+      ]
+    },
+    "QUEST_EXEC_REFRESH_GROUP_SUITE:36001": {
+      "scene": 3,
+      "group": 133003435,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            1442
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133003435.lua:60-74,85-103 ANY_MONSTER_DIE_517；suite1唯一怪物1442死亡后通知，无宝箱和变量；后续finishExec自行换suite2。；重放begin/前序刷怪exec提前采用同一战后终态，避免先刷怪再补偿。",
+      "inferred": false,
+      "execParams": [
+        [
+          "3",
+          "133003435,1"
+        ]
+      ]
+    },
+    "QUEST_EXEC_REFRESH_GROUP_SUITE:36003": {
+      "scene": 3,
+      "group": 133003136,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            623,
+            1443,
+            1444
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            1
+          ]
+        },
+        {
+          "op": "gadget_state",
+          "ids": [
+            4125
+          ],
+          "value": 0
+        },
+        {
+          "op": "replaceable",
+          "value": 1
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133003136.lua:76-89,101-131 ANY_MONSTER_DIE_511；清空任务suite1的623/1443/1444后解锁4125；不删除suite2的另一批丘丘人。；重放begin/前序刷怪exec提前采用同一战后终态，避免先刷怪再补偿。；scene3_group133003136.lua:127-128 SetGroupReplaceable(true)，scene3_block3003.lua:125含is_replaceable元数据，终态同时持久保留可替换标记。",
+      "inferred": false,
+      "execParams": [
+        [
+          "3",
+          "133003136,1"
+        ]
+      ]
+    },
+    "QUEST_EXEC_REFRESH_GROUP_SUITE:37303": {
+      "scene": 3,
+      "group": 133001305,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            1307
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            2
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133001305.lua:13-15,60-73 suite2；任务37303 beginExec选择suite2，唯一怪物1307死亡；本组无触发器、宝箱或变量。；重放begin/前序刷怪exec提前采用同一战后终态，避免先刷怪再补偿。",
+      "inferred": false,
+      "execParams": [
+        [
+          "3",
+          "133001305,2"
+        ]
+      ]
+    },
+    "QUEST_EXEC_REFRESH_GROUP_SUITE:39703": {
+      "scene": 3,
+      "group": 133002233,
+      "operations": [
+        {
+          "op": "monsters_dead",
+          "ids": [
+            870,
+            871,
+            872
+          ]
+        },
+        {
+          "op": "suites",
+          "ids": [
+            2
+          ]
+        }
+      ],
+      "evidence": "resources/Scripts/Scene/3/scene3_group133002233.lua:77-100 suite2；任务39703选择suite2，只清870/871/872；该suite无触发器，不误改suite3的is_monster_killed或杀掉suite1史莱姆。；重放begin/前序刷怪exec提前采用同一战后终态，避免先刷怪再补偿。",
+      "inferred": false,
+      "execParams": [
+        [
+          "3",
+          "133002233,2"
+        ]
+      ]
+    }
+  }
+}

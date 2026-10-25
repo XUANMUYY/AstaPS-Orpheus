@@ -1421,7 +1421,8 @@ public class Scene {
                 groupInstance = cachedInstance;
             }
 
-            emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.refresh(
+            if (!this.getScriptManager().restoreQuestAdjustGroup(groupInstance))
+                emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.refresh(
                     this.getScriptManager(), groupInstance,
                     emu.grasscutter.game.quest.LiyueSceneGroupRecovery.selectSuite(this, groupInstance), false);
 
@@ -1643,7 +1644,9 @@ public class Scene {
                         return;
                     }
 
-                    scriptManager.refreshGroup(groupInstance, i.getSuite(), false);
+                    // 较早任务保存的套件不能覆盖已补齐的世界终态。
+                    if (!scriptManager.restoreQuestAdjustGroup(groupInstance))
+                        scriptManager.refreshGroup(groupInstance, i.getSuite(), false);
                 });
     }
 

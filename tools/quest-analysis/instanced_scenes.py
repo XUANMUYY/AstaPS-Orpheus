@@ -20,6 +20,33 @@ GROUP_TYPES = ('QUEST_CONTENT_CLEAR_GROUP_MONSTER',)
 LUA_TYPES = ('QUEST_CONTENT_LUA_NOTIFY',)
 
 
+def quest_gadget_sources(text):
+    """读取任务 Share 配置中 gadgets 表的字面量 id/scene_id；缺失场景保持未知。"""
+    # 只做静态来源识别，不执行任务 Lua；字符串和注释里的花括号不参与配对。
+    text = re.sub(r'--\[\[.*?\]\]|--[^\n]*', '', text, flags=re.S)
+    tokens = list(re.finditer(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|[{}]', text))
+    pairs, stack = {}, []
+    for token in tokens:
+        if token.group() == '{': stack.append(token.start())
+        elif token.group() == '}' and stack: pairs[stack.pop()] = token.start()
+    sources, unknown = defaultdict(set), set()
+    for match in re.finditer(r'\bgadgets\s*=\s*\{', text):
+        start = match.end() - 1
+        if start not in pairs: continue
+        limit = pairs[start]; cursor = start + 1
+        while cursor < limit:
+            child = text.find('{', cursor, limit)
+            if child < 0 or child not in pairs: break
+            end = pairs[child]; block = text[child + 1:end]
+            gid = re.search(r'\bid\s*=\s*(\d+)(?=\s*(?:,|$))', block)
+            scene = re.search(r'\bscene_id\s*=\s*(\d+)(?=\s*(?:,|$))', block)
+            if gid:
+                if scene: sources[gid.group(1)].add(int(scene.group(1)))
+                else: unknown.add(gid.group(1))
+            cursor = end + 1
+    return sources, unknown
+
+
 def main():
     scenes = json.load(open(RES / 'ExcelBinOutput/SceneExcelConfigData.json', encoding='utf-8'))
     dungeons = sorted(s['id'] for s in scenes if s.get('type') == 'SCENE_DUNGEON')
@@ -44,10 +71,17 @@ def main():
         for g in gadget_re.findall(text):
             if g in gadget_ids: gadgets[g].add(scene)
         for key in notify_re.findall(text): notifies[key].add(scene)
+    # 任务生成的机关不在 scene group 表中；Share 配置显式记录其场景，不能从任务编号猜场景。
+    unknown_gadgets = set()
+    for path in sorted((RES / 'Scripts/Quest/Share').glob('*.lua')):
+        quest_sources, unknown = quest_gadget_sources(path.read_text(encoding='utf-8-sig'))
+        unknown_gadgets.update(unknown)
+        for gid, scenes in quest_sources.items():
+            if gid in gadget_ids: gadgets[gid].update(scenes)
     sources = {}
     for t in GADGET_TYPES:
         for k in wanted[t]:
-            if gadgets.get(k): sources[t + ':' + k] = sorted(gadgets[k])
+            if gadgets.get(k) and k not in unknown_gadgets: sources[t + ':' + k] = sorted(gadgets[k])
     for t in GROUP_TYPES:
         for k in wanted[t]:
             if k in groups: sources[t + ':' + k] = [groups[k]]

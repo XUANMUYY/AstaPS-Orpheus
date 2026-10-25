@@ -325,6 +325,17 @@ public class ScriptLib {
         return 0;
     }
 
+    /** 解锁调用组所在场景的点位；神像和待领取奖励沿用玩家手动解锁的路径。 */
+    public int UnlockScenePoint(int pointId) {
+        var scene = getSceneScriptManager().getScene();
+        var point = GameData.getScenePointEntryById(scene.getId(), pointId);
+        if (point == null) return -1;
+        boolean statue = emu.grasscutter.game.managers.StatueTalkQuests.isStatuePoint(point.getPointData());
+        for (var player : scene.getPlayers())
+            player.getProgressManager().unlockTransPoint(scene.getId(), pointId, statue);
+        return 0;
+    }
+
     public int AddQuestProgress(String var1) {
         logger.debug("[LUA] Call AddQuestProgress with {}", var1);
         boolean liyueProgress = getSceneScriptManager().getScene().getId() == 3

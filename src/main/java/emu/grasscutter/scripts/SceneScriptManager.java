@@ -332,6 +332,15 @@ public class SceneScriptManager {
 
         groupInstance.setTargetSuiteId(0);
 
+        // 后续真实脚本显式换套件时，结束旧的重放终态覆盖；死亡和领取记录仍保留。
+        for (int previous : List.copyOf(groupInstance.getQuestAdjustSuites())) {
+            var old = group.getSuiteByIndex(previous);
+            if (old != null && previous != prevSuiteIndex) removeGroupSuite(group, old);
+        }
+        removeQuestAdjustEntities(group.id, List.copyOf(groupInstance.getQuestAdjustGadgets()));
+        groupInstance.getQuestAdjustSuites().clear();
+        groupInstance.getQuestAdjustGadgets().clear();
+
         if (prevSuiteData != null) {
             removeGroupSuite(group, prevSuiteData);
         } // Remove old group suite
@@ -534,6 +543,60 @@ public class SceneScriptManager {
 
     public Map<Integer, SceneGroupInstance> getCachedGroupInstances() {
         return cachedSceneGroupsInstances;
+    }
+
+    /** 补偿未加载组时只加载资源和缓存实例，不走 onLoadGroup，避免生成实体或触发战斗。 */
+    public SceneGroupInstance getOrCreateQuestAdjustGroupInstance(int groupId) {
+        var instance = getGroupInstanceById(groupId);
+        if (instance == null) instance = getCachedGroupInstanceById(groupId);
+        var group = findGroupById(groupId);
+        if (group == null) throw new IllegalStateException("场景 " + scene.getId() + " 没有组 " + groupId);
+        group.load(scene.getId());
+        if (instance == null) {
+            instance = new SceneGroupInstance(group, scene.getWorld().getHost());
+            cachedSceneGroupsInstances.put(groupId, instance);
+        }
+        instance.setLuaGroup(group); instance.ensureCachedVariables();
+        if (group.variables == null) throw new IllegalStateException("组资源加载失败 " + groupId);
+        for (var variable : group.variables) instance.getCachedVariables().putIfAbsent(variable.name, variable.value);
+        return instance;
+    }
+
+    /** 静默移除实体，不调用 killEntity，因此不产掉落、不伪造死亡回调。 */
+    public void removeQuestAdjustEntities(int groupId, List<Integer> ids) {
+        for (int id : ids) {
+            var entity = scene.getEntityByConfigId(id, groupId);
+            if (entity != null) scene.removeEntity(entity, emu.grasscutter.net.proto.VisionTypeOuterClass.VisionType.VisionType_VISION_REMOVE);
+        }
+    }
+
+    /** 使用现有组同步路径恢复审计终态；所有死亡和变量写入已先落地。 */
+    public boolean restoreQuestAdjustGroup(SceneGroupInstance instance) {
+        if (instance.getQuestAdjustSuites().isEmpty() && instance.getQuestAdjustGadgets().isEmpty()) return false;
+        var group = instance.getLuaGroup();
+        for (var suite : group.suites) removeGroupSuite(group, suite);
+        var suites = instance.getQuestAdjustSuites().isEmpty()
+                ? List.of(instance.getActiveSuiteId() > 0 ? instance.getActiveSuiteId() : group.init_config.suite)
+                : List.copyOf(instance.getQuestAdjustSuites());
+        for (int id : suites) {
+            var suite = group.getSuiteByIndex(id);
+            if (suite == null) throw new IllegalStateException("补偿套件丢失 " + group.id + "/" + id);
+            addGroupSuite(instance, suite);
+            scene.broadcastPacket(new PacketGroupSuiteNotify(group.id, id));
+        }
+        // Lua CreateGadget 产生的宝箱可能不在任何 suite，单独恢复并遵循原有 oneoff 策略。
+        var extra = new SceneSuite();
+        extra.sceneGadgets = instance.getQuestAdjustGadgets().stream().map(group.gadgets::get).filter(Objects::nonNull).toList();
+        addEntities(new ArrayList<GameEntity>(getGadgetsInGroupSuite(instance, extra)));
+        instance.setActiveSuiteId(suites.get(0));
+        return true;
+    }
+
+    public void syncQuestAdjustGadgetStates(SceneGroupInstance instance) {
+        instance.getCachedGadgetStates().forEach((config, state) -> {
+            var entity = scene.getEntityByConfigId(config, instance.getGroupId());
+            if (entity instanceof EntityGadget gadget && gadget.getState() != state) gadget.updateState(state);
+        });
     }
 
     /** Reset tower mid-half carry vars so a retry starts the chamber from the upper half again. */
@@ -1278,6 +1341,8 @@ public class SceneScriptManager {
     }
 
     public EntityGadget createGadget(int groupId, int blockId, SceneGadget g, int state) {
+        var compensation = cachedSceneGroupsInstances.get(groupId);
+        if (compensation != null && compensation.isScriptGadgetDestroyed(g.config_id)) return null;
         if (!emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.maySpawn(this, groupId)) return null;
         if (scene.getSceneType() == SceneType.SCENE_WORLD
                 && !scene.getBlossomManager().isActiveAuthoredGadget(groupId, g.config_id, g.gadget_id))
@@ -1322,6 +1387,9 @@ public class SceneScriptManager {
             SceneGroup group, int configId, Position pos, Position rot) {
         if (!emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.maySpawnFromGroup(this, group)) return null;
         if (group == null || group.monsters == null) return null;
+
+        var compensation = cachedSceneGroupsInstances.get(group.id);
+        if (compensation != null && compensation.getQuestAdjustDeadMonsters().contains(configId)) return null;
 
         var monster = group.monsters.get(configId);
         if (monster == null) {
@@ -1370,6 +1438,8 @@ public class SceneScriptManager {
     }
 
     public EntityMonster createMonster(int groupId, int blockId, SceneMonster monster) {
+        var compensation = cachedSceneGroupsInstances.get(groupId);
+        if (monster != null && compensation != null && compensation.getQuestAdjustDeadMonsters().contains(monster.config_id)) return null;
         if (!emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.maySpawn(this, groupId)) return null;
         if (monster == null) {
             return null;

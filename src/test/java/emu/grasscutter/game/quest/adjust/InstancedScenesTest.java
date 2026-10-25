@@ -10,7 +10,7 @@ class InstancedScenesTest {
     @BeforeEach void data() {
         InstancedScenes.set(new InstancedScenes(Set.of(20023), Map.of(
                 "QUEST_CONTENT_LUA_NOTIFY:220023012", List.of(20023),
-                "QUEST_CONTENT_LUA_NOTIFY:133003910", List.of(3),
+                "QUEST_CONTENT_LUA_NOTIFY:test_world_key", List.of(3),
                 "QUEST_CONTENT_DESTROY_GADGET:70300014", List.of(20023, 3))));
     }
     @AfterEach void reset() { InstancedScenes.set(null); }
@@ -28,7 +28,7 @@ class InstancedScenesTest {
         var state = QuestPlannerTest.empty();
         assertEquals("instanced_scene_event_skipped; satisfy_quest_progress", CondCompensation.preview(
                 new QuestCatalog.Condition("QUEST_CONTENT_LUA_NOTIFY", List.of(0, 0), "220023012"), state).disposition());
-        assertTrue(CondCompensation.preview(new QuestCatalog.Condition("QUEST_CONTENT_LUA_NOTIFY", List.of(0, 0), "133003910"), state)
+        assertTrue(CondCompensation.preview(new QuestCatalog.Condition("QUEST_CONTENT_LUA_NOTIFY", List.of(0, 0), "test_world_key"), state)
                 .disposition().startsWith("cond_unhandled"));
         assertTrue(CondCompensation.preview(new QuestCatalog.Condition("QUEST_CONTENT_DESTROY_GADGET", List.of(70300014, 0), ""), state)
                 .disposition().startsWith("cond_unhandled"));

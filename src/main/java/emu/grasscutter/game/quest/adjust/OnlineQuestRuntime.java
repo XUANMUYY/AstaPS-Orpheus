@@ -86,6 +86,21 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
     }
     @Override public List<String> verify(QuestPlanner.Step step, PlayerState before) {
         var mismatches = new ArrayList<String>(context.failures());
+        var refreshed = new HashSet<Integer>();
+        for (var op : step.execs()) if (op.phase().equals("finishExec") && op.type().equals("QUEST_EXEC_REFRESH_GROUP_SUITE")
+                && op.policy().action() == ExecPolicy.Decision.handled && !op.policy().note().equals(WorldEffects.DISPOSITION)) {
+            for (var pair : op.param().get(1).split(";")) refreshed.add(Integer.parseInt(pair.split(",")[0].trim()));
+        }
+        for (var c : step.conditions()) {
+            var effect = WorldEffects.get().condition(c);
+            if (effect != null) mismatches.addAll(WorldEffects.get().verify(player,effect,refreshed));
+        }
+        for (var op : step.execs()) if (op.policy().note().equals(WorldEffects.DISPOSITION)
+                && !(op.phase().equals("beginExec") && before.state(step.subId()) >= 2)) {
+            var effect = WorldEffects.get().exec(op.type(),step.subId(),op.param());
+            if (effect == null) mismatches.add("世界补偿条目丢失 " + op.type());
+            else mismatches.addAll(WorldEffects.get().verify(player,effect,refreshed));
+        }
         var globals = new HashMap<>(player.getQuestGlobalVariables());
         globals.clear();
         if (before.world().has("questGlobalVariables")) before.world().getAsJsonObject("questGlobalVariables").entrySet().forEach(e -> globals.put(Integer.parseInt(e.getKey()), e.getValue().getAsInt()));
@@ -101,6 +116,7 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
         }
         for (var op : step.execs()) {
             if (op.policy().action() != ExecPolicy.Decision.handled) continue;
+            if (op.policy().note().equals(WorldEffects.DISPOSITION)) continue;
             if (before.state(step.subId()) == 3) continue;
             if (op.phase().equals("beginExec") && before.state(step.subId()) >= 2) continue;
             try {

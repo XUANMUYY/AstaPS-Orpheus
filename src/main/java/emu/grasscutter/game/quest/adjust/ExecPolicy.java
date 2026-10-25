@@ -59,6 +59,9 @@ public final class ExecPolicy {
     public Check check(String type, int subId, List<String> params, boolean registered, Set<String> overrides) {
         // 试用身份属于剧情当下，所有变体都跳过，不能被旧配置误放行。
         if (isTrial(type)) return new Check(type, Decision.skip, "剧情跳过不保留试用角色或临时锁队；收尾清理残留", false);
+        // 精确匹配已审计的参数才替代原 exec；其它通知仍受原审计例外约束。
+        if (WorldEffects.get().exec(type, subId, params) != null)
+            return new Check(type, Decision.handled, WorldEffects.DISPOSITION, false);
         var exception = exceptions.get(new ExceptionKey(type, subId));
         var rule = exception != null ? exception : rules.get(type);
         if (exception != null && exception.action() == Decision.block)
@@ -84,6 +87,6 @@ public final class ExecPolicy {
     }
     public String fingerprint() {
         var sorted = new TreeMap<String, List<Integer>>(); auditedSubIds.forEach((type, ids) -> sorted.put(type, ids.stream().sorted().toList()));
-        return AdjustJson.hash(List.of(fingerprint, sorted, InstancedScenes.get().hash()));
+        return AdjustJson.hash(List.of(fingerprint, sorted, InstancedScenes.get().hash(), WorldEffects.get().hash()));
     }
 }

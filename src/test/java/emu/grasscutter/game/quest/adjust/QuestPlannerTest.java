@@ -113,7 +113,8 @@ class QuestPlannerTest {
         }
         for (var type : List.of("QUEST_EXEC_GRANT_TRIAL_AVATAR","QUEST_EXEC_REMOVE_TRIAL_AVATAR","QUEST_EXEC_GRANT_TRIAL_AVATAR_BATCH_AND_LOCK_TEAM_V2","QUEST_EXEC_REMOVE_TRIAL_AVATAR_FUTURE"))
             assertEquals(ExecPolicy.Decision.skip,policy.check(type,1,false,Set.of()).action());
-        for(int sub : List.of(35303,35304,38001,38003,39004,39301,39403)) assertEquals(ExecPolicy.Decision.block,policy.check("QUEST_EXEC_NOTIFY_GROUP_LUA",sub,true,Set.of("QUEST_EXEC_NOTIFY_GROUP_LUA")).action());
+        for(int sub : List.of(35303,35304,38001,38003,39004,39403)) assertEquals(ExecPolicy.Decision.block,policy.check("QUEST_EXEC_NOTIFY_GROUP_LUA",sub,true,Set.of("QUEST_EXEC_NOTIFY_GROUP_LUA")).action());
+        assertEquals(ExecPolicy.Decision.handled, policy.check("QUEST_EXEC_NOTIFY_GROUP_LUA",39301,List.of("3","133007029"),true,Set.of()).action());
         assertEquals(ExecPolicy.Decision.handled,policy.check("QUEST_EXEC_NOTIFY_GROUP_LUA",30803,true,Set.of()).action());
         assertEquals(ExecPolicy.Decision.block,policy.check("QUEST_EXEC_NOTIFY_GROUP_LUA",30803,false,Set.of()).action());
         assertEquals(ExecPolicy.Decision.block,policy.check("QUEST_EXEC_NOTIFY_GROUP_LUA",99999,true,Set.of()).action());

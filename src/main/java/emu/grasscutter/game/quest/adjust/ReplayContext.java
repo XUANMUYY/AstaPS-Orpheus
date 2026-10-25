@@ -34,6 +34,11 @@ public final class ReplayContext implements AutoCloseable {
     Map<Integer, Set<Integer>> notifiedGroups() {
         var copy = new TreeMap<Integer, Set<Integer>>(); notifiedGroups.forEach((scene, groups) -> copy.put(scene, Set.copyOf(groups))); return copy;
     }
+    /** 已加载组的补偿可能产生机关创建/状态事件，收尾也必须等待这些组的Lua回调。 */
+    static void observeWorldGroup(int uid, int scene, int group) {
+        var context = current(uid);
+        if (context != null) context.notifiedGroups.computeIfAbsent(scene, k -> ConcurrentHashMap.newKeySet()).add(group);
+    }
     public void quarantine(String reason) { quarantined = true; failures.add(reason); }
     public void capture(int itemId, int count, RewardMailSink.Source source) {
         var grant = new RewardMailSink.Grant(itemId, count, source);
@@ -97,6 +102,12 @@ public final class ReplayContext implements AutoCloseable {
         }
         emu.grasscutter.game.quest.QuestManager.eventExecutor.submit(() -> {
             try (var scope = source(quest, "exec:" + type)) {
+                if (check.note().equals(WorldEffects.DISPOSITION)) {
+                    var effect = WorldEffects.get().exec(type, quest.getSubQuestId(), List.of(param.getParam()));
+                    if (effect == null) throw new IllegalStateException("已规划的世界效果条目丢失");
+                    WorldEffects.get().apply(quest.getOwner(), quest.getSubQuestId(), effect, context.journal);
+                    return;
+                }
                 if (type.equals("QUEST_EXEC_NOTIFY_GROUP_LUA")) {
                     var p = param.getParam();
                     if (p == null || p.length < 2) throw new IllegalArgumentException("Lua通知参数缺失");

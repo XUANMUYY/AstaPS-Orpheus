@@ -1237,12 +1237,6 @@
     },
     {
       "type": "QUEST_EXEC_NOTIFY_GROUP_LUA",
-      "subId": 39301,
-      "action": "block",
-      "note": "回调调用UnlockScenePoint(38)，当前ScriptLib未实现此API，不能漏掉存档点位解锁。"
-    },
-    {
-      "type": "QUEST_EXEC_NOTIFY_GROUP_LUA",
       "subId": 39403,
       "action": "block",
       "note": "KillEntityByConfigId修改133007004/076/078/079/001共5个其他group。"

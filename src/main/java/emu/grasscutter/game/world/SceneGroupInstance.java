@@ -23,6 +23,11 @@ public final class SceneGroupInstance {
     // Explicit Lua gadget removal must survive later group loads. Ordinary
     // combat kills retain their pre-existing oneoff/persistent spawn policy.
     private Set<Integer> scriptDestroyedGadgets = new HashSet<>();
+    // 重放补偿的套件和脚本创建机关在离开格子、重新登录后仍需恢复。
+    private List<Integer> questAdjustSuites = new ArrayList<>();
+    private Set<Integer> questAdjustGadgets = new HashSet<>();
+    private Set<Integer> questAdjustDeadMonsters = new HashSet<>();
+    @Getter private Boolean questAdjustReplaceable;
     private boolean isCached;
 
     @Getter private Map<Integer, Integer> cachedGadgetStates;
@@ -58,6 +63,13 @@ public final class SceneGroupInstance {
     public void setLuaGroup(SceneGroup group) {
         this.luaGroup = group;
         this.groupId = group.id;
+        if (questAdjustReplaceable != null && group.is_replaceable != null)
+            group.is_replaceable.value = questAdjustReplaceable;
+    }
+
+    public void setQuestAdjustReplaceable(boolean value) {
+        questAdjustReplaceable = value;
+        if (luaGroup != null && luaGroup.is_replaceable != null) luaGroup.is_replaceable.value = value;
     }
 
     public boolean isCached() {
@@ -102,6 +114,23 @@ public final class SceneGroupInstance {
         if (configId <= 0) return false;
         if (scriptDestroyedGadgets == null) scriptDestroyedGadgets = new HashSet<>();
         return scriptDestroyedGadgets.add(configId);
+    }
+
+    public List<Integer> getQuestAdjustSuites() {
+        if (questAdjustSuites == null) questAdjustSuites = new ArrayList<>();
+        return questAdjustSuites;
+    }
+
+    public void setQuestAdjustSuites(List<Integer> suites) { questAdjustSuites = new ArrayList<>(suites); }
+
+    public Set<Integer> getQuestAdjustGadgets() {
+        if (questAdjustGadgets == null) questAdjustGadgets = new HashSet<>();
+        return questAdjustGadgets;
+    }
+
+    public Set<Integer> getQuestAdjustDeadMonsters() {
+        if (questAdjustDeadMonsters == null) questAdjustDeadMonsters = new HashSet<>();
+        return questAdjustDeadMonsters;
     }
 
     public void save() {

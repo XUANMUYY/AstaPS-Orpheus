@@ -239,7 +239,8 @@ public final class QuestPlanner {
                     var check = policy.check(exec.type(), id, exec.param(), registered.test(exec.type()), overrides);
                     ops.add(new Operation(exec.phase(), exec.type(), exec.param(), check));
                     if (check.action() == ExecPolicy.Decision.block) blockers.add(new Issue(id, exec.type(), check.note()));
-                    effects.add(new Effect(exec.type(), exec.param(), check.action() == ExecPolicy.Decision.handled ? disposition(state, exec.type(), exec.param()) : check.action().name()));
+                    effects.add(new Effect(exec.type(), exec.param(), check.note().equals(WorldEffects.DISPOSITION) ? WorldEffects.DISPOSITION
+                            : check.action() == ExecPolicy.Decision.handled ? disposition(state, exec.type(), exec.param()) : check.action().name()));
                 }
                 if (complete) for (var c : q.finish()) {
                     var effect = CondCompensation.preview(c, state); effects.add(effect);
@@ -258,6 +259,19 @@ public final class QuestPlanner {
                 }
                 steps.add(new Step(id, q.mainId(), q.order(), q.name(), complete ? "finish" : "start", List.copyOf(ops), complete ? q.finish() : List.of(), List.copyOf(effects), List.copyOf(rewards)));
                 began.add(id);
+            }
+            // 依赖后续 exec 覆盖组状态的补偿：该 exec 必须在同一计划里、排在后面且会真实执行，否则中间态无法唯一还原。
+            for (int i = 0; i < steps.size(); i++) {
+                var step = steps.get(i); if (!step.action().equals("finish")) continue;
+                for (var c : step.conditions()) {
+                    var entry = WorldEffects.get().condition(c);
+                    if (entry == null || entry.supersededBy() == null) continue;
+                    var s = entry.supersededBy();
+                    boolean later = steps.subList(i + 1, steps.size()).stream().anyMatch(o -> o.subId() == s.subId() && o.action().equals("finish")
+                            && o.execs().stream().anyMatch(op -> op.phase().equals("finishExec") && op.type().equals(s.type())
+                                    && op.param().equals(s.param()) && op.policy().action() == ExecPolicy.Decision.handled));
+                    if (!later) blockers.add(new Issue(step.subId(), c.type(), "组中间态无法唯一还原；需在同一计划里随后完成 " + s.subId() + "，由其 " + s.type() + " 覆盖组状态"));
+                }
             }
             var coverage = c1Coverage(target, steps, state);
             if (target == 35205 && coverage.size() != 696) blockers.add(new Issue(target, "c1_coverage_missing", "缺少完整的696项C1核对表"));
