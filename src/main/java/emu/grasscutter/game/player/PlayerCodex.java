@@ -72,6 +72,13 @@ public class PlayerCodex {
         this.fixReliquaries();
     }
 
+    public boolean unlockBook(int codexId) {
+        if (codexId <= 0 || !this.getUnlockedBook().add(codexId)) return false;
+        this.player.save();
+        this.player.sendPacket(new PacketCodexDataUpdateNotify(5, codexId));
+        return true;
+    }
+
     public void checkAddedItem(GameItem item) {
         val itemData = item.getItemData();
         val itemId = item.getItemId();
