@@ -205,7 +205,8 @@ public final class PacketOpcodes {
     // Descriptive compatibility name; not present in the current 7.1 descriptors.
     public static final int CraftingAvatarDataNotify = 21136;
     public static final int GetMapMarkTipsRsp = 26050;
-    // public static final int NCDHECPCPPO = 20999;
+    // 国服 7.1 客户端的商店购买请求（原 NCDHECPCPPO）；字段号见 HandlerBuyGoodsReqCn，回包沿用 BuyGoodsRsp(1241)。
+    public static final int BuyGoodsReqCn = 20999;
     // public static final int HMDJCNLNHNE = 1001;
     // public static final int OMIGEIPEIDE = 1002;
     // public static final int PKLELBDJHAG = 1004;
