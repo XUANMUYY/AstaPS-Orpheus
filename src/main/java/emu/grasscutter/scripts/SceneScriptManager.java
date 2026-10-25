@@ -1358,7 +1358,7 @@ public class SceneScriptManager {
     }
 
     public EntityGadget createGadget(int groupId, int blockId, SceneGadget g, int state) {
-        var compensation = cachedSceneGroupsInstances.get(groupId);
+        var compensation = cachedSceneGroupsInstances == null ? null : cachedSceneGroupsInstances.get(groupId);
         if (compensation != null && compensation.isScriptGadgetDestroyed(g.config_id)) return null;
         if (!emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.maySpawn(this, groupId)) return null;
         if (scene.getSceneType() == SceneType.SCENE_WORLD
@@ -1455,7 +1455,7 @@ public class SceneScriptManager {
     }
 
     public EntityMonster createMonster(int groupId, int blockId, SceneMonster monster) {
-        var compensation = cachedSceneGroupsInstances.get(groupId);
+        var compensation = cachedSceneGroupsInstances == null ? null : cachedSceneGroupsInstances.get(groupId);
         if (monster != null && compensation != null && compensation.getQuestAdjustDeadMonsters().contains(monster.config_id)) return null;
         if (!emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.maySpawn(this, groupId)) return null;
         if (monster == null) {
