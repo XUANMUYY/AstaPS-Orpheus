@@ -1431,8 +1431,13 @@ public class Scene {
         }
 
         this.scriptManager.meetEntities(entities);
-        groups.forEach(g -> emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.groupLoad(
-                scriptManager, new ScriptArgs(g.id, EventType.EVENT_GROUP_LOAD, g.id)));
+        groups.stream()
+                .filter(g -> {
+                    var instance = scriptManager.getGroupInstanceById(g.id);
+                    return instance == null || !instance.isScriptGroupDead();
+                })
+                .forEach(g -> emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.groupLoad(
+                        scriptManager, new ScriptArgs(g.id, EventType.EVENT_GROUP_LOAD, g.id)));
 
         Grasscutter.getLogger().trace("Scene {} loaded {} group(s)", this.getId(), groups.size());
     }
@@ -1603,6 +1608,7 @@ public class Scene {
                 i -> {
                     var groupInstance = scriptManager.getGroupInstanceById(i.getGroupId());
                     if (groupInstance != null) {
+                        if (groupInstance.isScriptGroupDead()) return;
                         if (i.getSuiteIdList() != null
                                 && !i.getSuiteIdList()
                                         .contains(groupInstance.getActiveSuiteId())) {
