@@ -285,6 +285,23 @@ public class GachaBanner {
         return false;
     }
 
+    private static final java.util.regex.Pattern PANEL_TITLE_KEY =
+            java.util.regex.Pattern.compile("^UI_GACHA_SHOW_PANEL_A(\\d{3})_TITLE$");
+
+    /**
+     * 编号 100 及以上的 prefab，其标题 key 在 ManualTextMapConfigData 里是 A0xxx 四位形式
+     * （如 A0100 到 A0251）；A280_TITLE 这种三位形式客户端查不到，会把 prefab 编号当标题显示。
+     * 编号 ≥ 252 的形式属推断（资源表只到 A0251），上游映射表里的 A0301 与之相符。
+     */
+    public static String normalizeTitleKey(String key) {
+        if (key == null) return null;
+        var m = PANEL_TITLE_KEY.matcher(key);
+        if (m.matches() && Integer.parseInt(m.group(1)) >= 100) {
+            return "UI_GACHA_SHOW_PANEL_A0" + m.group(1) + "_TITLE";
+        }
+        return key;
+    }
+
     public int getTabSortId() {
         return switch (scheduleId) {
             case 803 -> 10000;
@@ -446,7 +463,7 @@ public class GachaBanner {
         }
 
         if (this.getTitlePath() != null) {
-            info.setTitleTextmap(this.getTitlePath());
+            info.setTitleTextmap(normalizeTitleKey(this.getTitlePath()));
         }
 
         if (this.getRateUpItems5().length > 0) {
@@ -476,7 +493,7 @@ public class GachaBanner {
                 info.setGachaPrefabPath(skin.getPrefabPath())
                         .setGachaPreviewPrefabPath(skin.getPreviewPrefabPath());
                 if (skin.getTitlePath() != null && !skin.getTitlePath().isEmpty()) {
-                    info.setTitleTextmap(skin.getTitlePath());
+                    info.setTitleTextmap(normalizeTitleKey(skin.getTitlePath()));
                 }
             }
             GachaUpInfo.Builder linkedUp = GachaUpInfo.newBuilder().setItemParentType(1);
@@ -505,7 +522,7 @@ public class GachaBanner {
                 info.setGachaPrefabPath(skin.getPrefabPath())
                         .setGachaPreviewPrefabPath(skin.getPreviewPrefabPath());
                 if (skin.getTitlePath() != null && !skin.getTitlePath().isEmpty()) {
-                    info.setTitleTextmap(skin.getTitlePath());
+                    info.setTitleTextmap(normalizeTitleKey(skin.getTitlePath()));
                 }
             }
             info.setWishItemId(linkedWeaponWish)
