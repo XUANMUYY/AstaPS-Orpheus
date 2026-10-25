@@ -860,7 +860,8 @@ public class Player implements PlayerHook, FieldFetch {
 
         exp += gain;
 
-        while (exp >= reqExp && reqExp > 0) {
+        int levelCap = PlayerLevelLocks.maxLevel(this::isAdventureAscensionQuestFinished);
+        while (exp >= reqExp && reqExp > 0 && level < levelCap) {
             exp -= reqExp;
             level += 1;
             reqExp = getExpRequired(level);
@@ -871,23 +872,23 @@ public class Player implements PlayerHook, FieldFetch {
         this.setProperty(PlayerProperty.PROP_PLAYER_EXP, exp);
     }
 
+    private boolean isAdventureAscensionQuestFinished(int mainQuestId) {
+        var quest = this.getQuestManager().getMainQuestById(mainQuestId);
+        return (quest != null && quest.isFinished())
+                || this.getForcedFinishedQuests().contains(mainQuestId);
+    }
+
+    public void refreshAdventureLevelLocks() {
+        this.addExpDirectly(0);
+        this.updateWorldLevel();
+    }
+
     private void updateWorldLevel() {
         int currentWorldLevel = this.getWorldLevel();
-        int currentLevel = this.getLevel();
+        int newWorldLevel = PlayerLevelLocks.worldLevel(
+                this.getLevel(), this::isAdventureAscensionQuestFinished);
 
-        int newWorldLevel =
-            (currentLevel >= 58) ? 9 :
-                (currentLevel >= 55) ? 8 :
-                    (currentLevel >= 50) ? 7 :
-                        (currentLevel >= 45) ? 6 :
-                            (currentLevel >= 40) ? 5 :
-                                (currentLevel >= 35) ? 4 :
-                                    (currentLevel >= 30) ? 3 :
-                                        (currentLevel >= 25) ? 2 :
-                                            (currentLevel >= 20) ? 1 :
-                                                0;
-
-        if (newWorldLevel != currentWorldLevel) {
+        if (newWorldLevel >= 0 && newWorldLevel != currentWorldLevel) {
             this.setWorldLevel(newWorldLevel);
         }
     }

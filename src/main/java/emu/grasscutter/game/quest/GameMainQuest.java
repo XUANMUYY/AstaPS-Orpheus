@@ -213,6 +213,7 @@ public class GameMainQuest {
         }
 
         this.tryStartFollowingQuests();
+        this.getOwner().refreshAdventureLevelLocks();
     }
 
     /** Retries only successor startup after this parent has already been persisted as finished. */
