@@ -19,6 +19,7 @@ import emu.grasscutter.game.world.*;
 import emu.grasscutter.net.proto.VisionTypeOuterClass;
 import emu.grasscutter.scripts.constants.EventType;
 import emu.grasscutter.scripts.data.*;
+import emu.grasscutter.scripts.lib.GalleryScriptState;
 import emu.grasscutter.scripts.service.*;
 import emu.grasscutter.server.event.game.SceneMetaLoadEvent;
 import emu.grasscutter.server.packet.send.PacketGroupSuiteNotify;
@@ -40,6 +41,7 @@ import org.luaj.vm2.lib.jse.CoerceJavaToLua;
 public class SceneScriptManager {
     private final Scene scene;
     private final SealBattleManager sealBattleManager;
+    private final GalleryScriptState galleryScriptState = new GalleryScriptState();
     private final Map<String, Integer> variables;
     /** Mutable fallbacks when a group instance is not cached yet (tower stage/TPL_TIME writes). */
     private final Map<Integer, Map<String, Integer>> orphanGroupVariables = new ConcurrentHashMap<>();
@@ -122,6 +124,10 @@ public class SceneScriptManager {
 
     public Scene getScene() {
         return scene;
+    }
+
+    public GalleryScriptState getGalleryScriptState() {
+        return galleryScriptState;
     }
 
     /** Used under this monitor before nonlethal commission suspension. */

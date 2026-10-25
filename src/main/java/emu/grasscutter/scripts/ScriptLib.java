@@ -1634,8 +1634,14 @@ public class ScriptLib {
     }
 
     public int StartGallery(int galleryId) {
-        logger.warn("[LUA] Call unimplemented StartGallery with {}", galleryId);
-
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null || galleryId <= 0) {
+            logger.warn("[LUA] StartGallery: invalid scene or gallery id {}", galleryId);
+            return -1;
+        }
+        // 7.1 描述集缺少 GalleryStartNotify 具名消息，先保存服务端状态，避免发送猜测字段的包。
+        manager.getGalleryScriptState().start(galleryId, System.currentTimeMillis());
+        logger.debug("[LUA] StartGallery: recorded gallery {} in scene {}", galleryId, manager.getScene().getId());
         return 0;
     }
 
@@ -2008,5 +2014,40 @@ public class ScriptLib {
         }
 
         return configIds;
+    }
+
+    // ---- 任务卡 d 补的函数 ----
+    public int GetGalleryProgressScore(String key, int galleryId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null) {
+            logger.warn("[LUA] GetGalleryProgressScore: no scene for gallery {}", galleryId);
+            return -1;
+        }
+        int score = manager.getGalleryScriptState().getScore(galleryId, key);
+        if (score < 0) logger.warn("[LUA] GetGalleryProgressScore: invalid key or gallery {}", galleryId);
+        return score;
+    }
+
+    public int AddGalleryProgressScore(String key, int galleryId, int delta) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.getGalleryScriptState().addScore(galleryId, key, delta)) {
+            logger.warn("[LUA] AddGalleryProgressScore: invalid gallery {}, key {} or delta {}", galleryId, key, delta);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int InitGalleryProgressScore(String key, int galleryId, LuaTable thresholds, int uiType, int scoreType) {
+        return InitGalleryProgressWithScore(key, galleryId, thresholds, 0, uiType, scoreType);
+    }
+
+    public int InitGalleryProgressWithScore(String key, int galleryId, LuaTable thresholds, int initialScore, int uiType, int scoreType) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || thresholds == null || !manager.getGalleryScriptState().setScore(galleryId, key, initialScore)) {
+            logger.warn("[LUA] InitGalleryProgressWithScore: invalid gallery {}, key {} or score {}", galleryId, key, initialScore);
+            return -1;
+        }
+        // 阈值与 UI 类型需对应的 7.1 进度通知协议，目前仅保存服务器分数。
+        return 0;
     }
 }
