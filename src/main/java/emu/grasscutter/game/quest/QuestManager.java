@@ -662,16 +662,19 @@ public final class QuestManager extends BasePlayerManager {
                     acceptProgressLists.putIfAbsent(questData.getId(), new int[acceptCond.size()]);
                     for (int i = 0; i < acceptCond.size(); i++) {
                         val condition = acceptCond.get(i);
-                        // Quest-state conditions are live gates. An earlier NOT_EQUAL
-                        // may become false before the other prerequisite finishes.
-                        boolean liveQuestState =
+                        // These state gates can become false after an earlier match.
+                        boolean liveState =
                                 condition.getType() == QuestCond.QUEST_COND_STATE_EQUAL
-                                        || condition.getType() == QuestCond.QUEST_COND_STATE_NOT_EQUAL;
-                        if (condition.getType() == condType || liveQuestState) {
+                                        || condition.getType() == QuestCond.QUEST_COND_STATE_NOT_EQUAL
+                                        || condition.getType() == QuestCond.QUEST_COND_DAILY_TASK_VAR_EQ
+                                        || condition.getType() == QuestCond.QUEST_COND_DAILY_TASK_VAR_GT
+                                        || condition.getType() == QuestCond.QUEST_COND_DAILY_TASK_VAR_LT
+                                        || condition.getType() == QuestCond.QUEST_COND_ACTIVITY_COND;
+                        if (condition.getType() == condType || liveState) {
                             boolean result =
                                     questSystem.triggerCondition(owner, questData, condition, paramStr, params);
                             int[] progress = acceptProgressLists.get(questData.getId());
-                            if (liveQuestState) {
+                            if (liveState) {
                                 QuestProgress.recordCurrent(progress, i, result);
                             } else {
                                 QuestProgress.recordMatch(progress, i, result);

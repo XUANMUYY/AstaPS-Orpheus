@@ -134,6 +134,8 @@ public class Player implements PlayerHook, FieldFetch {
     // 任务 QUEST_EXEC_SET_MAP_LAYER_UNLOCK_STATE 写入的地图分层状态（层 ID -> 1 解锁 / 0 锁定）。
     // 没有记录的层保持原先的默认全开；旧存档读出来是 null，用 getMapLayerUnlockStates() 取。
     private Map<Integer, Integer> mapLayerUnlockStates;
+    private Map<Integer, Map<Integer, Integer>> aranaraCollectionStates;
+    private Map<Integer, Map<Integer, Boolean>> questActivityConditionStates;
     // TPS ammunition reserve, keyed by TpsAmmunitionExcelConfigData id.
     private Map<Integer, Integer> tpsAmmunition;
     // TPS weapons the TPS traveler wears; it is a trial avatar and is never saved itself.
@@ -630,6 +632,28 @@ public class Player implements PlayerHook, FieldFetch {
     public synchronized Map<Integer, Integer> getMapLayerUnlockStates() {
         if (this.mapLayerUnlockStates == null) this.mapLayerUnlockStates = new HashMap<>();
         return this.mapLayerUnlockStates;
+    }
+
+    public synchronized Map<Integer, Map<Integer, Integer>> getAranaraCollectionStates() {
+        if (this.aranaraCollectionStates == null) this.aranaraCollectionStates = new HashMap<>();
+        return this.aranaraCollectionStates;
+    }
+
+    public synchronized Map<Integer, Map<Integer, Boolean>> getQuestActivityConditionStates() {
+        if (this.questActivityConditionStates == null) this.questActivityConditionStates = new HashMap<>();
+        return this.questActivityConditionStates;
+    }
+
+    public synchronized boolean setAranaraCollectionState(int type, int id, int state) {
+        if (type != 1 || id < 1 || id > 15 || state < 0 || state > 3) return false;
+        var states = getAranaraCollectionStates().computeIfAbsent(type, ignored -> new HashMap<>());
+        int previous = states.getOrDefault(id, 0);
+        if (previous != state) {
+            states.put(id, state);
+            this.save();
+            this.sendPacket(new PacketAddAranaraCollectionNotify(type, id, previous, state));
+        }
+        return true;
     }
 
     public Set<Integer> getUnlockedSceneAreas(int sceneId) {
@@ -1807,6 +1831,7 @@ public class Player implements PlayerHook, FieldFetch {
         // waits on it, so skipping here would silently cost the player a day of commissions.
         this.loadDailyTaskManager();
         this.dailyTaskManager.onPlayerLogin();
+        this.sendPacket(new PacketAranaraCollectionDataNotify(this));
 
         // The client is told nothing about these on its own - they exist only as a forged notify,
         // so a relog has to re-assert them or the quests come back unfinished.
