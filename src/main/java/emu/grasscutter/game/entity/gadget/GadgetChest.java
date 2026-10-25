@@ -28,6 +28,8 @@ import emu.grasscutter.net.proto.ResinCostTypeOuterClass;
 import emu.grasscutter.net.proto.SceneGadgetInfoOuterClass;
 import emu.grasscutter.net.proto.VisionTypeOuterClass;
 import emu.grasscutter.scripts.SceneScriptManager;
+import emu.grasscutter.scripts.constants.EventType;
+import emu.grasscutter.scripts.data.ScriptArgs;
 import emu.grasscutter.scripts.data.SceneBossChest;
 import emu.grasscutter.scripts.data.SceneGadget;
 import emu.grasscutter.scripts.data.SceneGroup;
@@ -446,6 +448,10 @@ public class GadgetChest extends GadgetContent {
             if (!ChestTypeResolver.isNativeInteract(entityGadget)) {
                 creditChestOpen(player);
             }
+        }
+        if (sceneGadget != null && sceneGadget.is_blossom_chest) {
+            entityGadget.getScene().getScriptManager().callEvent(new ScriptArgs(
+                    entityGadget.getGroupId(), EventType.EVENT_BLOSSOM_CHEST_DIE, configId));
         }
     }
 

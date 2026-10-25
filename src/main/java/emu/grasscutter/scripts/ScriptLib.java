@@ -575,8 +575,21 @@ public class ScriptLib {
     }
 
     public int CreateBlossomChestByGroupId(int groupId, int var2) {
-        logger.warn("[LUA] Call unimplemented CreateBlossomChestByGroupId with {} {}", groupId, var2);
-
+        var manager = sceneScriptManager.getIfExists();
+        var current = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && current != null ? current.id : groupId;
+        if (manager == null || manager.getScene() == null || targetGroupId <= 0 || var2 <= 0)
+            return 1;
+        var group = manager.getGroupById(targetGroupId);
+        if (group == null || group.gadgets == null) return 1;
+        var definition = group.gadgets.get(var2);
+        if (definition == null || !definition.is_blossom_chest) return 1;
+        var scene = manager.getScene();
+        if (scene.getEntityByConfigId(var2, targetGroupId) != null) return 0;
+        var chest = manager.createGadget(targetGroupId, group.block_id, definition);
+        if (chest == null || scene.getBlossomManager() == null
+                || !scene.getBlossomManager().registerScriptedChest(targetGroupId, chest)) return 1;
+        manager.addEntity(chest);
         return 0;
     }
 
@@ -1224,8 +1237,15 @@ public class ScriptLib {
     }
 
     public int RefreshBlossomDropRewardByGroupId(int groupId) {
-        logger.warn("[LUA] Call unimplemented RefreshBlossomDropRewardByGroupId with {}", groupId);
-
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || manager.getScene() == null || targetGroupId <= 0
+                || manager.getGroupInstanceById(targetGroupId) == null
+                || manager.getScene().getBlossomManager() == null) return 1;
+        // 推断：loot is rolled from the native type/world-level table at claim time.
+        // Re-publish its current preview instead of fixing a shared drop before players claim.
+        manager.getScene().getBlossomManager().notifyIcon();
         return 0;
     }
 

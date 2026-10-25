@@ -532,6 +532,47 @@ public class BlossomManager {
         }
     }
 
+    /** Bind an authored Lua flower to the existing resin and reward claim flow. */
+    public boolean registerScriptedChest(int groupId, EntityGadget chest) {
+        synchronized (blossomActivities) {
+            synchronized (activeChests) {
+                if (activeChests.stream().anyMatch(activity -> activity.getChest() == chest)) return true;
+                EntityGadget source = createdEntity.stream()
+                        .filter(gadget -> gadget.getGroupId() == groupId
+                                && BlossomType.valueOf(gadget.getGadgetId()) != null)
+                        .findFirst().orElse(null);
+                if (source == null) {
+                    var spawn = activeScriptedSpawns().stream()
+                            .filter(entry -> entry.getGroup().getGroupId() == groupId)
+                            .findFirst().orElse(null);
+                    if (spawn == null) return false;
+                    source = new EntityGadget(scene, spawn.getGadgetId(), spawn.getPos(), spawn.getRot());
+                    source.setGroupId(groupId);
+                    source.setConfigId(spawn.getConfigId());
+                    source.setSpawnEntry(spawn);
+                }
+                EntityGadget chosen = source;
+                var activity = blossomActivities.stream()
+                        .filter(candidate -> candidate.getGadget() == chosen)
+                        .findFirst().orElse(null);
+                if (activity == null) activity = new BlossomActivity(source, List.of(), -1, getWorldLevel());
+                else {
+                    activity.clearEncounterSummons();
+                    blossomActivities.remove(activity);
+                    scene.setChallenge(null);
+                }
+                var meta = chest.getMetaGadget();
+                if (meta == null) return false;
+                meta.boss_chest = new emu.grasscutter.scripts.data.SceneBossChest();
+                meta.boss_chest.resin = 20;
+                chest.buildContent();
+                activity.attachScriptedChest(chest);
+                activeChests.add(activity);
+                return true;
+            }
+        }
+    }
+
     /** Called once the reward chest is fully claimed; ignores chests this manager doesn't own. */
     public void retireChest(EntityGadget chest) {
         synchronized (activeChests) {
