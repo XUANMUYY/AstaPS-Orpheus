@@ -62,6 +62,7 @@ public final class AdminAccount {
         result.put("level", player.getLevel());
         result.put("worldLevel", player.getWorldLevel());
         result.put("exp", player.getProperty(PlayerProperty.PROP_PLAYER_EXP));
+        result.put("signature", player.getSignature() == null ? "" : player.getSignature());
         var currencies = new ArrayList<Map<String, Object>>();
         CURRENCIES.forEach((id, name) -> currencies.add(Map.of("id", id, "name", name, "value", currency(player, id))));
         result.put("currencies", currencies);
@@ -215,12 +216,67 @@ public final class AdminAccount {
         return result;
     }
 
+    /**
+     * 一次保存多项改动（页面上的「待保存」列表）：只备份一次，按顺序逐项执行。
+     * 某一项失败就停下，前面已经生效的保留（都已实时同步到客户端），回包里写明做到第几项。
+     */
+    private static Map<String, Object> batch(AdminRouter.Request r) throws Exception {
+        int uid = r.integer("uid");
+        var player = AdminPlayers.requireOnline(uid);
+        var changes = r.get("changes").getAsJsonArray();
+        if (changes.isEmpty()) throw new IllegalArgumentException("没有要保存的改动");
+        if (changes.size() > 200) throw new IllegalArgumentException("一次最多保存 200 项");
+        var backupId = AdminBackup.create(uid, "account", Map.of("what", "batch", "request", r.body().toString()));
+        var results = new ArrayList<Object>();
+        String error = null;
+        for (var element : changes) {
+            var change = element.getAsJsonObject().deepCopy();
+            change.addProperty("uid", uid);
+            var sub = new AdminRouter.Request(r.ctx(), change);
+            try {
+                results.add(switch (sub.string("kind")) {
+                    case "player" -> editPlayer(sub, player);
+                    case "currency" -> editCurrency(sub, player);
+                    case "avatar" -> editAvatar(sub, player);
+                    case "avatar-add" -> addAvatar(sub, player);
+                    case "item" -> editItem(sub, player);
+                    case "item-remove" -> removeItem(sub, player);
+                    case "material" -> setMaterial(sub, player);
+                    default -> throw new IllegalArgumentException("未知改动类型 " + sub.string("kind"));
+                });
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                error = "第 " + (results.size() + 1) + " 项没有生效：" + e.getMessage();
+                break;
+            }
+        }
+        player.save();
+        Grasscutter.getLogger().info("Admin account batch on {}: {}/{} applied", uid, results.size(), changes.size());
+        var result = new LinkedHashMap<String, Object>();
+        result.put("backupId", backupId);
+        result.put("applied", results.size());
+        result.put("total", changes.size());
+        result.put("results", results);
+        result.put("error", error);
+        return result;
+    }
+
     @FunctionalInterface
     private interface Edit {
         Object apply(Player player) throws Exception;
     }
 
     private static Object editPlayer(AdminRouter.Request r, Player player) {
+        // 昵称和签名游戏里只在本人改名时回包，没有推送；改完客户端重新登录才显示
+        if (r.has("nickname")) {
+            var name = r.string("nickname").strip();
+            if (name.length() > 14) throw new IllegalArgumentException("昵称最多 14 个字");
+            player.setNickname(name);
+        }
+        if (r.has("signature")) {
+            var text = r.string("signature", "").strip();
+            if (text.length() > 50) throw new IllegalArgumentException("签名最多 50 个字");
+            player.setSignature(text);
+        }
         if (r.has("level")) {
             int level = r.integer("level");
             if (level < 1 || level > 60) throw new IllegalArgumentException("冒险等级要在 1 到 60 之间");
@@ -234,7 +290,8 @@ public final class AdminAccount {
         if (r.has("exp")) {
             if (!player.setProperty(PlayerProperty.PROP_PLAYER_EXP, r.integer("exp"))) throw new IllegalArgumentException("冒险阅历超出范围");
         }
-        return Map.of("level", player.getLevel(), "worldLevel", player.getWorldLevel(), "exp", player.getProperty(PlayerProperty.PROP_PLAYER_EXP));
+        return Map.of("level", player.getLevel(), "worldLevel", player.getWorldLevel(), "exp", player.getProperty(PlayerProperty.PROP_PLAYER_EXP),
+                "nickname", player.getNickname(), "signature", player.getSignature() == null ? "" : player.getSignature());
     }
 
     private static Object editCurrency(AdminRouter.Request r, Player player) {
@@ -431,5 +488,6 @@ public final class AdminAccount {
         router.post("account/item", r -> edit(r, "item", p -> editItem(r, p)));
         router.post("account/item/remove", r -> edit(r, "item-remove", p -> removeItem(r, p)));
         router.post("account/material", r -> edit(r, "material", p -> setMaterial(r, p)));
+        router.post("account/batch", AdminAccount::batch);
     }
 }
