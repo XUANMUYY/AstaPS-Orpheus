@@ -5,9 +5,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.excels.dungeon.DungeonChallengeConfigData;
 import emu.grasscutter.game.dungeons.challenge.WorldChallenge;
+import emu.grasscutter.game.dungeons.challenge.FatherChallenge;
+import emu.grasscutter.game.dungeons.challenge.enums.FatherChallengeProperty;
 import emu.grasscutter.game.dungeons.challenge.enums.ChallengeType;
 import emu.grasscutter.game.dungeons.challenge.factory.TriggerCountChallengeFactoryHandler;
 import emu.grasscutter.game.dungeons.challenge.trigger.Trigger2AvoidTrigger1Trigger;
+import emu.grasscutter.net.proto.DungeonChallengeBeginNotifyOuterClass.DungeonChallengeBeginNotify;
+import emu.grasscutter.server.packet.send.PacketDungeonChallengeBeginNotify;
 import emu.grasscutter.scripts.data.SceneGroup;
 import emu.grasscutter.scripts.data.SceneTrigger;
 import java.util.List;
@@ -17,6 +21,144 @@ import org.luaj.vm2.LuaValue;
 import org.luaj.vm2.lib.jse.CoerceJavaToLua;
 
 class ScriptLibChallengeTest {
+    @Test
+    void fatherAndChildStartAndSettleFromGroupTrigger() throws Exception {
+        var fixture = new ConfigRouteDeadlineTest.Fixture(200);
+        ConfigRouteDeadlineTest.field(fixture.scene, "players", List.of());
+        var group = SceneGroup.of(111101058);
+        fixture.lib.setCurrentGroup(group);
+        var configs = GameData.getDungeonChallengeConfigDataMap();
+        var fatherConfig = new DungeonChallengeConfigData();
+        ConfigRouteDeadlineTest.field(fatherConfig, "challengeType", ChallengeType.CHALLENGE_FATHER_SUCC_IN_TIME);
+        var childConfig = new DungeonChallengeConfigData();
+        ConfigRouteDeadlineTest.field(childConfig, "challengeType", ChallengeType.CHALLENGE_TRIGGER_IN_TIME);
+        var oldFather = configs.put(9001, fatherConfig);
+        var oldChild = configs.put(9005, childConfig);
+        try {
+            var goals = new LuaTable();
+            goals.set("success", 6);
+            goals.set("fail", 4);
+            var weights = new LuaTable();
+            weights.set("success", 6);
+            weights.set("fail", 2);
+            var uids = new LuaTable();
+            uids.set(1, LuaValue.valueOf(1234));
+            var childParams = new LuaTable();
+            int[] values = {300, 1, 9005, 1};
+            for (int i = 1; i <= values.length; i++) childParams.set(i, LuaValue.valueOf(values[i - 1]));
+
+            assertEquals(0, fixture.lib.CreateFatherChallenge(9001, 9001, 300, goals));
+            var luaLib = CoerceJavaToLua.coerce(fixture.lib);
+            assertEquals(0, luaLib.get("AttachChildChallenge").invoke(LuaValue.varargsOf(new LuaValue[] {
+                    luaLib, LuaValue.valueOf(9001), LuaValue.valueOf(9005),
+                    LuaValue.valueOf(9005), childParams, uids, weights
+            })).arg1().toint());
+            assertEquals(1, fixture.lib.AttachChildChallenge(9001, 9005, 9005,
+                    new int[] {300, 1, 9005, 1}, new LuaTable(), weights));
+            assertEquals(0, fixture.lib.StartFatherChallenge(9001));
+            var father = assertInstanceOf(FatherChallenge.class, fixture.scene.getChallenge());
+            assertTrue(father.inProgress());
+            assertTrue(father.activeChild(9005).inProgress());
+            var childBegin = fixture.scene.packets.stream()
+                    .filter(PacketDungeonChallengeBeginNotify.class::isInstance)
+                    .map(p -> assertDoesNotThrow(() -> DungeonChallengeBeginNotify.parseFrom(p.getData())))
+                    .filter(p -> p.getChallengeIndex() == 9005)
+                    .findFirst().orElseThrow();
+            assertEquals(9001, childBegin.getFatherIndex());
+            assertEquals(List.of(1234), childBegin.getUidListList());
+
+            var trigger = new SceneTrigger();
+            trigger.currentGroup = group;
+            trigger.setEvent(1);
+            trigger.setTag("9005");
+            father.onGroupTriggerDeath(trigger);
+
+            assertFalse(father.inProgress());
+            assertTrue(father.isSuccess());
+            assertEquals(6, father.successPoints());
+            assertTrue(fixture.scene.manager.events.stream().anyMatch(e ->
+                    e.type == emu.grasscutter.scripts.constants.EventType.EVENT_CHALLENGE_SUCCESS
+                            && "9005".equals(e.source)));
+            assertTrue(fixture.scene.manager.events.stream().anyMatch(e ->
+                    e.type == emu.grasscutter.scripts.constants.EventType.EVENT_CHALLENGE_SUCCESS
+                            && "9001".equals(e.source)));
+        } finally {
+            if (oldFather == null) configs.remove(9001); else configs.put(9001, oldFather);
+            if (oldChild == null) configs.remove(9005); else configs.put(9005, oldChild);
+        }
+    }
+
+    @Test
+    void fatherPropertyAndChildStopUseTheirOwnIndexes() throws Exception {
+        var fixture = new ConfigRouteDeadlineTest.Fixture(200);
+        ConfigRouteDeadlineTest.field(fixture.scene, "players", List.of());
+        var group = SceneGroup.of(111101095);
+        fixture.lib.setCurrentGroup(group);
+        var father = new FatherChallenge(fixture.scene, group, 100, 67, 600, 200, 100);
+        var child = new WorldChallenge(fixture.scene, group, 68, 1001, List.of(), 0, 0, List.of());
+        fixture.scene.setChallenge(father);
+        assertTrue(father.attach(child, 100, 100));
+        assertEquals(0, fixture.lib.StartFatherChallenge(100));
+        assertEquals(0, fixture.lib.ModifyFatherChallengeProperty(100,
+                FatherChallengeProperty.DURATION.ordinal(), 500));
+        assertEquals(500, father.getTimeLimit());
+        assertEquals(1, fixture.lib.StopChallenge(1002, 1));
+        assertEquals(0, fixture.lib.StopChallenge(1001, 1));
+        assertEquals(100, father.successPoints());
+        assertTrue(father.inProgress());
+        assertEquals(0, fixture.lib.ModifyFatherChallengeProperty(100,
+                FatherChallengeProperty.CUR_SUCC.ordinal(), 200));
+        assertTrue(father.isSuccess());
+    }
+
+    @Test
+    void childFailuresReachFatherThresholdAndRejectLaterChanges() throws Exception {
+        var fixture = new ConfigRouteDeadlineTest.Fixture(200);
+        ConfigRouteDeadlineTest.field(fixture.scene, "players", List.of());
+        var group = SceneGroup.of(111101094);
+        fixture.lib.setCurrentGroup(group);
+        var father = new FatherChallenge(fixture.scene, group, 100, 64, 600, 200, 100);
+        fixture.scene.setChallenge(father);
+        assertTrue(father.attach(new WorldChallenge(fixture.scene, group, 65, 1001,
+                List.of(), 0, 0, List.of()), 100, 100));
+        assertEquals(0, fixture.lib.StartFatherChallenge(100));
+
+        assertEquals(0, fixture.lib.StopChallenge(1001, 0));
+        assertFalse(father.inProgress());
+        assertFalse(father.isSuccess());
+        assertEquals(100, father.failPoints());
+        assertEquals(1, fixture.lib.StartFatherChallenge(100));
+        assertEquals(1, fixture.lib.ModifyFatherChallengeProperty(100,
+                FatherChallengeProperty.CUR_SUCC.ordinal(), 200));
+        assertTrue(fixture.scene.manager.events.stream().anyMatch(e ->
+                e.type == emu.grasscutter.scripts.constants.EventType.EVENT_CHALLENGE_FAIL
+                        && "100".equals(e.source)));
+    }
+
+    @Test
+    void childCanBeAttachedAfterFirstStageCompletes() throws Exception {
+        var fixture = new ConfigRouteDeadlineTest.Fixture(200);
+        ConfigRouteDeadlineTest.field(fixture.scene, "players", List.of());
+        var group = SceneGroup.of(111101094);
+        fixture.lib.setCurrentGroup(group);
+        var father = new FatherChallenge(fixture.scene, group, 100, 64, 600, 200, 100);
+        fixture.scene.setChallenge(father);
+        assertTrue(father.attach(new WorldChallenge(fixture.scene, group, 65, 1001,
+                List.of(), 0, 0, List.of()), 100, 100));
+        assertEquals(0, fixture.lib.StartFatherChallenge(100));
+        assertEquals(0, fixture.lib.StopChallenge(1001, 1));
+        assertTrue(father.inProgress());
+        assertEquals(100, father.successPoints());
+
+        var second = new WorldChallenge(fixture.scene, group, 66, 1002,
+                List.of(), 0, 0, List.of());
+        assertTrue(father.attach(second, 100, 100));
+        assertTrue(second.inProgress());
+        assertEquals(0, fixture.lib.StopChallenge(1002, 1));
+        assertTrue(father.isSuccess());
+        assertEquals(200, father.successPoints());
+    }
+
     private static class RecordingChallenge extends WorldChallenge {
         boolean completed;
         boolean failed;

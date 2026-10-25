@@ -22,6 +22,7 @@ public abstract class ChallengeFactory {
         challengeFactoryHandlers.add(new GuardHpChallengeFactoryHandler());
         challengeFactoryHandlers.add(new KillMonsterCountInTimeIncChallengeFactoryHandler());
         challengeFactoryHandlers.add(new Trigger2AvoidTrigger1ChallengeFactoryHandler());
+        challengeFactoryHandlers.add(new FatherChallengeFactoryHandler());
     }
 
     public static WorldChallenge getChallenge(

@@ -4,6 +4,7 @@ import static emu.grasscutter.game.dungeons.challenge.enums.ChallengeType.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 import emu.grasscutter.game.dungeons.challenge.trigger.GuardTrigger;
+import emu.grasscutter.game.dungeons.challenge.FatherChallenge;
 import emu.grasscutter.game.dungeons.challenge.trigger.GuardForTimeTrigger;
 import emu.grasscutter.game.dungeons.challenge.trigger.InTimeTrigger;
 import emu.grasscutter.game.dungeons.challenge.trigger.KillMonsterTimeIncTrigger;
@@ -13,6 +14,18 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 final class ChallengeFactoryMissingTypesTest {
+    @Test
+    void fatherFactoryUsesLuaSuccessAndFailureThresholds() {
+        var group = SceneGroup.of(111101058);
+        var handler = new FatherChallengeFactoryHandler();
+        assertTrue(handler.isThisType(CHALLENGE_FATHER_SUCC_IN_TIME));
+        var challenge = handler.build(9001, 9001, 300, 6, 4, 0, null, group);
+        assertInstanceOf(FatherChallenge.class, challenge);
+        assertEquals(300, challenge.getTimeLimit());
+        assertEquals(6, challenge.getGoal());
+        assertEquals(List.of(300, 6, 4), challenge.getParamList());
+    }
+
     @Test
     void triggerCountUsesEventTagGoalAndSavedProgress() {
         var group = new SceneGroup();

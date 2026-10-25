@@ -5,6 +5,7 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.game.activity.ActivityManager;
 import emu.grasscutter.game.dungeons.DungeonManager;
 import emu.grasscutter.game.dungeons.challenge.DungeonChallenge;
+import emu.grasscutter.game.dungeons.challenge.FatherChallenge;
 import emu.grasscutter.game.dungeons.challenge.enums.FatherChallengeProperty;
 import emu.grasscutter.game.dungeons.challenge.factory.ChallengeFactory;
 import emu.grasscutter.game.entity.*;
@@ -388,10 +389,28 @@ public class ScriptLib {
         return 0;
     }
 
-    public int AttachChildChallenge(int var1, int var2, int var3, int[] var4, LuaTable var5, LuaTable var6) {
-        logger.warn("[LUA] Call unimplemented AttachChildChallenge with {} {} {} {} {} {}", var1, var2, var3, var4, var5, var6);
-
-        return 0;
+    public int AttachChildChallenge(int fatherIndex, int childIndex, int childId, int[] params,
+                                    LuaTable uidList, LuaTable weights) {
+        var scene = getSceneScriptManager().getScene();
+        if (!(scene.getChallenge() instanceof FatherChallenge father)
+                || father.getChallengeIndex() != fatherIndex || params == null
+                || params.length < 2 || params.length > 6 || weights == null) return 1;
+        int successWeight = weights.get("success").optint(-1);
+        int failWeight = weights.get("fail").optint(-1);
+        if (successWeight < 0 || failWeight < 0 || uidList == null) return 1;
+        var uids = new ArrayList<Integer>();
+        for (int i = 1; i <= uidList.length(); i++) {
+            var uid = uidList.get(i);
+            if (!uid.isint() || uid.toint() <= 0) return 1;
+            uids.add(uid.toint());
+        }
+        // The older child forms (for example 9019) omit an unused third parameter.
+        var factoryParams = params.length == 2 ? new int[] {params[0], params[1], 0} : params;
+        var child = ChallengeFactory.getChallenge(childIndex, childId, factoryParams, scene,
+                getCurrentGroup().orElse(null));
+        if (child == null || child.getGroup() == null) return 1;
+        child.setUidList(List.copyOf(uids));
+        return father.attach(child, successWeight, failWeight) ? 0 : 1;
     }
 
     public int AutoMonsterTide(int sourceId, int groupId, Integer[] ordersConfigId, int tideCount, int sceneLimit, int param6) {
@@ -555,9 +574,18 @@ public class ScriptLib {
         return 0;
     }
 
-    public int CreateFatherChallenge(int var1, int var2, int var3, LuaTable var4) {
-        logger.warn("[LUA] Call unimplemented CreateFatherChallenge with {} {} {} {}", var1, var2, var3, var4);
-
+    public int CreateFatherChallenge(int index, int id, int duration, LuaTable goals) {
+        var scene = getSceneScriptManager().getScene();
+        if (goals == null || duration <= 0 || goals.get("success").optint(0) <= 0
+                || goals.get("fail").optint(0) <= 0) return 1;
+        var existing = scene.getChallenge();
+        if (existing != null && existing.inProgress()) return 1;
+        var challenge = ChallengeFactory.getChallenge(index, id,
+                new int[] {duration, goals.get("success").toint(), goals.get("fail").toint()},
+                scene, getCurrentGroup().orElse(null));
+        if (!(challenge instanceof FatherChallenge father) || father.getGroup() == null) return 1;
+        father.setSourceRegionEntityId(currentChallengeSourceRegion(scene));
+        scene.setChallenge(father);
         return 0;
     }
 
@@ -1108,10 +1136,11 @@ public class ScriptLib {
     }
 
     public int ModifyFatherChallengeProperty(int challengeId, int propertyTypeIndex, int value) {
-        val propertyType = FatherChallengeProperty.values()[propertyTypeIndex];
-        logger.warn("[LUA] Call unimplemented ModifyFatherChallengeProperty with {} {} {}", challengeId, propertyType.name(), value);
-
-        return 0;
+        var properties = FatherChallengeProperty.values();
+        if (propertyTypeIndex < 0 || propertyTypeIndex >= properties.length) return 1;
+        var challenge = getSceneScriptManager().getScene().getChallenge();
+        return challenge instanceof FatherChallenge father && father.getChallengeIndex() == challengeId
+                && father.modify(properties[propertyTypeIndex], value) ? 0 : 1;
     }
 
     public int MoveAvatarByPointArray(int uid, int targetId, LuaTable var3, String var4) {
@@ -1658,10 +1687,12 @@ public class ScriptLib {
         return 0;
     }
 
-    public int StartFatherChallenge(int var1) {
-        logger.warn("[LUA] Call unimplemented StartFatherChallenge with {}", var1);
-
-        return 0;
+    public int StartFatherChallenge(int index) {
+        var challenge = getSceneScriptManager().getScene().getChallenge();
+        if (!(challenge instanceof FatherChallenge father)
+                || father.getChallengeIndex() != index || father.inProgress()) return 1;
+        father.start();
+        return father.inProgress() ? 0 : 1;
     }
 
     public int StartGallery(int galleryId) {
@@ -1701,6 +1732,8 @@ public class ScriptLib {
             return LiyueCloudDungeonSupport.stopFireChallenge(scene, var1, var2);
         if (var2 != 0 && var2 != 1) return 1;
         var challenge = scene.getChallenge();
+        if (challenge instanceof FatherChallenge father && father.inProgress()
+                && father.activeChild(var1) != null) challenge = father.activeChild(var1);
         if (challenge == null || !challenge.inProgress() || challenge.getChallengeIndex() != var1) return 1;
         if (var2 == 1) challenge.done();
         else challenge.fail();
