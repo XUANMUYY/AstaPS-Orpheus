@@ -20,6 +20,7 @@ import emu.grasscutter.net.proto.EnterTypeOuterClass;
 import emu.grasscutter.net.proto.VisionTypeOuterClass.VisionType;
 import emu.grasscutter.scripts.constants.*;
 import emu.grasscutter.scripts.data.*;
+import emu.grasscutter.scripts.lib.PointArrayAvatarMovement;
 import emu.grasscutter.server.event.player.PlayerTeleportEvent.TeleportType;
 import emu.grasscutter.server.packet.send.*;
 import emu.grasscutter.server.packet.send.PacketSceneEntityAppearNotify;
@@ -391,8 +392,10 @@ public class ScriptLib {
     }
 
     public int BeginCameraSceneLook(LuaTable sceneLookParams) {
-        logger.warn("[LUA] Call unimplemented BeginCameraSceneLook with {}", printTable(sceneLookParams));
-
+        // 7.1 protocol.desc 只有包号、没有 BeginCameraSceneLookNotify 的字段结构，不发猜测格式的包。
+        // 镜头只影响表现；1155 处 Lua 写成 `if 0 ~= BeginCameraSceneLook(...) then return -1`，
+        // 回失败会让后面的流程动作整段中断，所以仍回 0。
+        logger.debug("[LUA] BeginCameraSceneLook not sent: 7.1 notification schema is absent");
         return 0;
     }
 
@@ -624,9 +627,11 @@ public class ScriptLib {
     }
 
     public int CreateMonsterFaceAvatar(LuaTable var1) {
-        logger.warn("[LUA] Call unimplemented CreateMonsterFaceAvatar with {}", printTable(var1));
-
-        return 0;
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int result = emu.grasscutter.scripts.lib.ScriptLibB.createMonsterFaceAvatar(manager, group, var1);
+        if (result != 0) logger.warn("[LUA] CreateMonsterFaceAvatar failed in group {}", group == null ? 0 : group.id);
+        return result;
     }
 
     public int DelPlayerGroupVisionType(int[] uids, int[] var2) {
@@ -825,9 +830,7 @@ public class ScriptLib {
     }
 
     public int GetGroupTempValue(String name, LuaTable var2) {
-        logger.warn("[LUA] Call unimplemented GetGroupTempValue with {} {}", name, printTable(var2));
-
-        return 0;
+        return ScriptLibTaskA.tempValue(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, var2, null, false);
     }
 
     public int GetGroupVariableValue(String var) {
@@ -1087,10 +1090,41 @@ public class ScriptLib {
         return 0;
     }
 
-    public int MoveAvatarByPointArray(int uid, int targetId, LuaTable var3, String var4) {
-        logger.warn("[LUA] Call unimplemented MoveAvatarByPointArray with {} {} {} {}", uid, targetId, printTable(var3), var4);
-
-        return 0;
+    public int MoveAvatarByPointArray(int uid, int pointArrayId, LuaTable route,
+                                      LuaTable moveParams, String marker) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null || route == null) {
+            logger.warn("[LUA] MoveAvatarByPointArray: missing scene or route, array={}", pointArrayId);
+            return -1;
+        }
+        var scene = manager.getScene();
+        var player = scene.getPlayers().stream().filter(p -> p.getUid() == uid).findFirst().orElse(null);
+        if (player == null) {
+            logger.warn("[LUA] MoveAvatarByPointArray: uid {} is not in scene {}", uid, scene.getId());
+            return -1;
+        }
+        var activeTeam = player.getTeamManager().getActiveTeam();
+        if (activeTeam == null || activeTeam.isEmpty()) {
+            logger.warn("[LUA] MoveAvatarByPointArray: uid {} has no active avatar", uid);
+            return -1;
+        }
+        try {
+            var destination = PointArrayAvatarMovement.destination(scene.getId(), pointArrayId, route);
+            if (destination == null) {
+                logger.warn("[LUA] MoveAvatarByPointArray: destination missing, scene={} array={}",
+                        scene.getId(), pointArrayId);
+                return -1;
+            }
+            // 推断：传送机关只依赖路线终点；当前协议没有已验证的玩家路线移动通知。
+            softTeleportInScene(scene, player, destination, null);
+            logger.debug("[LUA] MoveAvatarByPointArray uid={} array={} destination={}",
+                    uid, pointArrayId, destination);
+            return 0;
+        } catch (Exception e) {
+            logger.warn("[LUA] MoveAvatarByPointArray: cannot read point array {} in scene {}: {}",
+                    pointArrayId, scene.getId(), e.toString());
+            return -1;
+        }
     }
 
     public int MoveAvatarByPointArrayWithTemplate(int uid, int pointarray_id, int[] routelist, int var4, LuaTable var5) {
@@ -1364,9 +1398,7 @@ public class ScriptLib {
     }
 
     public int SetGroupTempValue(String name, int value, LuaTable var3) {
-        logger.warn("[LUA] Call unimplemented SetGroupTempValue with {} {} {}", name, value, printTable(var3));
-
-        return 0;
+        return ScriptLibTaskA.tempValue(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, var3, value, false);
     }
 
     public int SetGroupVariableValue(String var, int value) {
@@ -1634,8 +1666,14 @@ public class ScriptLib {
     }
 
     public int StartGallery(int galleryId) {
-        logger.warn("[LUA] Call unimplemented StartGallery with {}", galleryId);
-
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null || galleryId <= 0) {
+            logger.warn("[LUA] StartGallery: invalid scene or gallery id {}", galleryId);
+            return -1;
+        }
+        // 7.1 描述集缺少 GalleryStartNotify 具名消息，先保存服务端状态，避免发送猜测字段的包。
+        manager.getGalleryScriptState().start(galleryId, System.currentTimeMillis());
+        logger.debug("[LUA] StartGallery: recorded gallery {} in scene {}", galleryId, manager.getScene().getId());
         return 0;
     }
 
@@ -1833,8 +1871,20 @@ public class ScriptLib {
     }
 
     public int UnlockFloatSignal(int groupId, int gadgetSignalId) {
-        logger.warn("[LUA] Call unimplemented UnlockFloatSignal with {} {}", groupId, gadgetSignalId);
-
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null) {
+            logger.warn("[LUA] UnlockFloatSignal: no active scene");
+            return -1;
+        }
+        var entity = manager.getScene().getEntityByConfigId(gadgetSignalId, groupId);
+        if (!(entity instanceof EntityGadget gadget)) {
+            logger.warn("[LUA] UnlockFloatSignal: gadget {} in group {} is absent",
+                    gadgetSignalId, groupId);
+            return -1;
+        }
+        // 推断：浮标信号的解锁表现使用场景 gadget 的启动状态及其现有状态通知。
+        gadget.updateState(ScriptGadgetState.GearStart);
+        logger.debug("[LUA] UnlockFloatSignal group={} gadget={}", groupId, gadgetSignalId);
         return 0;
     }
 
@@ -2008,5 +2058,177 @@ public class ScriptLib {
         }
 
         return configIds;
+    }
+
+    // ---- 任务卡 a 补的函数 ----
+    public int GoToFlowSuite(int groupId, int suite) {
+        return ScriptLibTaskA.goToFlowSuite(sceneScriptManager.getIfExists(), groupId, suite);
+    }
+
+    public int AddExtraFlowSuite(int groupId, int suite, int policy) {
+        return ScriptLibTaskA.extraFlowSuite(sceneScriptManager.getIfExists(), groupId, suite, policy, true);
+    }
+
+    public int RemoveExtraFlowSuite(int groupId, int suite, int policy) {
+        return ScriptLibTaskA.extraFlowSuite(sceneScriptManager.getIfExists(), groupId, suite, policy, false);
+    }
+
+    public int SetGroupDead(int groupId) {
+        return ScriptLibTaskA.setGroupDead(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), groupId);
+    }
+
+    public int FinishGroupLinkBundle(int groupId) {
+        return ScriptLibTaskA.finishGroupLinkBundle(sceneScriptManager.getIfExists(), groupId);
+    }
+
+    public int ChangeGroupTempValue(String name, int change, LuaTable options) {
+        return ScriptLibTaskA.tempValue(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, options, change, true);
+    }
+
+    public int SetGroupLogicStateValue(String name, int value) {
+        return ScriptLibTaskA.logicState(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, value);
+    }
+
+    public int GetGroupLogicStateValue(String name) {
+        return ScriptLibTaskA.logicState(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, null);
+    }
+
+    public int GetGadgetConfigId(LuaTable args) {
+        return ScriptLibTaskA.gadgetConfigId(sceneScriptManager.getIfExists(), args);
+    }
+
+    public int CreateGadgetByConfigIdByPos(int configId, LuaTable pos, LuaTable rot) {
+        return ScriptLibTaskA.createGadgetByPos(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), configId, pos, rot);
+    }
+
+    public int GetPlayerVehicleType(int uid) {
+        return ScriptLibTaskA.playerVehicleType(sceneScriptManager.getIfExists(), uid);
+    }
+
+    public LuaTable GetCurrentLevelTagVec(int groupId) {
+        return ScriptLibTaskA.currentLevelTags(sceneScriptManager.getIfExists(), groupId);
+    }
+
+    public String GetLevelTagNameById(int tagId) {
+        return ScriptLibTaskA.levelTagName(tagId);
+    }
+
+    // ---- 任务卡 B 补的函数 ----
+    public int AutoPoolMonsterTide(int sourceId, int groupId, LuaTable poolIds, int pointArrayId,
+            LuaTable pointIds, LuaTable affixes, LuaTable params) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = manager == null ? null : manager.getGroupById(groupId);
+        if (group == null || !manager.startPoolMonsterTide(sourceId, group, poolIds,
+                pointArrayId, pointIds, affixes, params)) {
+            logger.warn("[LUA] AutoPoolMonsterTide missing group, pool, or supported points group={} source={} pointArray={}",
+                    groupId, sourceId, pointArrayId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int KillMonsterTide(int groupId, int sourceId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.killMonsterTide(groupId, sourceId)) {
+            logger.debug("[LUA] KillMonsterTide found no tide group={} source={}", groupId, sourceId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int GetDeathZoneStatus(int zoneId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null
+                || manager.getScene().getHost() == null || zoneId < 0) {
+            logger.debug("[LUA] GetDeathZoneStatus invalid scene or zone {}", zoneId);
+            return -1;
+        }
+        return emu.grasscutter.scripts.lib.ScriptLibB.deathZoneStatus(
+                manager.getScene().getHost(), manager.getScene().getId(), zoneId);
+    }
+
+    public int ChangeDeathZone(int zoneId, LuaTable options) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null
+                || !emu.grasscutter.scripts.lib.ScriptLibB.changeDeathZone(
+                        manager.getScene().getHost(), manager.getScene().getId(), zoneId, options)) {
+            logger.warn("[LUA] ChangeDeathZone invalid scene or options zone={}", zoneId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int EndPoolMonsterTide(int groupId, int sourceId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.stopPoolMonsterTide(groupId, sourceId, false)) {
+            logger.debug("[LUA] EndPoolMonsterTide found no tide group={} source={}", groupId, sourceId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int ClearPoolMonsterTide(int groupId, int sourceId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.stopPoolMonsterTide(groupId, sourceId, true)) {
+            logger.debug("[LUA] ClearPoolMonsterTide found no tide group={} source={}", groupId, sourceId);
+            return -1;
+        }
+        return 0;
+    }
+
+    // ---- 任务卡 C 补的函数 ----
+    public int PauseTimeAxis(String identifier) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || identifier == null || !manager.pauseTimeAxis(identifier)) {
+            logger.warn("[LUA] PauseTimeAxis: axis {} is absent", identifier);
+            return -1;
+        }
+        logger.debug("[LUA] PauseTimeAxis {}", identifier);
+        return 0;
+    }
+
+    public int ContinueTimeAxis(String identifier) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || identifier == null || !manager.continueTimeAxis(identifier)) {
+            logger.warn("[LUA] ContinueTimeAxis: axis {} is absent", identifier);
+            return -1;
+        }
+        logger.debug("[LUA] ContinueTimeAxis {}", identifier);
+        return 0;
+    }
+
+    // ---- 任务卡 d 补的函数 ----
+    public int GetGalleryProgressScore(String key, int galleryId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null) {
+            logger.warn("[LUA] GetGalleryProgressScore: no scene for gallery {}", galleryId);
+            return -1;
+        }
+        int score = manager.getGalleryScriptState().getScore(galleryId, key);
+        if (score < 0) logger.warn("[LUA] GetGalleryProgressScore: invalid key or gallery {}", galleryId);
+        return score;
+    }
+
+    public int AddGalleryProgressScore(String key, int galleryId, int delta) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.getGalleryScriptState().addScore(galleryId, key, delta)) {
+            logger.warn("[LUA] AddGalleryProgressScore: invalid gallery {}, key {} or delta {}", galleryId, key, delta);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int InitGalleryProgressScore(String key, int galleryId, LuaTable thresholds, int uiType, int scoreType) {
+        return InitGalleryProgressWithScore(key, galleryId, thresholds, 0, uiType, scoreType);
+    }
+
+    public int InitGalleryProgressWithScore(String key, int galleryId, LuaTable thresholds, int initialScore, int uiType, int scoreType) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || thresholds == null || !manager.getGalleryScriptState().setScore(galleryId, key, initialScore)) {
+            logger.warn("[LUA] InitGalleryProgressWithScore: invalid gallery {}, key {} or score {}", galleryId, key, initialScore);
+            return -1;
+        }
+        // 阈值与 UI 类型需对应的 7.1 进度通知协议，目前仅保存服务器分数。
+        return 0;
     }
 }

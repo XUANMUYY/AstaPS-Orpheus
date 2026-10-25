@@ -107,6 +107,11 @@ public class ScriptLoader {
         addEnumByOrdinal(ctx, ChallengeEventMarkType.values(), "ChallengeEventMarkType");
         addEnumByOrdinal(ctx, VisionLevelType.values(), "VisionLevelType");
 
+        LuaTable flowSuitePolicy = new LuaTable();
+        flowSuitePolicy.set("DEFAULT", 0);
+        flowSuitePolicy.set("COMPLETE", 1);
+        ctx.globals.set("FlowSuiteOperatePolicy", flowSuitePolicy);
+
         ctx.globals.set(
                 "EventType",
                 CoerceJavaToLua.coerce(

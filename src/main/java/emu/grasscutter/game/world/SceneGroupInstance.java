@@ -20,6 +20,9 @@ public final class SceneGroupInstance {
     @Getter @Setter private int targetSuiteId;
     @Getter @Setter private int activeSuiteId;
     @Getter private Set<Integer> deadEntities; // Config_ids
+    @Getter @Setter private boolean scriptGroupDead;
+    @Getter @Setter private boolean groupLinkBundleFinished;
+    private Set<Integer> extraFlowSuites = new HashSet<>();
     // Explicit Lua gadget removal must survive later group loads. Ordinary
     // combat kills retain their pre-existing oneoff/persistent spawn policy.
     private Set<Integer> scriptDestroyedGadgets = new HashSet<>();
@@ -131,6 +134,11 @@ public final class SceneGroupInstance {
     public Set<Integer> getQuestAdjustDeadMonsters() {
         if (questAdjustDeadMonsters == null) questAdjustDeadMonsters = new HashSet<>();
         return questAdjustDeadMonsters;
+    }
+
+    public Set<Integer> getExtraFlowSuites() {
+        if (extraFlowSuites == null) extraFlowSuites = new HashSet<>();
+        return extraFlowSuites;
     }
 
     /** Consumption is distinct from combat death: opened chests must never respawn. */
