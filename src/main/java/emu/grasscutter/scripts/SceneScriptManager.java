@@ -71,6 +71,7 @@ public class SceneScriptManager {
     private final Map<Integer, SceneGroupInstance> cachedSceneGroupsInstances;
     private ScriptMonsterTideService scriptMonsterTideService;
     private final List<ScriptMonsterTideService> monsterTides = new ArrayList<>();
+    private final List<ScriptPoolMonsterTideService> poolMonsterTides = new ArrayList<>();
     private boolean restoringMonster;
     private ScriptMonsterSpawnService scriptMonsterSpawnService;
     /** blockid - loaded groupSet */
@@ -933,6 +934,7 @@ public class SceneScriptManager {
     }
 
     public void unregisterGroup(SceneGroup group) {
+        clearPoolMonsterTidesForGroup(group.id);
         if (LiyueCloudDungeonSupport.isTimerGroup(getScene(), group.id))
             liyueDungeonTimers.cancelGroup(group.id);
         this.sceneGroups.remove(group.id);
@@ -1063,17 +1065,71 @@ public class SceneScriptManager {
         return this.monsterTides.stream().filter(tide -> tide.getGroupId() == groupId).toList();
     }
 
+    /** Lua 怪潮编号以场景组为作用域。 */
+    public boolean killMonsterTide(int groupId, int sourceId) {
+        List<ScriptMonsterTideService> selected;
+        synchronized (this) {
+            selected = getMonsterTides(groupId).stream()
+                    .filter(tide -> tide.getSource().equals(Integer.toString(sourceId))).toList();
+            monsterTides.removeAll(selected);
+            if (selected.contains(scriptMonsterTideService)) scriptMonsterTideService = null;
+        }
+        selected.forEach(ScriptMonsterTideService::destroy);
+        return !selected.isEmpty();
+    }
+
+    public boolean startPoolMonsterTide(int sourceId, SceneGroup group, LuaTable poolIds,
+            int pointArrayId, LuaTable pointIds, LuaTable affixes, LuaTable params) {
+        var tide = ScriptPoolMonsterTideService.prepare(this, group, sourceId, poolIds,
+                pointArrayId, pointIds, affixes, params);
+        if (tide == null) return false;
+        synchronized (this) {
+            if (destroyed) return false;
+            poolMonsterTides.add(tide);
+        }
+        if (tide.start()) return true;
+        synchronized (this) { poolMonsterTides.remove(tide); }
+        return false;
+    }
+
+    public boolean stopPoolMonsterTide(int groupId, int sourceId, boolean clear) {
+        List<ScriptPoolMonsterTideService> selected;
+        synchronized (this) {
+            selected = poolMonsterTides.stream()
+                    .filter(tide -> tide.groupId() == groupId && tide.sourceId() == sourceId).toList();
+            if (clear) poolMonsterTides.removeAll(selected);
+        }
+        for (var tide : selected) {
+            if (clear) tide.clear();
+            else tide.end();
+        }
+        return !selected.isEmpty();
+    }
+
+    private void clearPoolMonsterTidesForGroup(int groupId) {
+        if (poolMonsterTides == null) return;
+        List<ScriptPoolMonsterTideService> selected;
+        synchronized (this) {
+            selected = poolMonsterTides.stream().filter(tide -> tide.groupId() == groupId).toList();
+            poolMonsterTides.removeAll(selected);
+        }
+        selected.forEach(ScriptPoolMonsterTideService::clear);
+    }
+
     public synchronized void restoreMonsterTide(SceneGroup group, ScriptMonsterTideService.State state) {
         this.scriptMonsterTideService = ScriptMonsterTideService.restore(this, group, state);
         this.monsterTides.add(this.scriptMonsterTideService);
     }
 
     /** Drops a finished or discarded encounter's tides so stale counts cannot leak into a new one. */
-    public synchronized void unloadMonsterTides(int groupId) {
-        for (var tide : getMonsterTides(groupId)) {
-            tide.unload();
-            this.monsterTides.remove(tide);
-            if (this.scriptMonsterTideService == tide) this.scriptMonsterTideService = null;
+    public void unloadMonsterTides(int groupId) {
+        clearPoolMonsterTidesForGroup(groupId);
+        synchronized (this) {
+            for (var tide : getMonsterTides(groupId)) {
+                tide.unload();
+                this.monsterTides.remove(tide);
+                if (this.scriptMonsterTideService == tide) this.scriptMonsterTideService = null;
+            }
         }
     }
 
@@ -1767,6 +1823,11 @@ public class SceneScriptManager {
             }
         }
         timeAxis.clear();
+
+        if (poolMonsterTides != null) {
+            for (var tide : List.copyOf(poolMonsterTides)) tide.clear();
+            poolMonsterTides.clear();
+        }
 
         if (scriptMonsterTideService != null) {
             try {
