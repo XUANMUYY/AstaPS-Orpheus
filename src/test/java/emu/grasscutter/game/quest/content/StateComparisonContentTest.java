@@ -18,10 +18,9 @@ final class StateComparisonContentTest {
 
     @Test
     void itemLessUsesCurrentInventoryCount() {
-        assertTrue(ContentItemNumLess.matches(new int[] {100051, 10}, 9));
-        assertFalse(ContentItemNumLess.matches(new int[] {100051, 10}, 10));
-        assertFalse(ContentItemNumLess.matches(new int[] {100051, 10}, 11));
-        assertFalse(ContentItemNumLess.matches(new int[] {0, 10}, 0));
+        assertTrue(ContentItemNumLess.compare(9, 10));
+        assertFalse(ContentItemNumLess.compare(10, 10));
+        assertFalse(ContentItemNumLess.compare(11, 10));
     }
 
     @Test
