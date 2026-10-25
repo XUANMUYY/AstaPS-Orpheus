@@ -56,6 +56,25 @@ public class HandlerBuyGoodsReq extends PacketHandler {
         }
     }
 
+    /** 付款失败时按缺的货币选错误码；缺的不是原石 / 摩拉 / 结晶（如材料）时仍按商品内容不符处理。 */
+    static Retcode paymentFailureRetcode(
+            Iterable<ItemParamData> costs, java.util.function.Predicate<ItemParamData> affordable) {
+        for (ItemParamData cost : costs) {
+            if (cost.getCount() <= 0 || affordable.test(cost)) continue;
+            switch (cost.getId()) {
+                case 201:
+                    return Retcode.RET_HCOIN_NOT_ENOUGH;
+                case 202:
+                    return Retcode.RET_SCOIN_NOT_ENOUGH;
+                case 203:
+                    return Retcode.RET_MCOIN_NOT_ENOUGH;
+                default:
+                    return Retcode.RET_SHOP_CONTENT_NOT_MATCH;
+            }
+        }
+        return Retcode.RET_SHOP_CONTENT_NOT_MATCH;
+    }
+
     private static void buyOne(
             GameSession session,
             emu.grasscutter.game.player.Player player,
@@ -134,7 +153,13 @@ public class HandlerBuyGoodsReq extends PacketHandler {
         costs.add(new ItemParamData(201, sg.getHcoin()));
         costs.add(new ItemParamData(203, sg.getMcoin()));
         if (!player.getInventory().payItems(costs, buyCount)) {
-            session.send(new PacketBuyGoodsRsp(Retcode.RET_SHOP_CONTENT_NOT_MATCH));
+            // 货币不够时回对应的「不足」错误码，客户端据此弹出结晶兑换；
+            // 一律回 707 会被当成「商品已变更」，并把商城刷新掉（推断：官服在货币不足时回 624 / 625 / 655）
+            session.send(
+                    new PacketBuyGoodsRsp(
+                            paymentFailureRetcode(
+                                    costs,
+                                    c -> player.getInventory().canPayItems(List.of(c), buyCount))));
             return;
         }
 
