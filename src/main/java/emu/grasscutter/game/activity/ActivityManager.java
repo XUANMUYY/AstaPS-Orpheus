@@ -46,7 +46,7 @@ public class ActivityManager extends BasePlayerManager {
                         });
 
         try {
-            DataLoader.loadBundledList("ActivityConfig.json", ActivityConfigItem.class)
+            ActivityScheduleOverrides.apply(DataLoader.loadBundledList("ActivityConfig.json", ActivityConfigItem.class))
                     .forEach(
                             item -> {
                                 item.onLoad();
