@@ -28,7 +28,7 @@ class NativeInteractDropTest {
         try {
             tables.clear();
             for (var row : JsonParser.parseString(Files.readString(
-                    Path.of("data/Server/DropTableExcelConfigData.json"))).getAsJsonArray()) {
+                    Path.of("src/test/resources/native-snapshots/DropTableExcelConfigData.json"))).getAsJsonArray()) {
                 var table = gson.fromJson(row, DropTableData.class);
                 tables.put(table.getId(), table);
             }
