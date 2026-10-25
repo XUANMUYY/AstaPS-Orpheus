@@ -12,6 +12,7 @@ import emu.grasscutter.server.packet.send.PacketHomeAvatarTalkFinishInfoNotify;
 import emu.grasscutter.server.packet.send.PacketHomeChangeModuleRsp;
 import emu.grasscutter.server.packet.send.PacketHomeComfortInfoNotify;
 import emu.grasscutter.server.packet.send.PacketPlayerHomeCompInfoNotify;
+import java.util.Set;
 
 @Opcodes(PacketOpcodes.HomeChangeModuleReq)
 public class HandlerHomeChangeModuleReq extends PacketHandler {
@@ -23,6 +24,11 @@ public class HandlerHomeChangeModuleReq extends PacketHandler {
         var homeWorld = session.getPlayer().getCurHomeWorld();
         if (!homeWorld.getGuests().isEmpty()) {
             session.send(new PacketHomeChangeModuleRsp(Retcode.RET_HOME_HAS_GUEST));
+            return;
+        }
+
+        if (!isUnlocked(session.getPlayer().getRealmList(), req.getTargetModuleId())) {
+            session.send(new PacketHomeChangeModuleRsp(Retcode.RET_HOME_CLIENT_PARAM_INVALID));
             return;
         }
 
@@ -45,5 +51,9 @@ public class HandlerHomeChangeModuleReq extends PacketHandler {
 
         homeWorld.transferPlayerToScene(session.getPlayer(), realmId, TeleportType.WAYPOINT, pos);
         homeWorld.refreshModuleManager();
+    }
+
+    public static boolean isUnlocked(Set<Integer> realms, int targetModuleId) {
+        return realms != null && realms.contains(targetModuleId);
     }
 }
