@@ -241,6 +241,10 @@ public final class GameData {
     private static final Int2ObjectMap<CombineData> combineDataMap = new Int2ObjectOpenHashMap<>();
 
     @Getter
+    private static final Int2ObjectMap<ReliquaryDecomposeData> reliquaryDecomposeDataMap =
+            new Int2ObjectOpenHashMap<>();
+
+    @Getter
     private static final Int2ObjectMap<CookBonusData> cookBonusDataMap =
             new Int2ObjectOpenHashMap<>();
 
