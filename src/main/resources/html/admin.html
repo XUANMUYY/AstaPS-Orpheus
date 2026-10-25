@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>AstaPS 管理页</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --panel-2: #f8f9fb; --text: #15171c; --muted: #6a717d;
+    --border: #e2e5ea; --accent: #3b5bdb; --accent-soft: #e8edff; --accent-text: #ffffff;
+    --ok: #1f8a4c; --warn: #b7791f; --bad: #c92a2a; --ok-soft: #e6f4ec; --warn-soft: #fbf1df; --bad-soft: #fbe7e7;
+    --radius: 12px; --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .06);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --panel: #171a21; --panel-2: #1c2029; --text: #e7e9ee; --muted: #959cab;
+      --border: #272c37; --accent: #6d8cff; --accent-soft: #1f2742; --accent-text: #0d1016;
+      --ok: #4cc283; --warn: #e3b04b; --bad: #ff7b7b; --ok-soft: #15291f; --warn-soft: #2d2414; --bad-soft: #321a1c;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--text); min-height: 100vh;
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .hidden { display: none !important; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 1px solid var(--border); background: var(--panel); border-radius: 8px; padding: 6px 12px; }
+  button:hover { background: var(--panel-2); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  button.danger { border-color: var(--bad); color: var(--bad); }
+  button.small { padding: 2px 8px; font-size: 12px; }
+  input[type=text], input[type=password], input[type=number], input[type=search], input[type=datetime-local], select, textarea {
+    padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); min-width: 0; }
+  textarea { width: 100%; resize: vertical; }
+  label { display: inline-flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+  label > input, label > select, label > textarea { color: var(--text); font-size: 14px; }
+  label.inline { flex-direction: row; align-items: center; gap: 6px; }
+
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 8px 20px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .brand { font-weight: 650; display: flex; gap: 8px; align-items: center; }
+  .logo { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), #8a5cf6); color: #fff; font-size: 12px; font-weight: 700; }
+  nav { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+  nav a { padding: 5px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 13px; }
+  nav a:hover { background: var(--panel-2); color: var(--text); }
+  nav a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  nav a.later { opacity: .55; }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 20px; display: grid; gap: 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); min-width: 0; }
+  .panel > h2 { font-size: 15px; margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .panel > .body { padding: 14px; display: grid; gap: 12px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .hint { color: var(--muted); font-size: 12px; margin: 0; }
+  .note { padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); border: 1px solid var(--warn); font-size: 13px; }
+  .cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
+  @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } main { padding: 12px; } }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; position: sticky; top: 0; background: var(--panel); }
+  .scroll { max-height: 420px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .tag { display: inline-block; padding: 0 6px; border-radius: 6px; font-size: 11px; background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+  .tag.bad { background: var(--bad-soft); color: var(--bad); border-color: var(--bad); }
+  .r5 { color: #c0841a; } .r4 { color: #8a5cf6; } .r3 { color: #3b82f6; } .r2 { color: #22a06b; }
+
+  /* 物品选择器 */
+  .picker { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 10px; }
+  @media (max-width: 700px) { .picker { grid-template-columns: minmax(0, 1fr); } }
+  .cats { max-height: 420px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+  .cats div { padding: 4px 10px; cursor: pointer; display: flex; justify-content: space-between; gap: 6px; }
+  .cats div.sub { padding-left: 22px; font-size: 12px; color: var(--muted); }
+  .cats div:hover { background: var(--panel-2); }
+  .cats div.active { background: var(--accent-soft); color: var(--accent); }
+
+  #toast { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 20; max-width: min(460px, calc(100vw - 32px)); }
+  #toast div { padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow); background: var(--panel); border: 1px solid var(--border); white-space: pre-wrap; }
+  #toast div.ok { border-color: var(--ok); } #toast div.bad { border-color: var(--bad); color: var(--bad); }
+
+  #login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+  #login form { width: 100%; max-width: 340px; display: grid; gap: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+  #login-error { color: var(--bad); margin: 0; min-height: 1.5em; font-size: 13px; }
+</style>
+</head>
+<body>
+<section id="login" class="hidden">
+  <form id="login-form">
+    <div class="brand"><span class="logo">AP</span> AstaPS 管理页</div>
+    <input id="password" type="password" placeholder="控制台密码" autocomplete="current-password" required>
+    <button class="primary" type="submit">登录</button>
+    <p id="login-error" role="alert"></p>
+  </form>
+</section>
+
+<section id="app" class="hidden">
+  <header>
+    <div class="brand"><span class="logo">AP</span> 管理页</div>
+    <nav id="nav">
+      <a href="/console">控制台 / 任务调整</a>
+      <a href="#notice" data-page="notice">全服公告</a>
+      <a href="#mail" data-page="mail">发邮件</a>
+      <a href="#account" data-page="account">账户编辑</a>
+      <a href="#give" data-page="give">发物品</a>
+      <a href="#gacha" data-page="gacha" class="later">卡池排期</a>
+      <a href="#activity" data-page="activity">活动排期</a>
+    </nav>
+    <button id="logout" type="button" class="small">退出登录</button>
+  </header>
+  <main id="pages">
+    <section data-page="gacha" class="panel"><h2>卡池排期</h2><div class="body">
+      <p class="hint">卡池排期由另一个开发会话负责，完成后放在这里。现在请直接改 <span class="mono">Banners.json</span>（<span class="mono">disabled</span>、<span class="mono">beginTime</span>、<span class="mono">endTime</span>）。</p>
+    </div></section>
+    <!-- PAGES -->
+  </main>
+</section>
+<div id="toast" aria-live="polite"></div>
+
+<script>
+/* 公共层：登录、请求、提示、玩家选择、物品选择。各页面脚本在后面，通过 Admin.page(name, init) 登记。 */
+const Admin = (() => {
+  const $ = (id) => document.getElementById(id);
+  const TOKEN_KEY = "astaps-console-token";  // 和 /console 共用同一个登录
+  const session = {
+    get() { try { return sessionStorage.getItem(TOKEN_KEY); } catch (e) { return null; } },
+    set(v) { try { v ? sessionStorage.setItem(TOKEN_KEY, v) : sessionStorage.removeItem(TOKEN_KEY); } catch (e) {} },
+  };
+  let token = session.get();
+  const pages = {};
+  const started = new Set();
+
+  function el(tag, attrs = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "class") node.className = v;
+      else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+      else if (v !== undefined && v !== null && v !== false) node.setAttribute(k, v === true ? "" : v);
+    }
+    for (const c of children.flat()) if (c !== null && c !== undefined) node.append(c instanceof Node ? c : String(c));
+    return node;
+  }
+
+  function toast(text, kind = "ok") {
+    const box = el("div", { class: kind }, text);
+    $("toast").append(box);
+    setTimeout(() => box.remove(), kind === "bad" ? 9000 : 4000);
+  }
+
+  /** 调后台接口：path 不带前缀，data 有值时 POST。出错抛 Error（中文原因）。 */
+  async function call(path, data) {
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["X-Console-Token"] = token;
+    const options = data === undefined ? { headers, cache: "no-store" } : { method: "POST", headers, body: JSON.stringify(data) };
+    let response;
+    try { response = await fetch("/console/api/admin/" + path, options); }
+    catch (e) { throw new Error("无法连接服务器"); }
+    if (response.status === 401) { showLogin("登录已过期，请重新登录"); throw new Error("未登录"); }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || ("HTTP " + response.status));
+    return body;
+  }
+
+  /** 包一层：按钮点击时禁用按钮，出错弹红色提示。 */
+  function action(fn) {
+    return async (event) => {
+      const button = event && event.currentTarget instanceof HTMLButtonElement ? event.currentTarget : null;
+      if (button) button.disabled = true;
+      try { await fn(event); } catch (e) { if (e.message !== "未登录") toast(e.message, "bad"); }
+      finally { if (button) button.disabled = false; }
+    };
+  }
+
+  function page(name, init) { pages[name] = init; }
+
+  function show() {
+    const name = (location.hash || "#notice").slice(1);
+    document.querySelectorAll("#nav a[data-page]").forEach((a) => a.classList.toggle("active", a.dataset.page === name));
+    document.querySelectorAll("#pages > section[data-page]").forEach((s) => s.classList.toggle("hidden", s.dataset.page !== name));
+    if (pages[name] && !started.has(name)) { started.add(name); Promise.resolve(pages[name]()).catch((e) => toast(e.message, "bad")); }
+  }
+
+  function showLogin(message) {
+    token = null; session.set(null);
+    $("app").classList.add("hidden"); $("login").classList.remove("hidden");
+    $("login-error").textContent = message || ""; $("password").focus();
+  }
+  function showApp() { $("login").classList.add("hidden"); $("app").classList.remove("hidden"); show(); }
+
+  $("login-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const response = await fetch("/console/api/login", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: $("password").value }) });
+      const body = await response.json().catch(() => ({}));
+      if (response.ok && body.token) { token = body.token; session.set(token); $("password").value = ""; showApp(); }
+      else $("login-error").textContent = response.status === 429 ? "密码错误次数过多，请 10 分钟后再试" : "密码错误";
+    } catch (e) { $("login-error").textContent = "无法连接服务器"; }
+  });
+  $("logout").addEventListener("click", async () => {
+    try { await fetch("/console/api/logout", { method: "POST", headers: { "X-Console-Token": token || "" } }); } catch (e) {}
+    showLogin();
+  });
+  window.addEventListener("hashchange", show);
+
+  /** 玩家下拉框：全部玩家（在线在前）。onlineOnly 时离线玩家灰掉不可选。 */
+  async function fillPlayers(select, { onlineOnly = false, allowAll = false } = {}) {
+    const keep = select.value;
+    const { players } = await call("players");
+    select.replaceChildren();
+    select.append(el("option", { value: "" }, "请选择玩家"));
+    if (allowAll) select.append(el("option", { value: "all" }, "全服（全部玩家，含离线）"));
+    for (const p of players) {
+      select.append(el("option", { value: p.uid, disabled: onlineOnly && !p.online },
+        `${p.uid} · ${p.nickname || "(无昵称)"} · ${p.online ? "在线 AR" + p.level : "离线"}`));
+    }
+    if ([...select.options].some((o) => o.value === keep)) select.value = keep;
+    return players;
+  }
+
+  const rankClass = (r) => (r ? "r" + r : "");
+  const itemLabel = (it) => `${it.name || "(无中文名)"} #${it.id}`;
+
+  /**
+   * 物品选择器：左边分类树，右边搜索结果，点「加入」回调 onPick(item)。
+   * container 里会被填满；返回 { reload }。
+   */
+  function itemPicker(container, onPick) {
+    const cats = el("div", { class: "cats" });
+    const search = el("input", { type: "search", placeholder: "搜索中文名或 ID" });
+    const info = el("span", { class: "hint" });
+    const body = el("tbody");
+    const more = el("button", { type: "button", class: "small hidden" }, "再显示 100 条");
+    const right = el("div", { style: "display:grid;gap:8px;min-width:0" },
+      el("div", { class: "row" }, search, info),
+      el("div", { class: "scroll" }, el("table", {}, el("thead", {}, el("tr", {}, el("th", {}, "物品"), el("th", {}, "分类"), el("th", {}, ""))), body)),
+      more);
+    container.replaceChildren(el("div", { class: "picker" }, cats, right));
+    let category = "", sub = "", offset = 0, timer = null;
+
+    async function load(append) {
+      if (!append) offset = 0;
+      const q = new URLSearchParams({ category, sub, q: search.value, offset, limit: 100 });
+      const data = await call("items/search?" + q);
+      if (!append) body.replaceChildren();
+      for (const it of data.items) {
+        body.append(el("tr", {},
+          el("td", { class: rankClass(it.rank) }, itemLabel(it)),
+          el("td", { class: "hint" }, [it.category, it.subCategory].filter(Boolean).join(" / ")),
+          el("td", {}, el("button", { type: "button", class: "small", onclick: () => onPick(it) }, "加入"))));
+      }
+      offset += data.items.length;
+      info.textContent = `共 ${data.total} 条，已显示 ${offset} 条`;
+      more.classList.toggle("hidden", offset >= data.total);
+    }
+    more.onclick = action(() => load(true));
+    search.oninput = () => { clearTimeout(timer); timer = setTimeout(() => load(false).catch((e) => toast(e.message, "bad")), 250); };
+
+    async function reload() {
+      const { categories } = await call("items/categories");
+      cats.replaceChildren();
+      const pick = (c, s, node) => { category = c; sub = s; cats.querySelectorAll("div").forEach((d) => d.classList.remove("active")); node.classList.add("active"); load(false).catch((e) => toast(e.message, "bad")); };
+      const all = el("div", { class: "active" }, el("span", {}, "全部"));
+      all.onclick = () => pick("", "", all);
+      cats.append(all);
+      for (const c of categories) {
+        const node = el("div", {}, el("span", {}, c.name), el("span", { class: "hint" }, c.count));
+        node.onclick = () => pick(c.name, "", node);
+        cats.append(node);
+        if (c.subCategories.length > 1) for (const s of c.subCategories) {
+          if (!s.name) continue;
+          const subNode = el("div", { class: "sub" }, el("span", {}, s.name), el("span", {}, s.count));
+          subNode.onclick = () => pick(c.name, s.name, subNode);
+          cats.append(subNode);
+        }
+      }
+      await load(false);
+    }
+    return { reload };
+  }
+
+  /** 物品篮：{id → {item, count}}，render 到表格，带数量框和移除按钮。 */
+  function basket(tbody, onChange = () => {}) {
+    const rows = new Map();
+    function render() {
+      tbody.replaceChildren();
+      for (const [id, row] of rows) {
+        const count = el("input", { type: "number", min: 1, value: row.count, style: "width:110px" });
+        count.oninput = () => { row.count = Math.max(1, Number(count.value) || 1); onChange(); };
+        tbody.append(el("tr", {},
+          el("td", { class: rankClass(row.item.rank) }, itemLabel(row.item)),
+          el("td", {}, count),
+          el("td", {}, el("button", { type: "button", class: "small", onclick: () => { rows.delete(id); render(); onChange(); } }, "移除"))));
+      }
+      if (!rows.size) tbody.append(el("tr", {}, el("td", { colspan: 3, class: "hint" }, "还没有物品，从左边挑")));
+    }
+    render();
+    return {
+      add(item, count = 1) { const row = rows.get(item.id); if (row) row.count += count; else rows.set(item.id, { item, count }); render(); onChange(); },
+      clear() { rows.clear(); render(); onChange(); },
+      list() { return [...rows.values()].map((r) => ({ id: r.item.id, count: r.count })); },
+      get size() { return rows.size; },
+    };
+  }
+
+  /** datetime-local 的值 ↔ Unix 秒（按浏览器本地时区）。 */
+  const toUnix = (value) => (value ? Math.floor(new Date(value).getTime() / 1000) : 0);
+  const fromUnix = (sec) => { if (!sec) return ""; const d = new Date(sec * 1000); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+  const fmtTime = (sec) => (sec ? new Date(sec * 1000).toLocaleString("zh-CN", { hour12: false }) : "-");
+
+  setTimeout(() => (token ? showApp() : showLogin()), 0);
+  return { $, el, call, action, toast, page, fillPlayers, itemPicker, basket, toUnix, fromUnix, fmtTime, itemLabel, rankClass };
+})();
+</script>
+<!-- PAGE SCRIPTS -->
+</body>
+</html>

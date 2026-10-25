@@ -45,7 +45,8 @@ public final class WebConsoleHandler implements Router {
 
         WebConsoleLog.install();
 
-        javalin.get("/console", this::page);
+        javalin.get("/console", ctx -> page(ctx, "/html/console.html"));
+        javalin.get("/console/admin", ctx -> page(ctx, "/html/admin.html"));
         javalin.post("/console/api/login", this::login);
         javalin.post("/console/api/logout", this::logout);
         javalin.get("/console/api/logs", this::logs);
@@ -58,6 +59,8 @@ public final class WebConsoleHandler implements Router {
         javalin.get("/console/api/quest/job", ctx -> quest(ctx, "job"));
         javalin.post("/console/api/quest/undo", ctx -> quest(ctx, "undo"));
         javalin.get("/console/api/quest/backups", ctx -> quest(ctx, "backups"));
+        emu.grasscutter.server.http.console.admin.AdminApi.register(
+                new emu.grasscutter.server.http.console.admin.AdminRouter(javalin, this::authorized));
     }
 
     private synchronized emu.grasscutter.game.quest.adjust.QuestAdjustService questAdjust() throws java.io.IOException {
@@ -99,8 +102,8 @@ public final class WebConsoleHandler implements Router {
         }
     }
 
-    private void page(Context ctx) {
-        try (var stream = FileUtils.readResourceAsStream("/html/console.html")) {
+    private void page(Context ctx, String resource) {
+        try (var stream = FileUtils.readResourceAsStream(resource)) {
             ctx.contentType("text/html; charset=UTF-8");
             ctx.result(new String(stream.readAllBytes(), StandardCharsets.UTF_8));
         } catch (Exception e) {
