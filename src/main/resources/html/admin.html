@@ -149,6 +149,28 @@
       </div>
       <div class="panel"><h2>最近发送</h2><div class="body"><div class="scroll"><table><thead><tr><th>时间</th><th>收件人</th><th>标题</th><th>附件</th><th>结果</th></tr></thead><tbody id="m-history"></tbody></table></div></div></div>
     </section>
+    <section data-page="give" class="hidden" style="display:grid;gap:16px">
+      <div class="panel"><h2>发物品</h2><div class="body">
+        <div class="row">
+          <label>玩家<select id="g-player"></select></label><button id="g-players" type="button" class="small">刷新玩家</button>
+          <label>方式<select id="g-mode">
+            <option value="auto">自动：在线进背包，离线或放不下发邮件</option>
+            <option value="bag">只进背包（需在线，放不下的不发）</option>
+            <option value="mail">只发邮件</option>
+          </select></label>
+        </div>
+        <div class="row" id="g-quick"><span class="hint">常用：</span></div>
+        <p class="hint">进背包会弹「获得物品」提示，并先整档备份。左边按分类挑，可以搜中文名或 ID。</p>
+      </div></div>
+      <div class="cols">
+        <div class="panel"><h2>物品清单</h2><div class="body" id="g-picker"></div></div>
+        <div class="panel"><h2>发放篮</h2><div class="body">
+          <div class="scroll"><table><thead><tr><th>物品</th><th>数量</th><th></th></tr></thead><tbody id="g-basket"></tbody></table></div>
+          <div class="row"><button id="g-send" type="button" class="primary">发放</button><button id="g-clear" type="button">清空</button></div>
+          <pre id="g-result" class="hint" style="white-space:pre-wrap;margin:0"></pre>
+        </div></div>
+      </div>
+    </section>
     <!-- PAGES -->
   </main>
 </section>
@@ -409,6 +431,34 @@ const Admin = (() => {
     await history();
   });
   Admin.page("mail", async () => { await Admin.fillPlayers($("m-target"), { allowAll: true }); await picker.reload(); await history(); });
+})();
+</script>
+<script>
+/* B5 发物品 */
+(() => {
+  const { $, el, call, action, toast } = Admin;
+  const basket = Admin.basket($("g-basket"));
+  const picker = Admin.itemPicker($("g-picker"), (item) => basket.add(item));
+  const QUICK = [[201, "原石", 5, 1600], [202, "摩拉", 3, 1000000], [203, "创世结晶", 5, 6480], [223, "纠缠之缘", 5, 10], [224, "相遇之缘", 5, 10],
+    [104003, "大英雄的经验", 4, 100], [104013, "精锻用魔矿", 3, 100], [220007, "浓缩树脂", 4, 5]];
+  for (const [id, name, rank, count] of QUICK)
+    $("g-quick").append(el("button", { type: "button", class: "small", onclick: () => basket.add({ id, name, rank }, count) }, `${name}×${count}`));
+  $("g-players").onclick = action(() => Admin.fillPlayers($("g-player")));
+  $("g-clear").onclick = () => basket.clear();
+  $("g-send").onclick = action(async () => {
+    const uid = Number($("g-player").value);
+    if (!uid) throw new Error("请先选玩家");
+    if (!basket.size) throw new Error("发放篮是空的");
+    const r = await call("give/send", { uid, mode: $("g-mode").value, items: basket.list() });
+    const lines = [`进背包 ${r.bag.length} 种，邮件 ${r.mail.length} 种（${r.mails} 封）`];
+    if (r.rejected) lines.push(`背包放不下、没有发：${r.rejected.map((i) => "#" + i.id).join("、")}`);
+    if (r.backupId) lines.push("备份：" + r.backupId);
+    $("g-result").textContent = lines.join("
+");
+    toast(lines[0]);
+    basket.clear();
+  });
+  Admin.page("give", async () => { await Admin.fillPlayers($("g-player")); await picker.reload(); });
 })();
 </script>
 <!-- PAGE SCRIPTS -->
