@@ -36,6 +36,9 @@ public class ExecRefreshGroupSuite extends QuestExecHandler {
         var dispatchedState = quest.getState();
 
         if (!scripts.isInit()) {
+            // 玩家不在该场景时脚本不会初始化，下面的延后刷新可能永远等不到（重新登录后也会丢）。
+            // 进场景时按任务套件记录加载组（HandlerEnterSceneDoneReq），所以先把记录写下。
+            if (rememberPending(quest, params[1], sceneId)) quest.save();
             scripts.whenInitialized(ready -> {
                 if (!ready) {
                     Grasscutter.getLogger().warn(
@@ -57,6 +60,22 @@ public class ExecRefreshGroupSuite extends QuestExecHandler {
             return true;
         }
         return apply(quest, params, sceneId, scene);
+    }
+
+    /** 只记下合法的「组,套件」对；格式错误的留给 apply 报告。 */
+    static boolean rememberPending(GameQuest quest, String pairs, int sceneId) {
+        boolean changed = false;
+        for (String entry : pairs.split(";")) {
+            String[] pair = entry.split(",");
+            if (pair.length != 2) continue;
+            try {
+                changed |= emu.grasscutter.scripts.SceneScriptManager.rememberQuestGroupSuite(
+                        quest.getMainQuest().getQuestGroupSuites(), sceneId,
+                        Integer.parseInt(pair[0].trim()), Integer.parseInt(pair[1].trim()));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return changed;
     }
 
     /** Keep a group visible only while a successful quest suite override owns it. */

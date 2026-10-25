@@ -148,9 +148,12 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
                         mismatches.add(type + p);
                 } else if (type.equals("QUEST_EXEC_REFRESH_GROUP_SUITE")) {
                     int scene = Integer.parseInt(p.get(0));
+                    // 记录挂在本步所属主任务上；getSceneGroupSuite 会滤掉已完成主任务，最后一步的刷新会被误判。
+                    var owner = player.getQuestManager().getMainQuests().get(step.mainId());
+                    var saved = owner == null ? List.<QuestGroupSuite>of() : owner.getQuestGroupSuites();
                     for (var pair : p.get(1).split(";")) {
                         var v = pair.split(","); int group = Integer.parseInt(v[0].trim()), suite = Integer.parseInt(v[1].trim());
-                        boolean found = player.getQuestManager().getSceneGroupSuite(scene).stream().anyMatch(s -> s.getGroup() == group && s.getSuite() == suite);
+                        boolean found = saved.stream().anyMatch(s -> s.getScene() == scene && s.getGroup() == group && s.getSuite() == suite);
                         if (suite > 0 && !found) mismatches.add(type + p);
                     }
                 }
@@ -202,6 +205,18 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
         }
     }
     @Override public void disconnect() { forceRelogin(player); }
+    /**
+     * 写入前先告知并让客户端静默。重放中子任务会短暂变成「进行中」，逐条推送时客户端会当真播过场
+     * （2026-10-25 测试号 2 跳蒙德序章时播了初见风魔龙、初到蒙德城两段 CG）。
+     * 之后只回心跳，执行完照旧强制重新登录，客户端以登录时的全量数据为准；邮件、世界效果都已落库。
+     */
+    static void silenceClient(Player player) {
+        var session = player.getSession();
+        if (session == null) return;
+        session.send(new emu.grasscutter.server.packet.send.PacketShowCommonTipsNotify("任务进度调整中",
+                "后台正在调整任务进度，期间画面不会更新。完成后会断开连接，请重新登录。", 30));
+        session.muteOutbound();
+    }
     /**
      * 强制客户端回到登录界面。只 close 会话时，客户端会当作网络断开，拿缓存的 combo token 静默重连，
      * 带着重放前的界面状态进场景，卡在元素读条（2026-10-25 测试号 2，Player.log 里 GeneralMarkData 空指针）。
