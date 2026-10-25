@@ -19,5 +19,6 @@ public final class AdminApi {
         AdminGive.register(router);
         AdminAccount.register(router);
         AdminActivities.register(router);
+        AdminSettings.register(router);
     }
 }

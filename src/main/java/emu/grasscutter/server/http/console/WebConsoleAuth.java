@@ -75,4 +75,26 @@ final class WebConsoleAuth {
     void logout(String token) {
         if (token != null) sessions.remove(token);
     }
+
+    /** 旧密码对不对；答错和登录一样计入失败次数。 */
+    boolean checkPassword(String address, String password) {
+        var configured = options.effectivePassword();
+        if (configured == null) return false;
+        var given = (password == null ? "" : password).getBytes(StandardCharsets.UTF_8);
+        if (MessageDigest.isEqual(configured.getBytes(StandardCharsets.UTF_8), given)) {
+            failures.remove(address);
+            return true;
+        }
+        failures.merge(
+                address,
+                new Failures(1, System.currentTimeMillis()),
+                (old, one) -> new Failures(old.count() + 1, old.since()));
+        return false;
+    }
+
+    /** 换成新密码，并让除 keepToken 以外的所有登录会话失效。 */
+    synchronized void replacePassword(String newPassword, String keepToken) {
+        options.password = newPassword;
+        sessions.keySet().removeIf(token -> !token.equals(keepToken));
+    }
 }
