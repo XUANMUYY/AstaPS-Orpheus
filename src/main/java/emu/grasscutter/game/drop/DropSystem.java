@@ -320,6 +320,20 @@ public final class DropSystem extends BaseGameSystem {
         return false;
     }
 
+    /** Native rewards for non-chest interactables, without delivering before claim admission. */
+    public record NativeInteractDrop(List<GameItem> items, boolean fallToGround) {}
+
+    public NativeInteractDrop rollNativeInteractDrop(emu.grasscutter.scripts.data.SceneGadget meta) {
+        if (meta == null) throw new IllegalArgumentException("Missing native interact metadata");
+        int dropId = meta.chest_drop_id > 0 ? meta.chest_drop_id
+                : queryDropData(meta.drop_tag, Math.max(1, meta.level), chestReward);
+        var table = dropTable.get(dropId);
+        if (table == null) throw new IllegalStateException("Missing native interact drop: " + dropId);
+        var items = new ArrayList<GameItem>();
+        processDrop(table, Math.max(1, meta.drop_count), items);
+        return new NativeInteractDrop(List.copyOf(items), table.isFallToGround());
+    }
+
     public boolean handleChestDrop(int chestDropId, int dropCount, GameEntity bornFrom) {
         if (!dropTable.containsKey(chestDropId)) return false;
         var dropData = dropTable.get(chestDropId);

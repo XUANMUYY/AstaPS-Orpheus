@@ -252,7 +252,7 @@ final class BundledBossRewardsTest {
      */
     private static void verifyHistoricalWorldBossFixedRewards(CssRewards css) throws Exception {
         var chestSource = java.nio.file.Path.of("data/ChestDrop.json");
-        var tableSource = java.nio.file.Path.of("data/Server/DropTableExcelConfigData.json");
+        var tableSource = java.nio.file.Path.of("src/test/resources/native-snapshots/DropTableExcelConfigData.json");
         var tableMap = new HashMap<Integer, com.google.gson.JsonObject>();
         try (var reader = java.nio.file.Files.newBufferedReader(tableSource)) {
             for (var row : com.google.gson.JsonParser.parseReader(reader).getAsJsonArray()) {

@@ -1004,20 +1004,12 @@ public final class DatabaseHelper {
     }
 
     @Nullable public static Achievements getAchievementData(int uid) {
-        try {
-            return DatabaseManager.getGameDatastore()
-                    .find(Achievements.class)
-                    .filter(Filters.and(Filters.eq("uid", uid)))
-                    .first();
-        } catch (IllegalArgumentException e) {
-            Grasscutter.getLogger()
-                    .debug("Error occurred while getting uid " + uid + "'s achievement data", e);
-            runSynchronousDatabaseWrite(
-                    () -> DatabaseManager.getGameDatabase()
-                            .getCollection("achievements")
-                            .deleteMany(eq("uid", uid)));
-            return null;
-        }
+        // Only an absent document is a new player. A decoding/read failure must not
+        // erase redemption history or replace it with a fresh achievements record.
+        return DatabaseManager.getGameDatastore()
+                .find(Achievements.class)
+                .filter(Filters.and(Filters.eq("uid", uid)))
+                .first();
     }
 
     public static void saveAchievementData(Achievements achievements) {

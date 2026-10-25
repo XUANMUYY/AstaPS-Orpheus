@@ -133,6 +133,53 @@ final class GadgetChestBossClaimTest {
     }
 
     @Test
+    void bossChestMetadataOverridesGenericGadgetType() {
+        var generated = new EntityGadget(scene, FLOWER_ID, new Position(a.getPosition()));
+        generated.setMetaGadget(flower.getMetaGadget());
+        generated.buildContent();
+
+        assertInstanceOf(GadgetChest.class, generated.getContent());
+    }
+
+    @Test
+    void anInitiallyUnattendedFlowerCanBeClaimedAfterApproach() {
+        var position = new Position(flower.getPosition());
+        a.getPosition().set(new Position(position.getX() + 500, position.getY(), position.getZ()));
+        b.getPosition().set(new Position(position.getX() + 500, position.getY(), position.getZ()));
+
+        var fresh = new EntityGadget(scene, FLOWER_ID, position);
+        fresh.setMetaGadget(flower.getMetaGadget());
+        var freshChest = new TestChest(fresh);
+        var builder = SceneGadgetInfo.newBuilder();
+        freshChest.onBuildProto(builder);
+        assertTrue(builder.getBossChest().getQualifyUidListList().isEmpty());
+
+        a.getPosition().set(position);
+        freshChest.onInteract(
+                a,
+                GadgetInteractReq.newBuilder()
+                        .setOpType(InterOpType.InterOpType_INTER_OP_FINISH)
+                        .build());
+
+        assertEquals(Map.of(100, 1), freshChest.grants);
+        assertEquals(OPENED, fresh.getState());
+    }
+
+    @Test
+    void startInteractionOnlyOpensTheClaimDialog() {
+        chest.onInteract(
+                a,
+                GadgetInteractReq.newBuilder()
+                        .setOpType(InterOpType.InterOpType_INTER_OP_START)
+                        .build());
+
+        assertTrue(chest.grants.isEmpty());
+        assertNotEquals(OPENED, flower.getState());
+        claim(a);
+        assertEquals(Map.of(100, 1), chest.grants);
+    }
+
+    @Test
     void lateArrivalCannotClaim() {
         var late = new TestPlayer(TestPlayers.server(), 300);
         scene.getPlayers().add(late);

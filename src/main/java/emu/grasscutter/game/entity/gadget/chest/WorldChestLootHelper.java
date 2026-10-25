@@ -31,7 +31,10 @@ public final class WorldChestLootHelper {
         if (journal.completed(key)) { confirmed.run(); return true; }
         var props = new java.util.HashMap<String, Object>();
         String chestType = ChestTypeResolver.resolve(entityGadget);
-        if (chestType == null) {
+        // Search points and spincrystals share the Chest entity type, but their rewards
+        // come from native Lua drop IDs/tags rather than ordinary chest grades.
+        boolean nativeInteract = chestType == null && ChestTypeResolver.isNativeInteract(entityGadget);
+        if (chestType == null && !nativeInteract) {
             throw new IllegalStateException(
                     "Unrecognized world chest type: gadgetId=" + entityGadget.getGadgetId()
                     + " jsonName=" + (entityGadget.getGadgetData() == null
@@ -39,6 +42,7 @@ public final class WorldChestLootHelper {
                     + " group=" + entityGadget.getGroupId()
                     + " config=" + entityGadget.getConfigId());
         }
+        if (nativeInteract) chestType = "native-interact";
         props.put("type", chestType);
         // Special chest types have no implicit common/luxurious grade.
         if ("normal".equals(chestType)) {
@@ -59,8 +63,19 @@ public final class WorldChestLootHelper {
         emu.grasscutter.game.reward.RewardAreaResolver.resolve(context)
                 .addAttributes(props);
 
-        var items = emu.grasscutter.game.reward.RewardConfiguration.current().roll(
-                "chest", props, java.util.concurrent.ThreadLocalRandom.current(), context);
+        java.util.Map<Integer, Integer> items;
+        boolean nativeAutoCollect = false;
+        if (nativeInteract) {
+            var nativeDrop = player.getServer().getDropSystem().rollNativeInteractDrop(meta);
+            nativeAutoCollect = !nativeDrop.fallToGround();
+            items = new java.util.LinkedHashMap<>();
+            for (var item : nativeDrop.items()) {
+                items.merge(item.getItemId(), item.getCount(), Math::addExact);
+            }
+        } else {
+            items = emu.grasscutter.game.reward.RewardConfiguration.current().roll(
+                    "chest", props, java.util.concurrent.ThreadLocalRandom.current(), context);
+        }
         var automatic = new ArrayList<GameItem>();
         var ground = new ArrayList<EntityItem>();
         for (var entry : items.entrySet()) {
@@ -70,7 +85,7 @@ public final class WorldChestLootHelper {
                 throw new IllegalStateException("Invalid configured chest item: " + id + " x" + amount);
             }
             var dropRule = GameData.getDropMaterialDataMap().get(id);
-            if (shouldAutoCollect(item.getItemType(), item.getGadgetId(),
+            if (nativeAutoCollect || shouldAutoCollect(item.getItemType(), item.getGadgetId(),
                     dropRule != null && dropRule.isAutoPick())) {
                 automatic.addAll(InventoryGrantBuilder.create(item, amount, 1));
             } else {

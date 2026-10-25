@@ -10,6 +10,7 @@ import emu.grasscutter.game.ability.EscoffierHealUtil;
 import emu.grasscutter.game.ability.LaumaC1HealHelper;
 import emu.grasscutter.game.ability.LohenExtraArtSkillLevelHelper;
 import emu.grasscutter.game.ability.PredicateEvaluator;
+import emu.grasscutter.game.entity.EntityClientGadget;
 import emu.grasscutter.game.entity.GameEntity;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +67,8 @@ public final class ActionApplyModifier extends AbilityActionHandler {
                 manager.executeActionNow(ability, a, abilityData, target);
             }
         }
-        if (modifierData.onAttackLanded != null) {
+        // Defer Lisa's tap-orb hit callbacks until impact; preserve other abilities.
+        if (modifierData.onAttackLanded != null && !isLisaTapProjectileSetup(ability, action, target)) {
             for (var b : modifierData.onAttackLanded) {
                 if (b == null) continue;
                 manager.executeActionNow(ability, b, abilityData, target);
@@ -87,6 +89,15 @@ public final class ActionApplyModifier extends AbilityActionHandler {
             LohenExtraArtSkillLevelHelper.onModifierApplied(ability);
         }
 
-        return true;
+            return true;
+        }
+
+    static boolean isLisaTapProjectileSetup(
+            Ability ability, AbilityModifierAction action, GameEntity target) {
+        return "Avatar_Lisa_FlickerWaveDamage".equals(ability.getData().abilityName)
+                && "StaticElec_Pre".equals(action.modifierName)
+                && target == ability.getOwner()
+                && target instanceof EntityClientGadget gadget
+                && gadget.getGadgetId() == 41006009;
     }
 }

@@ -41,9 +41,9 @@ final class InvestigationRewardPayloadValidationTest {
     private Map<Integer, Object> chapters;
     private Map<Integer, List<Object>> targets;
     private Map<Integer, Object> targetsById;
-    private Object oldTarget;
-    private Object oldChapter;
-    private List<Object> oldTargets;
+    private Map<Integer, Object> savedTargetsById;
+    private Map<Integer, Object> savedChapters;
+    private Map<Integer, List<Object>> savedTargets;
     private boolean oldLoaded;
     private RewardData oldReward;
 
@@ -58,10 +58,15 @@ final class InvestigationRewardPayloadValidationTest {
     void setup() throws Exception {
         chapters = (Map<Integer, Object>) helperField("CHAPTERS_BY_ID").get(null);
         targets = (Map<Integer, List<Object>>) helperField("TARGETS_BY_CHAPTER").get(null);
-        oldChapter = chapters.get(CHAPTER);
-        oldTargets = targets.get(CHAPTER);
+        savedChapters = new HashMap<>(chapters);
+        savedTargets = new HashMap<>(targets);
         targetsById = (Map<Integer, Object>) helperField("TARGETS_BY_ID").get(null);
-        oldTarget = targetsById.get(TARGET);
+        savedTargetsById = new HashMap<>(targetsById);
+        // Reconciliation visits every loaded target, not just this test's target.
+        // Keep unrelated cached resource definitions away from the minimal player mock.
+        chapters.clear();
+        targets.clear();
+        targetsById.clear();
         oldLoaded = helperField("loaded").getBoolean(null);
         helperField("loaded").setBoolean(null, true);
         setChapter(1);
@@ -102,12 +107,12 @@ final class InvestigationRewardPayloadValidationTest {
 
     @AfterEach
     void restore() throws Exception {
-        if (oldChapter == null) chapters.remove(CHAPTER);
-        else chapters.put(CHAPTER, oldChapter);
-        if (oldTargets == null) targets.remove(CHAPTER);
-        else targets.put(CHAPTER, oldTargets);
-        if (oldTarget == null) targetsById.remove(TARGET);
-        else targetsById.put(TARGET, oldTarget);
+        chapters.clear();
+        chapters.putAll(savedChapters);
+        targets.clear();
+        targets.putAll(savedTargets);
+        targetsById.clear();
+        targetsById.putAll(savedTargetsById);
         helperField("loaded").setBoolean(null, oldLoaded);
         if (oldReward == null) GameData.getRewardDataMap().remove(REWARD);
         else GameData.getRewardDataMap().put(REWARD, oldReward);

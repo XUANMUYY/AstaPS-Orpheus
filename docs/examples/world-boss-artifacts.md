@@ -53,7 +53,7 @@ are not replaced with ordinary five-slot artifact drops.
 ## Original-source comparison
 
 Native roots come from this repository's `data/ChestDrop.json`, expanded
-through `data/Server/DropTableExcelConfigData.json`. Referenced subtables and
+through `src/test/resources/native-snapshots/DropTableExcelConfigData.json`. Referenced subtables and
 native artifact attributes come from `RinoPaw/AstaPS-Resource` at
 `c0213668889ed05cbeb86660f424c3daf18bfacd`:
 

@@ -133,6 +133,11 @@ public final class SceneGroupInstance {
         return questAdjustDeadMonsters;
     }
 
+    /** Consumption is distinct from combat death: opened chests must never respawn. */
+    public void markGadgetConsumed(int configId) {
+        if (markScriptGadgetDestroyed(configId)) save();
+    }
+
     public void save() {
         DatabaseHelper.saveGroupInstance(this);
     }

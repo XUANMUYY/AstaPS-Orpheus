@@ -274,6 +274,14 @@ public class EntityGadget extends EntityBaseGadget {
             this.content = new GadgetLiyueFoodOffering(this);
             return;
         }
+        // A boss-chest definition takes precedence over GadgetExcel's generic gadget type.
+        // Otherwise a spawned trounce blossom can have no chest interaction handler.
+        if (this.metaGadget != null && this.metaGadget.boss_chest != null) {
+            if (!(this.content instanceof GadgetChest)) {
+                this.content = new GadgetChest(this);
+            }
+            return;
+        }
         if (this.getContent() != null
                 || this.getGadgetData() == null
                 || this.getGadgetData().getType() == null) {

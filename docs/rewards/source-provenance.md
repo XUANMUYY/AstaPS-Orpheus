@@ -20,7 +20,7 @@ Missing evidence is not permission to infer a replacement value or classificatio
 | Source | Evidence | Status |
 | --- | --- | --- |
 | AstaPS `data/ChestDrop.json` | Introduced by `c6fd412d2d71b259745674fc4dcb3545168921f7`; the commit explicitly says it is a squashed Chiori import without the individual prior commits | Inherited server reference; original reward provenance unresolved |
-| AstaPS `data/Server/DropTableExcelConfigData.json` | Same squashed import and history boundary | Inherited server reference; original reward provenance unresolved |
+| AstaPS `src/test/resources/native-snapshots/DropTableExcelConfigData.json` | Same squashed import and history boundary | Inherited server reference; original reward provenance unresolved |
 | AstaPS-Resource Gadget Excel | Snapshot `c0213668889ed05cbeb86660f424c3daf18bfacd`, blob `9b32db003dcc37468a3824c8de41d14b7d69cd93`; its only recorded file change is import commit `67e2fdf5185ff6661e69505b1098d5f53374fccd` | Exact observed fields; original package identity and extraction chain not authenticated |
 | AstaPS-Resource scene Lua | Read directly from `Scripts/Scene` at the same resource snapshot; the sample shrine group was introduced by `b925f3437767d8667aa9956e0500815475a802c1` | Exact observed script fields; no blanket assertion that every script is unmodified original data |
 | Imported exploration point JSON | Supplies community marker kinds such as `chest_puzzle` | Derived metadata, never proof of a native type or official reward |

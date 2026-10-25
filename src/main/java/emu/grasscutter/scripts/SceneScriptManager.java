@@ -265,6 +265,23 @@ public class SceneScriptManager {
         triggersByGroupScene.put(group.id + "_" + suiteIndex, groupSceneTriggers);
     }
 
+    /** Reloading an open-world group is not a request to reset its puzzle progress. */
+    public int restoreGroup(SceneGroupInstance instance, int overrideSuite) {
+        var group = instance.getLuaGroup();
+        int savedSuite = instance.getActiveSuiteId();
+        if (getScene() != null && getScene().getSceneType() == SceneType.SCENE_WORLD && overrideSuite == 0
+                && group != null && group.suites != null
+                && group.getSuiteByIndex(savedSuite) != null) {
+            // The previous scene's entities/triggers are gone. Recreate the saved suite,
+            // without resetting variables or refresh timestamps. Keep the loader's
+            // existing refresh notification so scripts can initialize their runtime hooks.
+            addGroupSuite(instance, group.getSuiteByIndex(savedSuite));
+            callEvent(new ScriptArgs(instance.getGroupId(), EventType.EVENT_GROUP_REFRESH));
+            return savedSuite;
+        }
+        return refreshGroup(instance, overrideSuite, false);
+    }
+
     public void refreshGroup(SceneGroupInstance groupInstance) {
         if (groupInstance == null || groupInstance.getLuaGroup().suites == null) {
             return;

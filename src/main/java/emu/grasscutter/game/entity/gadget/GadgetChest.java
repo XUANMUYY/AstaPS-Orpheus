@@ -232,7 +232,7 @@ public class GadgetChest extends GadgetContent {
     }
 
     private boolean canClaimBossFlower(Player player) {
-        List<Integer> uids = bossUids;
+        List<Integer> uids = captureBossClaimants();
         return getGadget().getState() != CHEST_OPENED_STATE
                 && uids != null
                 && uids.contains(player.getUid())
@@ -323,7 +323,9 @@ public class GadgetChest extends GadgetContent {
                 return true;
             }
         }
-        String identity = gadget.getGroupId() > 0 && gadget.getConfigId() > 0
+        boolean permanent = ChestTypeResolver.resolve(gadget) != null
+                || (meta != null && meta.isOneoff);
+        String identity = permanent && gadget.getGroupId() > 0 && gadget.getConfigId() > 0
                 ? gadget.getScene().getId() + "." + gadget.getGroupId() + "." + gadget.getConfigId()
                 : "spawn." + ordinarySpawnId;
         return WorldChestLootHelper.grant(player, gadget, "chest." + identity,
@@ -407,6 +409,17 @@ public class GadgetChest extends GadgetContent {
 
     private void finishOpen(Player player, SceneGadget sceneGadget, boolean credit) {
         EntityGadget entityGadget = getGadget();
+        // Boss flowers are repeatable encounters. Ordinary authored chests and pickups
+        // are consumed independently of the Lua oneoff/persistent flag combination.
+        if (entityGadget.getScene().getSceneType() == SceneType.SCENE_WORLD
+                && (sceneGadget == null || sceneGadget.boss_chest == null)
+                && (ChestTypeResolver.resolve(entityGadget) != null
+                        || (sceneGadget != null && sceneGadget.isOneoff))
+                && entityGadget.getGroupId() > 0 && entityGadget.getConfigId() > 0) {
+            var instance = entityGadget.getScene().getScriptManager()
+                    .getGroupInstanceById(entityGadget.getGroupId());
+            if (instance != null) instance.markGadgetConsumed(entityGadget.getConfigId());
+        }
         entityGadget.updateState(CHEST_OPENED_STATE);
         player.sendPacket(
                 new PacketGadgetInteractRsp(
@@ -430,7 +443,9 @@ public class GadgetChest extends GadgetContent {
         } catch (Throwable ignored) {
         }
         if (credit) {
-            creditChestOpen(player);
+            if (!ChestTypeResolver.isNativeInteract(entityGadget)) {
+                creditChestOpen(player);
+            }
         }
     }
 
@@ -493,20 +508,7 @@ public class GadgetChest extends GadgetContent {
         }
         SceneBossChest bossChest = sceneGadget.boss_chest;
         if (bossChest != null) {
-            if (bossUids == null) {
-                var flower = getGadget().getPosition();
-                List<Integer> present =
-                        getGadget().getScene().getPlayers().stream()
-                                .filter(p -> flower == null
-                                        || (p.getPosition() != null
-                                                && p.getPosition().computeDistance(flower) <= BOSS_CLAIM_RANGE))
-                                .map(Player::getUid)
-                                .toList();
-                if (!present.isEmpty()) {
-                    bossUids = present;
-                }
-            }
-            List<Integer> uids = bossUids != null ? bossUids : List.of();
+            List<Integer> uids = captureBossClaimants();
             builder.setBossChest(
                     BossChestInfoOuterClass.BossChestInfo.newBuilder()
                             .setMonsterConfigId(bossChest.monster_config_id)
@@ -516,6 +518,26 @@ public class GadgetChest extends GadgetContent {
                                     uids.stream().filter(uid -> !claimedBossUids.contains(uid)).toList())
                             .build());
         }
+    }
+
+    /** Capture the players near an unclaimed flower, including after an initially empty reveal. */
+    private List<Integer> captureBossClaimants() {
+        List<Integer> existing = bossUids;
+        if (existing != null) {
+            return existing;
+        }
+        var flower = getGadget().getPosition();
+        List<Integer> present =
+                getGadget().getScene().getPlayers().stream()
+                        .filter(p -> flower == null
+                                || (p.getPosition() != null
+                                        && p.getPosition().computeDistance(flower) <= BOSS_CLAIM_RANGE))
+                        .map(Player::getUid)
+                        .toList();
+        if (!present.isEmpty()) {
+            bossUids = present;
+        }
+        return present;
     }
 
     private SceneGadget resolveChestMeta() {
