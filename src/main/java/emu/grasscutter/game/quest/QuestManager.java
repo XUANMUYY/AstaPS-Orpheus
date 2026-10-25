@@ -377,6 +377,20 @@ public final class QuestManager extends BasePlayerManager {
         this.checkTimeVars();
         // trigger game time tick for quests
         this.queueEvent(QuestContent.QUEST_CONTENT_GAME_TIME_TICK);
+        // 离开范围按位置求值，只在有子任务等着它时每秒发一次。
+        if (hasActiveContent(QuestContent.QUEST_CONTENT_LEAVE_SCENE_RANGE)) {
+            this.queueEvent(QuestContent.QUEST_CONTENT_LEAVE_SCENE_RANGE);
+        }
+    }
+
+    private boolean hasActiveContent(QuestContent type) {
+        for (var main : getMainQuests().values()) {
+            if (main.getState() == ParentQuestState.PARENT_QUEST_STATE_FINISHED) continue;
+            for (var quest : main.getActiveQuests()) {
+                if (quest.getQuestData() != null && hasContent(quest, type)) return true;
+            }
+        }
+        return false;
     }
 
     private void checkTimeVars() {

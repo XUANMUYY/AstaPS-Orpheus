@@ -42,6 +42,8 @@ public class GameQuest {
     @Transient @Getter private Map<String, TriggerExcelConfigData> triggerData;
     @Getter private Map<String, Boolean> triggers;
     private transient Bindings bindings;
+    // QUEST_CONTENT_LEAVE_SCENE_RANGE：本次开始后玩家进过哪些范围（不入库，重启后需重新进入范围）。
+    @Transient private transient Set<String> leaveRangeArmed;
 
     @Deprecated // Morphia only. Do not use.
     public GameQuest() {}
@@ -60,6 +62,7 @@ public class GameQuest {
     }
 
     public void start() {
+        this.leaveRangeArmed = null;
         this.acceptTime = Utils.getCurrentSeconds();
         this.startTime = this.acceptTime;
         this.startGameDay = getOwner().getWorld().getTotalGameTimeDays();
@@ -306,6 +309,17 @@ public class GameQuest {
     }
 
     // TODO
+    public void armLeaveRange(String key) {
+        var armed = this.leaveRangeArmed;
+        if (armed == null) this.leaveRangeArmed = armed = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        armed.add(key);
+    }
+
+    public boolean isLeaveRangeArmed(String key) {
+        var armed = this.leaveRangeArmed;
+        return armed != null && armed.contains(key);
+    }
+
     public void fail() {
         if (!emu.grasscutter.game.quest.adjust.ReplayContext.allowFail(this)) return;
         this.state = QuestState.QUEST_STATE_FAILED;
