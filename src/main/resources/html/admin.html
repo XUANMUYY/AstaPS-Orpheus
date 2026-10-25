@@ -208,6 +208,18 @@
         </div></div>
       </div>
     </section>
+    <section data-page="activity" class="panel hidden"><h2>活动排期</h2><div class="body">
+      <p class="note">改动写在 <span class="mono" id="v-file">data/admin/activity-schedule.json</span>，<b>重启服务端后生效</b>，玩家要重新登录才看到新的活动排期。能不能真玩取决于活动有没有专用处理器（「处理器」一列），没有的只能在活动页里看到。</p>
+      <div class="row">
+        <input id="v-search" type="search" placeholder="搜索活动名、ID、类型">
+        <label>显示<select id="v-filter">
+          <option value="configured">已配置或已改过的</option><option value="handler">有专用处理器的</option><option value="all">全部活动</option>
+        </select></label>
+        <button id="v-refresh" type="button" class="small">刷新</button><span class="hint" id="v-count"></span>
+      </div>
+      <div class="scroll" style="max-height:640px"><table><thead><tr><th>活动</th><th>处理器</th><th>现在</th><th>默认配置</th><th>开启</th><th>开始</th><th>结束</th><th></th></tr></thead><tbody id="v-list"></tbody></table></div>
+      <p class="hint">默认配置里没有的活动，打开时必须填起止时间；排期号按「活动号×1000+1」推断（已有活动都是这个规律），客户端不认时活动不会出现。</p>
+    </div></section>
     <!-- PAGES -->
   </main>
 </section>
@@ -621,6 +633,51 @@ const Admin = (() => {
     await load();
   });
   Admin.page("account", () => Admin.fillPlayers($("a-player"), { onlineOnly: true }));
+})();
+</script>
+<script>
+/* B7 活动排期 */
+(() => {
+  const { $, el, call, action, toast, toUnix, fromUnix, fmtTime } = Admin;
+  let rows = [];
+  const shortType = (t) => (t || "").replace(/^NEW_ACTIVITY_/, "");
+  function make(a) {
+    const o = a.override;
+    const enabled = el("input", { type: "checkbox" });
+    enabled.checked = o ? !o.disabled : a.inDefault;
+    const begin = el("input", { type: "datetime-local", value: fromUnix(o && o.beginTime ? o.beginTime : a.defaultBegin) });
+    const end = el("input", { type: "datetime-local", value: fromUnix(o && o.endTime ? o.endTime : a.defaultEnd) });
+    return el("tr", {},
+      el("td", {}, `${a.name || "(无中文名)"} #${a.id}`, el("div", { class: "hint mono" }, shortType(a.type))),
+      el("td", {}, a.handler ? el("span", { class: "tag ok" }, a.handler.replace(/ActivityHandler$/, "")) : el("span", { class: "tag" }, "无")),
+      el("td", {}, el("span", { class: "tag" + (a.running ? " ok" : "") }, a.running ? "运行中" : "未运行")),
+      el("td", { class: "hint", style: "white-space:pre-line" }, a.inDefault ? `${fmtTime(a.defaultBegin)}\n至 ${fmtTime(a.defaultEnd)}` : "无", o ? el("div", {}, el("span", { class: "tag bad" }, "后台已改")) : null),
+      el("td", {}, enabled), el("td", {}, begin), el("td", {}, end),
+      el("td", {},
+        el("button", { type: "button", class: "small", onclick: action(async () => {
+          const body = { activityId: a.id, enabled: enabled.checked, scheduleId: a.scheduleId };
+          const b = toUnix(begin.value), e = toUnix(end.value);
+          if (b !== a.defaultBegin || !a.inDefault) body.beginTime = b;
+          if (e !== a.defaultEnd || !a.inDefault) body.endTime = e;
+          await call("activity/save", body); toast("已保存，重启服务端后生效"); await load();
+        }) }, "保存"), " ",
+        o ? el("button", { type: "button", class: "small", onclick: action(async () => { await call("activity/reset", { activityId: a.id }); toast("已恢复默认，重启服务端后生效"); await load(); }) }, "恢复默认") : null));
+  }
+  function render() {
+    const term = $("v-search").value.trim().toLowerCase(), filter = $("v-filter").value;
+    const shown = rows.filter((a) => (filter === "all" || (filter === "handler" ? a.handler : a.inDefault || a.override || a.running))
+      && (!term || `${a.id} ${a.name || ""} ${a.type || ""}`.toLowerCase().includes(term)));
+    $("v-list").replaceChildren(...shown.map(make));
+    $("v-count").textContent = `显示 ${shown.length} / ${rows.length} 个活动`;
+  }
+  async function load() {
+    const data = await call("activity/list");
+    rows = data.activities.sort((x, y) => (y.running - x.running) || (y.inDefault - x.inDefault) || (x.id - y.id));
+    $("v-file").textContent = data.file;
+    render();
+  }
+  $("v-search").oninput = render; $("v-filter").onchange = render; $("v-refresh").onclick = action(load);
+  Admin.page("activity", load);
 })();
 </script>
 <!-- PAGE SCRIPTS -->
