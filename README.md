@@ -16,6 +16,8 @@ The plan is to replay the main story from a fresh save, identify and fix bugs en
 
 Upstream changes will be merged regularly. Conflicts will be reviewed individually to preserve useful local changes while incorporating upstream fixes; builds and gameplay checks are required before deployment.
 
+Co-op is planned for later: players' servers would connect directly through TCP hole punching, first synchronizing the host's save, then carrying co-op traffic over that connection.
+
 ### Playtesting and maintenance environment
 
 The maintainer plays and maintains this fork using the Chinese mainland (CN) PC client, with the following hardware:
