@@ -322,6 +322,7 @@
       <a href="#command" data-page="command" data-icon="terminal">控制台命令</a>
       <div class="foot">
         <div class="health" id="nav-health"><span id="nav-health-text">读取状态…</span></div>
+        <button id="change-password" type="button">修改密码</button>
         <button id="logout" type="button">退出登录</button>
       </div>
     </div>
@@ -782,6 +783,33 @@ const Admin = (() => {
   $("logout").addEventListener("click", async () => {
     try { await fetch("/console/api/logout", { method: "POST", headers: { "X-Console-Token": token || "" } }); } catch (e) {}
     showLogin();
+  });
+  /* 修改后台密码：立即生效并写回 config.json；其他浏览器里的登录会失效，这个页面保持登录 */
+  $("change-password").addEventListener("click", () => {
+    const input = (label, id) => el("label", { class: "field" }, label, el("input", { id, class: "input", type: "password", autocomplete: id === "pw-old" ? "current-password" : "new-password", required: true }));
+    const error = el("p", { class: "note", role: "alert", style: "color:var(--bad);margin:0" });
+    const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    const submit = el("button", { type: "submit", class: "btn primary" }, "确认修改");
+    const form = el("form", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "修改密码" },
+      el("h2", {}, "修改后台密码"),
+      el("p", { class: "note", style: "margin:0" }, "改完立即生效，重启后也有效。其他浏览器里的登录会被退出，这个页面保持登录。"),
+      input("旧密码", "pw-old"), input("新密码（至少 8 位）", "pw-new"), input("再输一次新密码", "pw-again"), error,
+      el("div", { class: "row", style: "justify-content:flex-end" }, el("button", { type: "button", class: "btn", onclick: close }, "取消"), submit));
+    const overlay = el("div", { class: "modal-mask", onclick: (e) => { if (e.target === overlay) close(); } }, form);
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const oldPassword = $("pw-old").value, newPassword = $("pw-new").value;
+      if (!newPassword.trim() || [...newPassword].length < 8) { error.textContent = "新密码不能为空，至少 8 位"; return; }
+      if (newPassword !== $("pw-again").value) { error.textContent = "两次输入的新密码不一样"; return; }
+      submit.disabled = true; submit.classList.add("busy"); error.textContent = "";
+      try { await api("password", { oldPassword, newPassword }); close(); toast("密码已修改，下次登录用新密码"); }
+      catch (e) { if (e.message !== "未登录") error.textContent = e.message; }
+      finally { submit.disabled = false; submit.classList.remove("busy"); }
+    });
+    document.body.append(overlay);
+    document.addEventListener("keydown", onKey);
+    $("pw-old").focus();
   });
   $("nav-toggle").addEventListener("click", () => document.body.classList.toggle("nav-open"));
   window.addEventListener("hashchange", () => { if (token) show(); });

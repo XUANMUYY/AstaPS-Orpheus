@@ -266,8 +266,9 @@ public class ConfigContainer {
     public static class WebConsole {
         // Remote command execution is opt-in. A missing password never enables it.
         public boolean enabled = false;
-        /* Configure explicitly in config.json; no built-in credentials are accepted. */
-        public String password = null;
+        /* Configure explicitly in config.json; no built-in credentials are accepted.
+         * volatile: the admin "change password" action replaces it while the server runs. */
+        public volatile String password = null;
         /* How long a login stays valid. */
         public int sessionHours = 12;
 

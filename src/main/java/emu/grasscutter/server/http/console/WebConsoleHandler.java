@@ -51,6 +51,7 @@ public final class WebConsoleHandler implements Router {
         javalin.get("/console/admin", ctx -> page(ctx, "/html/admin.html"));
         javalin.post("/console/api/login", this::login);
         javalin.post("/console/api/logout", this::logout);
+        javalin.post("/console/api/password", this::changePassword);
         javalin.get("/console/api/logs", this::logs);
         javalin.get("/console/api/players", this::players);
         javalin.post("/console/api/command", this::command);
@@ -164,6 +165,58 @@ public final class WebConsoleHandler implements Router {
     private void logout(Context ctx) {
         auth.logout(ctx.header(TOKEN_HEADER));
         json(ctx, 200, Map.of());
+    }
+
+    /** 修改后台密码：立即生效并写回 config.json；除当前会话外的登录全部失效。日志里不记密码。 */
+    private void changePassword(Context ctx) {
+        if (!authorized(ctx)) return;
+        var address = ctx.ip();
+        if (auth.isLockedOut(address)) {
+            json(ctx, 429, Map.of("error", "密码错误次数过多，请 10 分钟后再试"));
+            return;
+        }
+        var newPassword = field(ctx, "newPassword");
+        if (newPassword == null || newPassword.isBlank() || newPassword.codePointCount(0, newPassword.length()) < 8) {
+            json(ctx, 400, Map.of("error", "新密码不能为空，至少 8 位"));
+            return;
+        }
+        if (!auth.checkPassword(address, field(ctx, "oldPassword"))) {
+            Grasscutter.getLogger().warn("Web console: wrong old password on password change from {}", address);
+            json(ctx, 403, Map.of("error", "旧密码不对"));
+            return;
+        }
+        try {
+            writePasswordToConfig(Grasscutter.configFile.toPath().toAbsolutePath(), newPassword);
+        } catch (Exception e) {
+            Grasscutter.getLogger().warn("Web console: could not write the new password to config.json: {}", e.getClass().getSimpleName());
+            json(ctx, 500, Map.of("error", "写入 config.json 失败，密码没有改"));
+            return;
+        }
+        auth.replacePassword(newPassword, ctx.header(TOKEN_HEADER));
+        Grasscutter.getLogger().info("Web console: password changed from {}", address);
+        json(ctx, 200, Map.of());
+    }
+
+    /** 只改 config.json 里的 server.http.webConsole.password，其余内容原样保留；先写临时文件再替换。 */
+    static void writePasswordToConfig(java.nio.file.Path path, String newPassword) throws java.io.IOException {
+        var root = JsonParser.parseString(java.nio.file.Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
+        var webConsole = child(child(child(root, "server"), "http"), "webConsole");
+        webConsole.addProperty("password", newPassword);
+        var temp = path.resolveSibling(path.getFileName() + ".tmp");
+        java.nio.file.Files.writeString(temp, JsonUtils.encode(root), StandardCharsets.UTF_8);
+        try {
+            java.nio.file.Files.move(temp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+            java.nio.file.Files.move(temp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static com.google.gson.JsonObject child(com.google.gson.JsonObject parent, String name) {
+        var value = parent.get(name);
+        if (value != null && value.isJsonObject()) return value.getAsJsonObject();
+        var created = new com.google.gson.JsonObject();
+        parent.add(name, created);
+        return created;
     }
 
     private void logs(Context ctx) {
