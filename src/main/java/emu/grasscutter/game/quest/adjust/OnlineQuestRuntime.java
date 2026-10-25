@@ -203,6 +203,18 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
     }
     @Override public void disconnect() { forceRelogin(player); }
     /**
+     * 写入前先告知并让客户端静默。重放中子任务会短暂变成「进行中」，逐条推送时客户端会当真播过场
+     * （2026-10-25 测试号 2 跳蒙德序章时播了初见风魔龙、初到蒙德城两段 CG）。
+     * 之后只回心跳，执行完照旧强制重新登录，客户端以登录时的全量数据为准；邮件、世界效果都已落库。
+     */
+    static void silenceClient(Player player) {
+        var session = player.getSession();
+        if (session == null) return;
+        session.send(new emu.grasscutter.server.packet.send.PacketShowCommonTipsNotify("任务进度调整中",
+                "后台正在调整任务进度，期间画面不会更新。完成后会断开连接，请重新登录。", 30));
+        session.muteOutbound();
+    }
+    /**
      * 强制客户端回到登录界面。只 close 会话时，客户端会当作网络断开，拿缓存的 combo token 静默重连，
      * 带着重放前的界面状态进场景，卡在元素读条（2026-10-25 测试号 2，Player.log 里 GeneralMarkData 空指针）。
      * 先换掉 token，静默重连就过不了 GetPlayerTokenReq 的校验，只能重新登录；正常登录每次都会发新 token。

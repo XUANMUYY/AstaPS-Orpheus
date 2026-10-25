@@ -1527,8 +1527,11 @@ const Admin = (() => {
     for (const c of chapters.values()) if (c.archon && c.region !== "未归类") { if (!regions.has(c.region)) regions.set(c.region, []); regions.get(c.region).push(c); }
     $("q-region-presets").replaceChildren(...[...regions.entries()].sort((a, b) => a[1][0].tag - b[1][0].tag).map(([region, list]) => {
       const ids = list.map((c) => c.id), s = state(ids);
+      // 不属于该地区主系列的章节（比如蒙德的间章 · 悖理）写进按钮名，免得以为只有本章
+      const main = majority(list.map((c) => c.series));
+      const extra = list.filter((c) => c.series !== main).map((c) => c.series + " · " + (c.title || c.num));
       return el("button", { type: "button", class: s === "all" ? "on" : "", title: list.map(chapterName).join("\n"), onclick: () => setChapters(ids, s !== "all") },
-        `${region}全部主线（${list.length} 幕）`);
+        `${region}全部主线（${list.length} 幕` + (extra.length ? "，含" + extra.join("、") : "") + "）");
     }));
   }
 

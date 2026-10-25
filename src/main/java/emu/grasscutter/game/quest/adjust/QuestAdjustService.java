@@ -142,6 +142,7 @@ public final class QuestAdjustService {
             if (!plan.stateHash().equals(PlayerState.capture(player).hash())) throw new IllegalStateException("执行前状态变化，请重做计划");
             OnlineQuestRuntime.flushDatabase();
             var saved = backup.create(player.getUid(), plan, store); job.backupId = saved.id();
+            OnlineQuestRuntime.silenceClient(player);
             try (var journal = new AdjustJournal(saved.directory());
                     var context = new ReplayContext(player.getUid(), policy, plan.overrides(), journal::append)) {
                 journal.append(Map.of("action", "job_begin", "jobId", job.id, "plan", plan));
