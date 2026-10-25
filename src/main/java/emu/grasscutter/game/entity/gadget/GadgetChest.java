@@ -323,6 +323,17 @@ public class GadgetChest extends GadgetContent {
                 return true;
             }
         }
+        if (ChestTypeResolver.resolve(gadget) == null && !ChestTypeResolver.isNativeInteract(gadget)) {
+            // 场景给了 chest_drop_id，但服务端掉落表缺这个根，外形又不是普通宝箱（如沙漠符文
+            // 70330386 指向的 1050269）：没有可发的奖励。以前在 WorldChestLootHelper 里抛异常，
+            // 开箱没有回应、脚本也不推进；现在记一条警告，照常完成开启。
+            Grasscutter.getLogger().warn(
+                    "Chest without loot: gadgetId={} group={} config={} chest_drop_id={}",
+                    gadget.getGadgetId(), gadget.getGroupId(), gadget.getConfigId(),
+                    meta != null ? meta.chest_drop_id : 0);
+            ordinaryClaimed = true;
+            return true;
+        }
         boolean permanent = ChestTypeResolver.resolve(gadget) != null
                 || (meta != null && meta.isOneoff);
         String identity = permanent && gadget.getGroupId() > 0 && gadget.getConfigId() > 0
