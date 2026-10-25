@@ -135,14 +135,41 @@ public final class ServerAchievementTriggers {
         return ids;
     }
 
+    /** An unknown area counts for nothing: crediting it would fill every region's chest achievements at once. */
+    static boolean chestAreaMatches(String[] params, int levelOneArea) {
+        if (params == null || params.length < 3 || params[2] == null || params[2].isBlank()) return true;
+        if (levelOneArea <= 0) return false;
+        return questIds(new String[] {params[2]}).contains(levelOneArea);
+    }
+
+    /** The level-1 area the player last reported through EnterWorldAreaReq, or 0. */
+    private static int levelOneArea(Player player) {
+        int areaId = player.getAreaId();
+        if (areaId <= 0) return 0;
+        int sceneId = player.getSceneId();
+        boolean levelOne = false;
+        int parent = 0;
+        for (var area : GameData.getWorldAreaDataMap().values()) {
+            if (sceneId != 0 && area.getSceneId() != sceneId) continue;
+            if (area.getChildArea() == 0 && area.getParentArea() == areaId) levelOne = true;
+            if (area.getChildArea() == areaId && parent == 0) parent = area.getParentArea();
+        }
+        // area_type 2 is the level-2 report; otherwise trust the table over the type value.
+        if (player.getAreaType() == 2 && parent > 0) return parent;
+        return levelOne ? areaId : parent;
+    }
+
     public static void onWorldChestOpened(Player player, int gadgetId) {
         if (player == null || player.getAchievements() == null) return;
         var achievements = player.getAchievements();
+        int area = levelOneArea(player);
         var updates = new HashMap<Integer, Integer>();
         for (var data : index().getOrDefault(WatcherTriggerType.TRIGGER_OPEN_WORLD_CHEST, List.of())) {
             if (achievements.isFinished(data.getId())) continue;
-            // The available gadget table establishes the ID, but not param1/param2's region rules.
-            if (!questIds(data.getTriggerConfig().getParamList()).contains(gadgetId)) continue;
+            var params = data.getTriggerConfig().getParamList();
+            if (!questIds(params).contains(gadgetId)) continue;
+            // param2 lists the level-1 world areas the chest must be opened in (Mondstadt 10, Inazuma 11-13...).
+            if (!chestAreaMatches(params, area)) continue;
             var achievement = achievements.getAchievement(data.getId());
             if (achievement == null) continue;
             int next = (int) Math.min((long) achievement.getTotalProgress(),

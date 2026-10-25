@@ -11,6 +11,16 @@ import org.junit.jupiter.api.Test;
 
 final class ServerAchievementTriggersTest {
     @Test
+    void chestAchievementsOnlyCountInTheirLevelOneAreas() {
+        String[] inazuma = {"70210001;70210002", "3", "11,12,13", ""};
+        assertTrue(ServerAchievementTriggers.chestAreaMatches(inazuma, 12));
+        assertFalse(ServerAchievementTriggers.chestAreaMatches(inazuma, 10));
+        // 区域未知时不计数，避免所有地区的开箱成就一起涨。
+        assertFalse(ServerAchievementTriggers.chestAreaMatches(inazuma, 0));
+        assertTrue(ServerAchievementTriggers.chestAreaMatches(new String[] {"70210001", "1", "", ""}, 0));
+    }
+
+    @Test
     void serverOwnedTypesCannotUseClientProgressPath() {
         for (var type : new WatcherTriggerType[] {
                 WatcherTriggerType.TRIGGER_FINISH_QUEST_AND,
