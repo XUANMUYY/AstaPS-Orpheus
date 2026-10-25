@@ -136,7 +136,7 @@ public final class TalkConditions {
     private static Result dailyTaskVar(Player player, TalkCondParam cond, int sign) {
         var manager = player.getDailyTaskManager();
         if (manager == null) return Result.UNKNOWN;
-        return compare(manager.getTaskVar(cond.intParam(0), cond.intParam(1)), cond.intParam(2), sign);
+        return compare(manager.getDailyTaskVar(cond.intParam(0), cond.intParam(1)), cond.intParam(2), sign);
     }
 
     private static Result compare(int value, int target, int sign) {

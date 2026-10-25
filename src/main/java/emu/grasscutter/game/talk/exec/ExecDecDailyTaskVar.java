@@ -14,6 +14,6 @@ public final class ExecDecDailyTaskVar extends TalkExecHandler {
         if (manager == null) return;
         int delta = execParam.intParam(2);
         if (delta == 0) delta = 1;
-        manager.incTaskVar(execParam.intParam(0), execParam.intParam(1), -delta);
+        manager.incDailyTaskVar(execParam.intParam(0), execParam.intParam(1), -delta);
     }
 }

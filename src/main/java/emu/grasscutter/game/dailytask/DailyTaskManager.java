@@ -143,13 +143,6 @@ public class DailyTaskManager {
 	/** Counts issued boards; a saved encounter only restores into the board that produced it. */
 	private int generationSerial;
 
-	/**
-	 * 委托变量：「委托号_下标」→ 值。对话和任务执行项 SET/INC/DEC_DAILY_TASK_VAR 写，
-	 * 条件 DAILY_TASK_VAR_EQ/GT/LT 读。资源里同一变量的取值会跨天累加（例如 24900 下标 3 取到 9），
-	 * 所以每日刷新不清空。
-	 */
-	private Map<String, Integer> taskVars = new ConcurrentHashMap<>();
-
     public DailyTaskManager() {}
 
     public DailyTaskManager(Player player) {
@@ -626,21 +619,6 @@ public class DailyTaskManager {
 		}
 
 		return RANDOM_CITY_ID;
-	}
-
-	public int getTaskVar(int taskId, int index) {
-		if (this.taskVars == null) return 0;
-		return this.taskVars.getOrDefault(taskId + "_" + index, 0);
-	}
-
-	public synchronized void setTaskVar(int taskId, int index, int value) {
-		if (this.taskVars == null) this.taskVars = new ConcurrentHashMap<>();
-		this.taskVars.put(taskId + "_" + index, value);
-		this.save();
-	}
-
-	public synchronized void incTaskVar(int taskId, int index, int delta) {
-		this.setTaskVar(taskId, index, this.getTaskVar(taskId, index) + delta);
 	}
 
     public DailyTask getDailyTask(int taskId) {

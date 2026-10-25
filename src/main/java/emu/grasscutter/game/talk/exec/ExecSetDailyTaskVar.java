@@ -12,6 +12,6 @@ public final class ExecSetDailyTaskVar extends TalkExecHandler {
     public void execute(Player player, TalkConfigData talkData, TalkExecParam execParam) {
         var manager = player.getDailyTaskManager();
         if (manager == null) return;
-        manager.setTaskVar(execParam.intParam(0), execParam.intParam(1), execParam.intParam(2));
+        manager.setDailyTaskVar(execParam.intParam(0), execParam.intParam(1), execParam.intParam(2));
     }
 }
