@@ -10,6 +10,8 @@ public class ContentEnterVehicle extends BaseContent {
     @Override
     public boolean execute(
             GameQuest quest, QuestData.QuestContentCondition condition, String paramStr, int... params) {
-        return condition.getParam()[0] == params[0];
+        return condition != null && condition.getParam() != null && condition.getParam().length > 0
+                && params != null && params.length > 0
+                && (condition.getParam()[0] == 0 || condition.getParam()[0] == params[0]);
     }
 }

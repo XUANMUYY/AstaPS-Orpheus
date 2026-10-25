@@ -17,7 +17,7 @@ import java.util.*;
 public class ExecSetMapLayerUnlockState extends QuestExecHandler {
 
     /** 解析失败返回 null；未知层 ID 跳过并记日志，不让整条 exec 失败。 */
-    static Map<Integer, Integer> parse(String... param) {
+    public static Map<Integer, Integer> parse(String... param) {
         if (param == null || param.length < 2 || param[0] == null || param[1] == null) return null;
         int state;
         try {

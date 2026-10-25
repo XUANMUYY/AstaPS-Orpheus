@@ -107,6 +107,11 @@ public class ScriptLoader {
         addEnumByOrdinal(ctx, ChallengeEventMarkType.values(), "ChallengeEventMarkType");
         addEnumByOrdinal(ctx, VisionLevelType.values(), "VisionLevelType");
 
+        LuaTable flowSuitePolicy = new LuaTable();
+        flowSuitePolicy.set("DEFAULT", 0);
+        flowSuitePolicy.set("COMPLETE", 1);
+        ctx.globals.set("FlowSuiteOperatePolicy", flowSuitePolicy);
+
         ctx.globals.set(
                 "EventType",
                 CoerceJavaToLua.coerce(
@@ -293,8 +298,10 @@ public class ScriptLoader {
             var sources = ScriptLoader.readScript(path, useAbsPath);
             if (sources == null) return null;
 
-            // Check to see if the script references other scripts.
-            if (!Configuration.FAST_REQUIRE && sources.contains("require")) {
+            // Group Common scripts often close over local defs/base_info declared by the parent.
+            // Evaluating require in a separate chunk loses those locals (SeaLampParkour's
+            // action_gadget_create then indexes a nil defs). Keep that lexical scope intact.
+            if (shouldInlineRequires(path, sources, Configuration.FAST_REQUIRE)) {
                 var lines = sources.split("\n");
                 var output = new StringBuilder();
                 for (var line : lines) {
@@ -328,6 +335,11 @@ public class ScriptLoader {
                     .error("Loading script {} failed! - {}", path, e.getLocalizedMessage());
             return null;
         }
+    }
+
+    static boolean shouldInlineRequires(String path, String source, boolean fastRequire) {
+        return source.contains("require") && (!fastRequire ||
+                path.startsWith("Scene/") && (source.contains("local defs") || source.contains("local base_info")));
     }
 
     /**

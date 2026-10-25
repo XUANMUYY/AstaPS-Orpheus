@@ -11,6 +11,7 @@ import emu.grasscutter.data.common.FightPropData;
 import emu.grasscutter.data.excels.ProudSkillData;
 import emu.grasscutter.data.excels.avatar.*;
 import emu.grasscutter.game.props.ElementType;
+import emu.grasscutter.game.props.FightProperty;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import java.lang.reflect.Field;
 import java.util.*;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.api.Test;
 
 @ExtendWith(ServerResourceFixture.class)
 @ResourceLock("GameData")
@@ -28,6 +30,19 @@ class AvatarExtraTalentsTest {
     private final Map<Map<?, ?>, Map<?, ?>> originals = new IdentityHashMap<>();
     private Field indexField;
     private Object originalIndex;
+
+    @Test
+    void constellationAddPropsIncreaseFinalChargeEfficiency() throws Exception {
+        var avatar = avatar("Mizuki", OwnerSource.CONSTELLATION);
+        var prop = new FightPropData();
+        set(prop, "prop", FightProperty.FIGHT_PROP_CHARGE_EFFICIENCY);
+        set(prop, "value", 0.16f);
+        set(GameData.getAvatarTalentDataMap().get(90003), "addProps", new FightPropData[] {prop});
+
+        avatar.recalcStats(true);
+
+        assertEquals(1.16f, avatar.getFightProperty(FightProperty.FIGHT_PROP_CHARGE_EFFICIENCY), 0.00001f);
+    }
 
     @BeforeEach
     void isolateResources() throws Exception {

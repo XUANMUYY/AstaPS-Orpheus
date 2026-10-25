@@ -2,9 +2,11 @@ package emu.grasscutter.server.packet.recv;
 
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.common.ItemParamData;
+import emu.grasscutter.data.excels.ItemData;
 import emu.grasscutter.data.excels.avatar.AvatarCostumeData;
 import emu.grasscutter.game.inventory.*;
 import emu.grasscutter.game.props.ActionReason;
+import emu.grasscutter.game.quest.enums.QuestContent;
 import emu.grasscutter.game.shop.*;
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.BuyGoodsReqOuterClass;
@@ -30,15 +32,15 @@ public class HandlerBuyGoodsReq extends PacketHandler {
 
     /** 购买一种商品；旧版（23592）与国服 7.1（20999）请求共用，回包都是 BuyGoodsRsp。 */
     public static void process(GameSession session, int shopType, int goodsId, int buyCount) {
+        var player = session.getPlayer();
         List<ShopInfo> configShop =
-                session.getServer().getShopSystem().getShopData().get(shopType);
+                session.getServer().getShopSystem().getShopData(player, shopType);
         if (configShop == null) {
             session.send(new PacketBuyGoodsRsp(Retcode.RET_SVR_ERROR));
             return;
         }
 
         // Don't trust your users' input
-        var player = session.getPlayer();
 
         // A non-positive count buys nothing and cannot be honest. Worse, it inverts the whole
         // purchase: payItems checks `held < cost * count`, which is never true for a negative
@@ -89,6 +91,14 @@ public class HandlerBuyGoodsReq extends PacketHandler {
             return;
         }
         ShopInfo sg = sg2.get();
+        int currentTs = Utils.getCurrentSeconds();
+        if (!ShopPurchaseEligibility.canBuy(sg, player.getLevel(),
+                player.getHome() == null ? 0 : player.getHome().getLevel(), currentTs,
+                id -> { var limit = player.getGoodsLimit(id); return limit != null && limit.getHasBought() > 0; },
+                id -> ShopPurchaseEligibility.finishedQuest(player, id))) {
+            session.send(new PacketBuyGoodsRsp(Retcode.RET_SHOP_NOT_OPEN));
+            return;
+        }
         int itemId = sg.getGoodsItem().getId();
         AvatarCostumeData costumeData =
                 GameData.getAvatarCostumeDataItemIdMap().get(itemId);
@@ -111,7 +121,6 @@ public class HandlerBuyGoodsReq extends PacketHandler {
             return;
         }
 
-        int currentTs = Utils.getCurrentSeconds();
         boolean refreshes = sg.getShopRefreshType() != ShopInfo.ShopRefreshType.NONE;
         ShopLimit shopLimit = player.getGoodsLimit(sg.getGoodsId());
         int bought = 0;
@@ -139,6 +148,28 @@ public class HandlerBuyGoodsReq extends PacketHandler {
             // the payment keeps a full bag from swallowing the mora and handing back nothing.
             var relics = player.getInventory().getInventoryTab(ItemType.ITEM_RELIQUARY);
             if (buyCount > relics.getMaxCapacity() - relics.getSize()) {
+                session.send(new PacketBuyGoodsRsp(Retcode.RET_PACK_EXCEED_MAX_WEIGHT));
+                return;
+            }
+        }
+
+        ItemData grantedData = GameData.getItemDataMap().get(itemId);
+        if (grantedData != null
+                && grantedData.isUseOnGain()
+                && grantedData.hasUnsupportedItemUseAction()) {
+            int grantCount;
+            try {
+                grantCount = Math.multiplyExact(buyCount, sg.getGoodsItem().getCount());
+            } catch (ArithmeticException overflow) {
+                session.send(new PacketBuyGoodsRsp(Retcode.RET_SVR_ERROR));
+                return;
+            }
+            var tab = player.getInventory().getInventoryTab(grantedData.getItemType());
+            var owned = player.getInventory().getItemById(itemId);
+            if (grantCount <= 0 || tab == null
+                    || (long) (owned == null ? 0 : owned.getCount()) + grantCount
+                            > grantedData.getStackLimit()
+                    || (owned == null && tab.getSize() >= tab.getMaxCapacity())) {
                 session.send(new PacketBuyGoodsRsp(Retcode.RET_PACK_EXCEED_MAX_WEIGHT));
                 return;
             }
@@ -193,6 +224,8 @@ public class HandlerBuyGoodsReq extends PacketHandler {
                         || !player.getCostumeList().contains(costumeData.getId()))) {
             player.addCostume(costumeData.getId());
         }
+
+        player.getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_SHOP_SELL_OUT, shopType, 1);
 
         // Return full server-side goods (buy_limit / next_refresh), not the client stub.
         var limit = player.getGoodsLimit(sg.getGoodsId());

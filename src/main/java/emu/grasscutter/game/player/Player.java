@@ -105,6 +105,12 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter @Setter private int currentRealmId;
     @Getter @Setter private transient boolean isInEditMode;
     @Getter @Setter private int widgetId;
+    private Map<Integer, String> questAvatarNames = new HashMap<>();
+
+    public Map<Integer, String> getQuestAvatarNames() {
+        if (questAvatarNames == null) questAvatarNames = new HashMap<>();
+        return questAvatarNames;
+    }
     @Getter @Setter private int sceneId;
     @Getter @Setter private int regionId;
     @Getter private int mainCharacterId;
@@ -132,8 +138,10 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter private Map<Integer, Integer> questGlobalVariables;
     @Getter private Map<Integer, Integer> openStates;
     // 任务 QUEST_EXEC_SET_MAP_LAYER_UNLOCK_STATE 写入的地图分层状态（层 ID -> 1 解锁 / 0 锁定）。
-    // 没有记录的层保持原先的默认全开；旧存档读出来是 null，用 getMapLayerUnlockStates() 取。
+    // 无记录的任务解锁层默认锁定；其他层默认开放。旧存档的 null 用 getter 处理。
     private Map<Integer, Integer> mapLayerUnlockStates;
+    private Map<Integer, Map<Integer, Integer>> aranaraCollectionStates;
+    private Map<Integer, Map<Integer, Boolean>> questActivityConditionStates;
     // TPS ammunition reserve, keyed by TpsAmmunitionExcelConfigData id.
     private Map<Integer, Integer> tpsAmmunition;
     // TPS weapons the TPS traveler wears; it is a trial avatar and is never saved itself.
@@ -145,7 +153,23 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter @Setter private Map<Integer, Set<Integer>> unlockedSceneAreas;
     /** Map area states a quest changed with QUEST_EXEC_CHANGE_MAP_AREA_STATE, by map area id. */
     private Map<Integer, Boolean> mapAreaStates;
+    /** ScriptLib 死域开关，按场景与死域编号保存。 */
+    private Map<String, Integer> deathZoneStatuses;
+
+    public int getDeathZoneStatus(int sceneId, int zoneId) {
+        if (deathZoneStatuses == null) return 0;
+        return deathZoneStatuses.getOrDefault(sceneId + ":" + zoneId, 0);
+    }
+
+    public void setDeathZoneStatus(int sceneId, int zoneId, int status) {
+        if (deathZoneStatuses == null) deathZoneStatuses = new ConcurrentHashMap<>();
+        deathZoneStatuses.put(sceneId + ":" + zoneId, status);
+        save();
+    }
     @Getter @Setter private Map<Integer, Set<Integer>> unlockedScenePoints;
+    /** Quest-controlled scene point visibility, separate from unlock and lock state. */
+    private Map<Integer, Set<Integer>> hiddenScenePoints;
+    private Map<Integer, Set<Integer>> unhiddenScenePoints;
     /** Separate first-entry reward receipts; handbook unlocks do not establish discovery. */
     private Map<Integer, Set<Integer>> rewardedDungeonEntries;
     /** First activations whose independent LootCSS reward has not been settled. */
@@ -319,6 +343,8 @@ public class Player implements PlayerHook, FieldFetch {
         this.sceneTags = new HashMap<>();
         this.unlockedSceneAreas = new HashMap<>();
         this.unlockedScenePoints = new HashMap<>();
+        this.hiddenScenePoints = new HashMap<>();
+        this.unhiddenScenePoints = new HashMap<>();
         this.rewardedDungeonEntries = new HashMap<>();
         this.pendingTransPointRewards = new HashMap<>();
         this.transPointRewardSnapshots = new HashMap<>();
@@ -627,6 +653,28 @@ public class Player implements PlayerHook, FieldFetch {
         return this.mapLayerUnlockStates;
     }
 
+    public synchronized Map<Integer, Map<Integer, Integer>> getAranaraCollectionStates() {
+        if (this.aranaraCollectionStates == null) this.aranaraCollectionStates = new HashMap<>();
+        return this.aranaraCollectionStates;
+    }
+
+    public synchronized Map<Integer, Map<Integer, Boolean>> getQuestActivityConditionStates() {
+        if (this.questActivityConditionStates == null) this.questActivityConditionStates = new HashMap<>();
+        return this.questActivityConditionStates;
+    }
+
+    public synchronized boolean setAranaraCollectionState(int type, int id, int state) {
+        if (type != 1 || id < 1 || id > 15 || state < 0 || state > 3) return false;
+        var states = getAranaraCollectionStates().computeIfAbsent(type, ignored -> new HashMap<>());
+        int previous = states.getOrDefault(id, 0);
+        if (previous != state) {
+            states.put(id, state);
+            this.save();
+            this.sendPacket(new PacketAddAranaraCollectionNotify(type, id, previous, state));
+        }
+        return true;
+    }
+
     public Set<Integer> getUnlockedSceneAreas(int sceneId) {
         return this.unlockedSceneAreas.computeIfAbsent(sceneId, i -> new CopyOnWriteArraySet<>());
     }
@@ -638,6 +686,26 @@ public class Player implements PlayerHook, FieldFetch {
 
     public Set<Integer> getUnlockedScenePoints(int sceneId) {
         return this.unlockedScenePoints.computeIfAbsent(sceneId, i -> new CopyOnWriteArraySet<>());
+    }
+
+    public Map<Integer, Set<Integer>> getHiddenScenePoints() {
+        if (this.hiddenScenePoints == null) this.hiddenScenePoints = new HashMap<>();
+        return this.hiddenScenePoints;
+    }
+
+    public Map<Integer, Set<Integer>> getUnhiddenScenePoints() {
+        if (this.unhiddenScenePoints == null) this.unhiddenScenePoints = new HashMap<>();
+        return this.unhiddenScenePoints;
+    }
+
+    public Set<Integer> getHiddenScenePoints(int sceneId) {
+        if (this.hiddenScenePoints == null) this.hiddenScenePoints = new HashMap<>();
+        return this.hiddenScenePoints.computeIfAbsent(sceneId, i -> new CopyOnWriteArraySet<>());
+    }
+
+    public Set<Integer> getUnhiddenScenePoints(int sceneId) {
+        if (this.unhiddenScenePoints == null) this.unhiddenScenePoints = new HashMap<>();
+        return this.unhiddenScenePoints.computeIfAbsent(sceneId, i -> new CopyOnWriteArraySet<>());
     }
 
     public Map<Integer, Set<Integer>> getPendingTransPointRewards() {
@@ -860,7 +928,8 @@ public class Player implements PlayerHook, FieldFetch {
 
         exp += gain;
 
-        while (exp >= reqExp && reqExp > 0) {
+        int levelCap = PlayerLevelLocks.maxLevel(this::isAdventureAscensionQuestFinished);
+        while (exp >= reqExp && reqExp > 0 && level < levelCap) {
             exp -= reqExp;
             level += 1;
             reqExp = getExpRequired(level);
@@ -871,23 +940,23 @@ public class Player implements PlayerHook, FieldFetch {
         this.setProperty(PlayerProperty.PROP_PLAYER_EXP, exp);
     }
 
+    private boolean isAdventureAscensionQuestFinished(int mainQuestId) {
+        var quest = this.getQuestManager().getMainQuestById(mainQuestId);
+        return (quest != null && quest.isFinished())
+                || this.getForcedFinishedQuests().contains(mainQuestId);
+    }
+
+    public void refreshAdventureLevelLocks() {
+        this.addExpDirectly(0);
+        this.updateWorldLevel();
+    }
+
     private void updateWorldLevel() {
         int currentWorldLevel = this.getWorldLevel();
-        int currentLevel = this.getLevel();
+        int newWorldLevel = PlayerLevelLocks.worldLevel(
+                this.getLevel(), this::isAdventureAscensionQuestFinished);
 
-        int newWorldLevel =
-            (currentLevel >= 58) ? 9 :
-                (currentLevel >= 55) ? 8 :
-                    (currentLevel >= 50) ? 7 :
-                        (currentLevel >= 45) ? 6 :
-                            (currentLevel >= 40) ? 5 :
-                                (currentLevel >= 35) ? 4 :
-                                    (currentLevel >= 30) ? 3 :
-                                        (currentLevel >= 25) ? 2 :
-                                            (currentLevel >= 20) ? 1 :
-                                                0;
-
-        if (newWorldLevel != currentWorldLevel) {
+        if (newWorldLevel >= 0 && newWorldLevel != currentWorldLevel) {
             this.setWorldLevel(newWorldLevel);
         }
     }
@@ -1725,9 +1794,14 @@ public class Player implements PlayerHook, FieldFetch {
         getQuestManager().onLogin();
 
         session.send(new PacketPlayerDataNotify(this));
+        if (!getQuestAvatarNames().isEmpty()) {
+            session.send(new PacketAvatarRenameInfoNotify(getQuestAvatarNames()));
+        }
         session.send(new PacketStoreWeightLimitNotify());
         session.send(new PacketPlayerStoreNotify(this));
         session.send(new PacketAvatarDataNotify(this));
+        // The official login also sends the team presets on their own; the team screen listens for it.
+        session.send(new PacketAvatarTeamAllDataNotify(this));
         session.send(new PacketCraftingAvatarDataNotify());
         session.send(new PacketAvatarWeaponSkinDataNotify(this));
         // 登录时下发头像/头像框数据：否则重登后个人主页的头像框会显示成"?"，要重新应用一次才恢复。
@@ -1746,6 +1820,10 @@ public class Player implements PlayerHook, FieldFetch {
 
         session.send(new PacketFinishedParentQuestNotify(this));
         session.send(new PacketBattlePassAllDataNotify(this));
+        // 7.1 also carries the new-style pass data. Data only: unlocking its open states stays with
+        // whatever condition normally opens them.
+        session.send(new PacketBeyondBattlePassAllDataNotify(this));
+        session.send(new PacketBeyondBattlePassCurScheduleUpdateNotify(this));
         session.send(new PacketQuestListNotify(this));
         session.send(new PacketQuestGlobalVarNotify(this));
         // Tips met before they were tracked, so the codex matches this account's progress.
@@ -1782,6 +1860,7 @@ public class Player implements PlayerHook, FieldFetch {
         // waits on it, so skipping here would silently cost the player a day of commissions.
         this.loadDailyTaskManager();
         this.dailyTaskManager.onPlayerLogin();
+        this.sendPacket(new PacketAranaraCollectionDataNotify(this));
 
         // The client is told nothing about these on its own - they exist only as a forged notify,
         // so a relog has to re-assert them or the quests come back unfinished.

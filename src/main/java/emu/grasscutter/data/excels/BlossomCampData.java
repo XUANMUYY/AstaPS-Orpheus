@@ -13,6 +13,7 @@ public final class BlossomCampData extends GameResource {
     private int cityId;
     private int sectionId;
     private int limit_level;
+    private int finish_progress;
     private List<Integer> refreshTypeVec;
     private List<Integer> newGroupVec;
     private List<Integer> nextCampIdVec;
@@ -24,5 +25,9 @@ public final class BlossomCampData extends GameResource {
 
     public int getLimitLevel() {
         return limit_level;
+    }
+
+    public int getFinishProgress() {
+        return finish_progress;
     }
 }

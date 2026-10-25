@@ -124,7 +124,7 @@ public final class AdjustJournal implements AutoCloseable {
         if (p.collection.equals("players") && !p.path.isEmpty() && p.path.get(0).equals("openStates")
                 && p.before.present && p.before.value.isJsonPrimitive() && p.before.value.getAsInt() != 0) return false;
         return p.collection.equals("players") && !p.path.isEmpty()
-                && Set.of("questGlobalVariables", "openStates", "unlockedScenePoints", "unlockedSceneAreas", "forceLockedScenePoints", "forcedFinishedQuests", "pendingTransPointRewards", "transPointRewardSnapshots").contains(p.path.get(0));
+                && Set.of("questGlobalVariables", "openStates", "unlockedScenePoints", "unlockedSceneAreas", "forceLockedScenePoints", "hiddenScenePoints", "unhiddenScenePoints", "aranaraCollectionStates", "questActivityConditionStates", "forcedFinishedQuests", "pendingTransPointRewards", "transPointRewardSnapshots").contains(p.path.get(0));
     }
     private static Value valueAt(JsonObject root, List<String> path) {
         if (path.isEmpty()) return new Value(root != null, root == null ? JsonNull.INSTANCE : root);

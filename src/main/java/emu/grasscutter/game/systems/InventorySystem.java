@@ -559,7 +559,8 @@ public class InventorySystem extends BaseGameSystem {
         }
 
         // Level check
-        if (weapon.getLevel() != currentPromoteData.getUnlockMaxLevel()) {
+        if (weapon.getLevel() != currentPromoteData.getUnlockMaxLevel()
+                || !nextPromoteData.isPlayerLevelEligible(player.getLevel())) {
             return;
         }
 
@@ -611,7 +612,8 @@ public class InventorySystem extends BaseGameSystem {
         }
 
         // Level check
-        if (avatar.getLevel() != currentPromoteData.getUnlockMaxLevel()) {
+        if (avatar.getLevel() != currentPromoteData.getUnlockMaxLevel()
+                || !nextPromoteData.isPlayerLevelEligible(player.getLevel())) {
             return;
         }
 
@@ -985,6 +987,12 @@ public class InventorySystem extends BaseGameSystem {
         var actions = itemData.getItemUseActions();
         Grasscutter.getLogger().trace("Using - actions - {}", actions);
         if (actions == null) return true; // Maybe returning false would be more appropriate?
+        // 混合操作也必须先检查前提，避免部分效果已发放却留下未实现的状态。
+        if (itemData.hasUnsupportedItemUseAction()) return false;
+        for (var action : actions) {
+            if (action instanceof emu.grasscutter.game.props.ItemUseAction.ItemUseCheckFormalAvatar check
+                    && !check.isSatisfied(params)) return false;
+        }
         return actions.stream()
                 .map(use -> use.useItem(params))
                 .reduce(false, (a, b) -> a || b); // Don't short-circuit!!!

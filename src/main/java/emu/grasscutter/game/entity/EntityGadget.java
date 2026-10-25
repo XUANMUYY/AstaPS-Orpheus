@@ -182,6 +182,8 @@ public class EntityGadget extends EntityBaseGadget {
                 this.addConfigAbility(ability);
             }
         }
+        // 出生时的状态（多为 Default）对应的修饰器先挂上
+        emu.grasscutter.game.ability.GadgetStateModifiers.sync(this);
     }
 
     public void setInteractEnabled(boolean enable) {
@@ -217,6 +219,8 @@ public class EntityGadget extends EntityBaseGadget {
         this.setState(state);
         ticksSinceChange = getScene().getSceneTimeSeconds();
         this.getScene().broadcastPacket(new PacketGadgetStateNotify(this, state));
+        // AttachToGadgetStateMixin：按新状态挂上 / 摘掉受状态控制的修饰器
+        emu.grasscutter.game.ability.GadgetStateModifiers.sync(this);
         getScene()
                 .getScriptManager()
                 .callEvent(
@@ -298,6 +302,7 @@ public class EntityGadget extends EntityBaseGadget {
                     case OfferingGadget ->
                             new emu.grasscutter.game.entity.gadget.GadgetOffering(this);
                     case Gadget -> new GadgetObject(this);
+                    case ViewPoint -> new emu.grasscutter.game.entity.gadget.GadgetViewPoint(this);
                     default -> null;
                 };
         try {
@@ -367,8 +372,12 @@ public class EntityGadget extends EntityBaseGadget {
         // Lua event
         getScene()
                 .getScriptManager()
-                .callEvent(
-                        new ScriptArgs(this.getGroupId(), EventType.EVENT_GADGET_CREATE, this.getConfigId()));
+                .callEvent(gadgetCreateEventArgs(this.getGroupId(), this.getConfigId(), this.getGadgetId()));
+    }
+
+    static ScriptArgs gadgetCreateEventArgs(int groupId, int configId, int gadgetId) {
+        return new ScriptArgs(groupId, EventType.EVENT_GADGET_CREATE, configId, gadgetId)
+                .setEventSource(configId);
     }
 
     @Override

@@ -87,6 +87,11 @@ public final class ProfileUnlocks {
         return frames(frameIds, frameItems, owned(player).item());
     }
 
+    public static boolean isFrameId(int id) {
+        ensureFramesLoaded();
+        return frameIds.contains(id);
+    }
+
     /** 装着的头像框没解锁（旧版默认装 100011）时换回默认框。登录时调用。 */
     public static void resetLockedFrame(Player player) {
         int equipped = player.getProfileFrameId();

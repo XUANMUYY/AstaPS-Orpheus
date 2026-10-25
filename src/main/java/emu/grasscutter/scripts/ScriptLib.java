@@ -5,6 +5,7 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.game.activity.ActivityManager;
 import emu.grasscutter.game.dungeons.DungeonManager;
 import emu.grasscutter.game.dungeons.challenge.DungeonChallenge;
+import emu.grasscutter.game.dungeons.challenge.FatherChallenge;
 import emu.grasscutter.game.dungeons.challenge.enums.FatherChallengeProperty;
 import emu.grasscutter.game.dungeons.challenge.factory.ChallengeFactory;
 import emu.grasscutter.game.entity.*;
@@ -20,6 +21,7 @@ import emu.grasscutter.net.proto.EnterTypeOuterClass;
 import emu.grasscutter.net.proto.VisionTypeOuterClass.VisionType;
 import emu.grasscutter.scripts.constants.*;
 import emu.grasscutter.scripts.data.*;
+import emu.grasscutter.scripts.lib.PointArrayAvatarMovement;
 import emu.grasscutter.server.event.player.PlayerTeleportEvent.TeleportType;
 import emu.grasscutter.server.packet.send.*;
 import emu.grasscutter.server.packet.send.PacketSceneEntityAppearNotify;
@@ -42,6 +44,8 @@ import static emu.grasscutter.scripts.constants.GroupKillPolicy.*;
 @SuppressWarnings("unused")
 public class ScriptLib {
     public static final Logger logger = Grasscutter.getLogger();
+    private static final String BLOSSOM_SCHEDULE_STATE_KEY = "__blossomScheduleState";
+    private static final String BLOSSOM_SCHEDULE_PROGRESS_KEY = "__blossomScheduleProgress";
     private final FastThreadLocal<SceneScriptManager> sceneScriptManager;
     private final FastThreadLocal<SceneGroup> currentGroup;
     private final FastThreadLocal<ScriptArgs> callParams;
@@ -223,13 +227,27 @@ public class ScriptLib {
 
     public synchronized int ActiveChallenge(int challengeId, int challengeIndex, int timeLimitOrGroupId, int groupId, int objectiveKills, int param5) {
         logger.debug("[LUA] Call ActiveChallenge with {},{},{},{},{},{}", challengeId, challengeIndex, timeLimitOrGroupId, groupId, objectiveKills, param5);
+        return startChallenge(challengeId, challengeIndex, new int[] {timeLimitOrGroupId, groupId, objectiveKills, param5});
+    }
+
+    public synchronized int StartChallenge(int challengeId, int challengeIndex, LuaTable conditions) {
+        if (conditions == null || conditions.length() < 3 || conditions.length() > 6) return 1;
+        int[] parameters = new int[conditions.length()];
+        for (int i = 0; i < parameters.length; i++) {
+            LuaValue value = conditions.get(i + 1);
+            if (!value.isnumber() || !value.isint()) return 1;
+            parameters[i] = value.toint();
+        }
+        return startChallenge(challengeId, challengeIndex, parameters);
+    }
+
+    private int startChallenge(int challengeId, int challengeIndex, int[] parameters) {
 
         var scene = getSceneScriptManager().getScene();
         var existingChallenge = scene.getChallenge();
         if (existingChallenge != null && existingChallenge.inProgress()) {
             logger.warn("ActiveChallenge: tried to create challenge while one is already in progress");
-            return emu.grasscutter.game.quest.AmberFlightExamSupport.isFlightChallenge(
-                    scene, getCurrentGroup().get(), challengeId, challengeIndex) ? 1 : 0;
+            return 1;
         }
 
         var players = scene.getPlayers();
@@ -239,7 +257,7 @@ public class ScriptLib {
                     "ActiveChallenge blocked (awaiting tower team reconfigure) id={} index={}",
                     challengeId,
                     challengeIndex);
-            return 0;
+            return 1;
         }
         // Tower lower-half lua passes TPL_TIME = remaining seconds as the 3rd ActiveChallenge arg.
         // Do NOT subtract from currentTimeLimit (old Grasscutter carry-over): that treated remaining
@@ -253,9 +271,9 @@ public class ScriptLib {
                             towerManager
                                     .getClass()
                                     .getMethod("resolveAbyssChallengeTimeLimit", int.class);
-                    int corrected = (Integer) m.invoke(towerManager, timeLimitOrGroupId);
-                    if (corrected != timeLimitOrGroupId) {
-                        timeLimitOrGroupId = corrected;
+                    int corrected = (Integer) m.invoke(towerManager, parameters[0]);
+                    if (corrected != parameters[0]) {
+                        parameters[0] = corrected;
                     }
                 } catch (ReflectiveOperationException ignored) {
                     // Method absent on older jars — keep lua timeLimit as-is.
@@ -265,31 +283,24 @@ public class ScriptLib {
                         players.isEmpty() ? -1 : players.get(0).getUid(),
                         challengeId,
                         challengeIndex,
-                        timeLimitOrGroupId,
+                        parameters[0],
                         getSceneScriptManager()
-                                .getVariables(groupId)
+                                .getVariables(parameters[1])
                                 .getOrDefault("stage", -1));
             }
         }
 
-        var challenge = ChallengeFactory.getChallenge(
-                challengeId,
-                challengeIndex,
-                timeLimitOrGroupId,
-                groupId,
-                objectiveKills,
-                param5,
-                scene,
-                getCurrentGroup().get()
-        );
+        var challenge = ChallengeFactory.getChallenge(challengeId, challengeIndex, parameters, scene, getCurrentGroup().get());
 
         if (challenge == null) {
             return 1;
         }
 
+        challenge.setSourceRegionEntityId(currentChallengeSourceRegion(scene));
+
         if (challenge instanceof DungeonChallenge dungeonChallenge) {
 
-            dungeonChallenge.setStage(getSceneScriptManager().getVariables(groupId).getOrDefault("stage", -1) == 0);
+            dungeonChallenge.setStage(getSceneScriptManager().getVariables(parameters[1]).getOrDefault("stage", -1) == 0);
         }
 
         scene.setChallenge(challenge);
@@ -297,10 +308,40 @@ public class ScriptLib {
         return 0;
     }
 
-    public int AddBlossomScheduleProgressByGroupId(int groupId) {
-        logger.warn("[LUA] Call unimplemented AddBlossomScheduleProgressByGroupId with {}", groupId);
+    private int currentChallengeSourceRegion(Scene scene) {
+        var event = callParams.getIfExists();
+        int entityId = event == null ? 0 : event.source_eid;
+        return entityId != 0 && scene.getScriptManager().getRegionById(entityId) != null
+                ? entityId : 0;
+    }
 
+    public int AddBlossomScheduleProgressByGroupId(int groupId) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || targetGroupId <= 0) return 1;
+        var variables = manager.getVariables(targetGroupId);
+        int target = blossomFinishProgress(
+                GameData.getBlossomCampDataMap().values(), targetGroupId);
+        int previous = variables.getOrDefault(BLOSSOM_SCHEDULE_PROGRESS_KEY, 0);
+        if (previous >= target) return 0;
+        int progress = previous + 1;
+        variables.put(BLOSSOM_SCHEDULE_PROGRESS_KEY, progress);
+        if (progress == target) {
+            manager.callEvent(new ScriptArgs(targetGroupId,
+                    EventType.EVENT_BLOSSOM_PROGRESS_FINISH));
+        }
         return 0;
+    }
+
+    static int blossomFinishProgress(
+            Collection<emu.grasscutter.data.excels.BlossomCampData> camps, int groupId) {
+        for (var camp : camps) {
+            if (camp.getNewGroupVec() != null && camp.getNewGroupVec().contains(groupId)
+                    && camp.getFinishProgress() > 0) return camp.getFinishProgress();
+        }
+        // 推断：older groups absent from BlossomGroups have one completion action.
+        return 1;
     }
 
     public int AddExtraGroupSuite(int groupId, int suite) {
@@ -373,10 +414,28 @@ public class ScriptLib {
         return 0;
     }
 
-    public int AttachChildChallenge(int var1, int var2, int var3, int[] var4, LuaTable var5, LuaTable var6) {
-        logger.warn("[LUA] Call unimplemented AttachChildChallenge with {} {} {} {} {} {}", var1, var2, var3, var4, var5, var6);
-
-        return 0;
+    public int AttachChildChallenge(int fatherIndex, int childIndex, int childId, int[] params,
+                                    LuaTable uidList, LuaTable weights) {
+        var scene = getSceneScriptManager().getScene();
+        if (!(scene.getChallenge() instanceof FatherChallenge father)
+                || father.getChallengeIndex() != fatherIndex || params == null
+                || params.length < 2 || params.length > 6 || weights == null) return 1;
+        int successWeight = weights.get("success").optint(-1);
+        int failWeight = weights.get("fail").optint(-1);
+        if (successWeight < 0 || failWeight < 0 || uidList == null) return 1;
+        var uids = new ArrayList<Integer>();
+        for (int i = 1; i <= uidList.length(); i++) {
+            var uid = uidList.get(i);
+            if (!uid.isint() || uid.toint() <= 0) return 1;
+            uids.add(uid.toint());
+        }
+        // The older child forms (for example 9019) omit an unused third parameter.
+        var factoryParams = params.length == 2 ? new int[] {params[0], params[1], 0} : params;
+        var child = ChallengeFactory.getChallenge(childIndex, childId, factoryParams, scene,
+                getCurrentGroup().orElse(null));
+        if (child == null || child.getGroup() == null) return 1;
+        child.setUidList(List.copyOf(uids));
+        return father.attach(child, successWeight, failWeight) ? 0 : 1;
     }
 
     public int AutoMonsterTide(int sourceId, int groupId, Integer[] ordersConfigId, int tideCount, int sceneLimit, int param6) {
@@ -391,8 +450,10 @@ public class ScriptLib {
     }
 
     public int BeginCameraSceneLook(LuaTable sceneLookParams) {
-        logger.warn("[LUA] Call unimplemented BeginCameraSceneLook with {}", printTable(sceneLookParams));
-
+        // 7.1 protocol.desc 只有包号、没有 BeginCameraSceneLookNotify 的字段结构，不发猜测格式的包。
+        // 镜头只影响表现；1155 处 Lua 写成 `if 0 ~= BeginCameraSceneLook(...) then return -1`，
+        // 回失败会让后面的流程动作整段中断，所以仍回 0。
+        logger.debug("[LUA] BeginCameraSceneLook not sent: 7.1 notification schema is absent");
         return 0;
     }
 
@@ -517,8 +578,21 @@ public class ScriptLib {
     }
 
     public int CreateBlossomChestByGroupId(int groupId, int var2) {
-        logger.warn("[LUA] Call unimplemented CreateBlossomChestByGroupId with {} {}", groupId, var2);
-
+        var manager = sceneScriptManager.getIfExists();
+        var current = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && current != null ? current.id : groupId;
+        if (manager == null || manager.getScene() == null || targetGroupId <= 0 || var2 <= 0)
+            return 1;
+        var group = manager.getGroupById(targetGroupId);
+        if (group == null || group.gadgets == null) return 1;
+        var definition = group.gadgets.get(var2);
+        if (definition == null || !definition.is_blossom_chest) return 1;
+        var scene = manager.getScene();
+        if (scene.getEntityByConfigId(var2, targetGroupId) != null) return 0;
+        var chest = manager.createGadget(targetGroupId, group.block_id, definition);
+        if (chest == null || scene.getBlossomManager() == null
+                || !scene.getBlossomManager().registerScriptedChest(targetGroupId, chest)) return 1;
+        manager.addEntity(chest);
         return 0;
     }
 
@@ -540,9 +614,18 @@ public class ScriptLib {
         return 0;
     }
 
-    public int CreateFatherChallenge(int var1, int var2, int var3, LuaTable var4) {
-        logger.warn("[LUA] Call unimplemented CreateFatherChallenge with {} {} {} {}", var1, var2, var3, var4);
-
+    public int CreateFatherChallenge(int index, int id, int duration, LuaTable goals) {
+        var scene = getSceneScriptManager().getScene();
+        if (goals == null || duration <= 0 || goals.get("success").optint(0) <= 0
+                || goals.get("fail").optint(0) <= 0) return 1;
+        var existing = scene.getChallenge();
+        if (existing != null && existing.inProgress()) return 1;
+        var challenge = ChallengeFactory.getChallenge(index, id,
+                new int[] {duration, goals.get("success").toint(), goals.get("fail").toint()},
+                scene, getCurrentGroup().orElse(null));
+        if (!(challenge instanceof FatherChallenge father) || father.getGroup() == null) return 1;
+        father.setSourceRegionEntityId(currentChallengeSourceRegion(scene));
+        scene.setChallenge(father);
         return 0;
     }
 
@@ -552,7 +635,7 @@ public class ScriptLib {
 
         if (configId == 0) {
             Grasscutter.getLogger().warn("Tried to CreateGadget with config_id 0: {}", printTable(table));
-            return 0;
+            return 1;
         }
 
         var group = getCurrentGroup();
@@ -560,9 +643,7 @@ public class ScriptLib {
         if (group.isEmpty()) {
             return 1;
         }
-        createGadget(configId, group.get());
-
-        return 0;
+        return createGadget(configId, group.get()) == null ? 1 : 0;
     }
 
     public int CreateGroupTimerEvent(int groupID, String source, double time) {
@@ -624,9 +705,11 @@ public class ScriptLib {
     }
 
     public int CreateMonsterFaceAvatar(LuaTable var1) {
-        logger.warn("[LUA] Call unimplemented CreateMonsterFaceAvatar with {}", printTable(var1));
-
-        return 0;
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int result = emu.grasscutter.scripts.lib.ScriptLibB.createMonsterFaceAvatar(manager, group, var1);
+        if (result != 0) logger.warn("[LUA] CreateMonsterFaceAvatar failed in group {}", group == null ? 0 : group.id);
+        return result;
     }
 
     public int DelPlayerGroupVisionType(int[] uids, int[] var2) {
@@ -770,6 +853,12 @@ public class ScriptLib {
         return 0;
     }
 
+    public int GetEffigyChallengeLimitTime() {
+        // 推断：没有已选的 Effigy 限时条件时，Lua 用 -1 表示采用关卡自身的默认时限。
+        // 当前服务端尚无 Effigy 条件选择状态，不能虚构一个扣减秒数。
+        return -1;
+    }
+
     public int GetEntityIdByConfigId(int configId) {
         logger.warn("[LUA] Call GetEntityIdByConfigId with {}", configId);
 
@@ -794,6 +883,23 @@ public class ScriptLib {
             return -1;
         }
         return ((EntityGadget) gadget).getState();
+    }
+
+    public int GetBlossomScheduleStateByGroupId(int groupId) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || targetGroupId <= 0) return -1;
+        return manager.getVariables(targetGroupId).getOrDefault(BLOSSOM_SCHEDULE_STATE_KEY, 0);
+    }
+
+    public int GetBlossomRefreshTypeByGroupId(int groupId) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || manager.getScene() == null || targetGroupId <= 0
+                || manager.getScene().getBlossomManager() == null) return 0;
+        return manager.getScene().getBlossomManager().getRefreshTypeByGroupId(targetGroupId);
     }
 
     public int GetGameHour() {
@@ -825,9 +931,7 @@ public class ScriptLib {
     }
 
     public int GetGroupTempValue(String name, LuaTable var2) {
-        logger.warn("[LUA] Call unimplemented GetGroupTempValue with {} {}", name, printTable(var2));
-
-        return 0;
+        return ScriptLibTaskA.tempValue(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, var2, null, false);
     }
 
     public int GetGroupVariableValue(String var) {
@@ -979,7 +1083,7 @@ public class ScriptLib {
 
         var timeAxis = new SceneTimeAxis(
                 scriptManager, group.id,
-                identifier, delays[0], shouldLoop
+                identifier, delays.clone(), shouldLoop
         );
         scriptManager.initTimeAxis(timeAxis);
         timeAxis.start();
@@ -1081,16 +1185,48 @@ public class ScriptLib {
     }
 
     public int ModifyFatherChallengeProperty(int challengeId, int propertyTypeIndex, int value) {
-        val propertyType = FatherChallengeProperty.values()[propertyTypeIndex];
-        logger.warn("[LUA] Call unimplemented ModifyFatherChallengeProperty with {} {} {}", challengeId, propertyType.name(), value);
-
-        return 0;
+        var properties = FatherChallengeProperty.values();
+        if (propertyTypeIndex < 0 || propertyTypeIndex >= properties.length) return 1;
+        var challenge = getSceneScriptManager().getScene().getChallenge();
+        return challenge instanceof FatherChallenge father && father.getChallengeIndex() == challengeId
+                && father.modify(properties[propertyTypeIndex], value) ? 0 : 1;
     }
 
-    public int MoveAvatarByPointArray(int uid, int targetId, LuaTable var3, String var4) {
-        logger.warn("[LUA] Call unimplemented MoveAvatarByPointArray with {} {} {} {}", uid, targetId, printTable(var3), var4);
-
-        return 0;
+    public int MoveAvatarByPointArray(int uid, int pointArrayId, LuaTable route,
+                                      LuaTable moveParams, String marker) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null || route == null) {
+            logger.warn("[LUA] MoveAvatarByPointArray: missing scene or route, array={}", pointArrayId);
+            return -1;
+        }
+        var scene = manager.getScene();
+        var player = scene.getPlayers().stream().filter(p -> p.getUid() == uid).findFirst().orElse(null);
+        if (player == null) {
+            logger.warn("[LUA] MoveAvatarByPointArray: uid {} is not in scene {}", uid, scene.getId());
+            return -1;
+        }
+        var activeTeam = player.getTeamManager().getActiveTeam();
+        if (activeTeam == null || activeTeam.isEmpty()) {
+            logger.warn("[LUA] MoveAvatarByPointArray: uid {} has no active avatar", uid);
+            return -1;
+        }
+        try {
+            var destination = PointArrayAvatarMovement.destination(scene.getId(), pointArrayId, route);
+            if (destination == null) {
+                logger.warn("[LUA] MoveAvatarByPointArray: destination missing, scene={} array={}",
+                        scene.getId(), pointArrayId);
+                return -1;
+            }
+            // 推断：传送机关只依赖路线终点；当前协议没有已验证的玩家路线移动通知。
+            softTeleportInScene(scene, player, destination, null);
+            logger.debug("[LUA] MoveAvatarByPointArray uid={} array={} destination={}",
+                    uid, pointArrayId, destination);
+            return 0;
+        } catch (Exception e) {
+            logger.warn("[LUA] MoveAvatarByPointArray: cannot read point array {} in scene {}: {}",
+                    pointArrayId, scene.getId(), e.toString());
+            return -1;
+        }
     }
 
     public int MoveAvatarByPointArrayWithTemplate(int uid, int pointarray_id, int[] routelist, int var4, LuaTable var5) {
@@ -1135,15 +1271,32 @@ public class ScriptLib {
     }
 
     public int RefreshBlossomDropRewardByGroupId(int groupId) {
-        logger.warn("[LUA] Call unimplemented RefreshBlossomDropRewardByGroupId with {}", groupId);
-
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || manager.getScene() == null || targetGroupId <= 0
+                || manager.getGroupInstanceById(targetGroupId) == null
+                || manager.getScene().getBlossomManager() == null) return 1;
+        // 推断：loot is rolled from the native type/world-level table at claim time.
+        // Re-publish its current preview instead of fixing a shared drop before players claim.
+        manager.getScene().getBlossomManager().notifyIcon();
         return 0;
     }
 
     public int RefreshBlossomGroup(LuaTable var1) {
-        logger.warn("[LUA] Call unimplemented RefreshBlossomGroup with {}", printTable(var1));
-
-        return 0;
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int groupId = var1.get("group_id").optint(0);
+        if (groupId == 0 && group != null) groupId = group.id;
+        int suite = var1.get("suite").optint(0);
+        if (manager == null || groupId <= 0 || suite <= 0) return 1;
+        var instance = manager.getGroupInstanceById(groupId);
+        if (instance == null || instance.getLuaGroup() == null
+                || instance.getLuaGroup().getSuiteByIndex(suite) == null) return 1;
+        // 推断：is_delay_unload affects entity teardown timing; the current group API
+        // only supports immediate replacement. Keep the native suite and exclude_prev behavior.
+        return manager.refreshGroup(instance, suite,
+                var1.get("exclude_prev").optboolean(false)) == suite ? 0 : 1;
     }
 
     public int RefreshGroup(LuaTable table) {
@@ -1243,9 +1396,14 @@ public class ScriptLib {
         return 0;
     }
 
-    public int SetBlossomScheduleStateByGroupId(int groupId, int scene) {
-        logger.warn("[LUA] Call unimplemented SetBlossomScheduleStateByGroupId with {} {}", groupId, scene);
-
+    public int SetBlossomScheduleStateByGroupId(int groupId, int state) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || targetGroupId <= 0 || state < 0 || state > 3) return 1;
+        // 推断：原生 Blossom schedule 的组状态由 Lua 设置；沿用已有可持久化的组变量缓存。
+        manager.getVariables(targetGroupId).put(BLOSSOM_SCHEDULE_STATE_KEY, state);
+        if (state == 1) manager.getVariables(targetGroupId).put(BLOSSOM_SCHEDULE_PROGRESS_KEY, 0);
         return 0;
     }
 
@@ -1364,9 +1522,7 @@ public class ScriptLib {
     }
 
     public int SetGroupTempValue(String name, int value, LuaTable var3) {
-        logger.warn("[LUA] Call unimplemented SetGroupTempValue with {} {} {}", name, value, printTable(var3));
-
-        return 0;
+        return ScriptLibTaskA.tempValue(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, var3, value, false);
     }
 
     public int SetGroupVariableValue(String var, int value) {
@@ -1438,7 +1594,7 @@ public class ScriptLib {
             val configRoute = (PointArrayRoute) routeConfig;
 
             if (configRoute.getPointArrayId() == pointArrayId) {
-                return -1;
+                return 0;
             }
 
             configRoute.setPointArrayId(pointArrayId);
@@ -1446,7 +1602,7 @@ public class ScriptLib {
 
         sceneScriptManager.get().getScene().broadcastPacket(new PacketPlatformChangeRouteNotify(entityGadget));
 
-        return -1;
+        return 0;
     }
 
     public int SetPlatformRouteId(int entityConfigId, int routeId) {
@@ -1627,15 +1783,23 @@ public class ScriptLib {
         return 0;
     }
 
-    public int StartFatherChallenge(int var1) {
-        logger.warn("[LUA] Call unimplemented StartFatherChallenge with {}", var1);
-
-        return 0;
+    public int StartFatherChallenge(int index) {
+        var challenge = getSceneScriptManager().getScene().getChallenge();
+        if (!(challenge instanceof FatherChallenge father)
+                || father.getChallengeIndex() != index || father.inProgress()) return 1;
+        father.start();
+        return father.inProgress() ? 0 : 1;
     }
 
     public int StartGallery(int galleryId) {
-        logger.warn("[LUA] Call unimplemented StartGallery with {}", galleryId);
-
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null || galleryId <= 0) {
+            logger.warn("[LUA] StartGallery: invalid scene or gallery id {}", galleryId);
+            return -1;
+        }
+        // 7.1 描述集缺少 GalleryStartNotify 具名消息，先保存服务端状态，避免发送猜测字段的包。
+        manager.getGalleryScriptState().start(galleryId, System.currentTimeMillis());
+        logger.debug("[LUA] StartGallery: recorded gallery {} in scene {}", galleryId, manager.getScene().getId());
         return 0;
     }
 
@@ -1668,8 +1832,13 @@ public class ScriptLib {
         var scene = getSceneScriptManager().getScene();
         if (LiyueCloudDungeonSupport.isTargetScene(scene) && var1 >= 100 && var1 <= 102)
             return LiyueCloudDungeonSupport.stopFireChallenge(scene, var1, var2);
-        logger.warn("[LUA] Call unimplemented StopChallenge with {} {}", var1, var2);
-
+        if (var2 != 0 && var2 != 1) return 1;
+        var challenge = scene.getChallenge();
+        if (challenge instanceof FatherChallenge father && father.inProgress()
+                && father.activeChild(var1) != null) challenge = father.activeChild(var1);
+        if (challenge == null || !challenge.inProgress() || challenge.getChallengeIndex() != var1) return 1;
+        if (var2 == 1) challenge.done();
+        else challenge.fail();
         return 0;
     }
 
@@ -1833,8 +2002,20 @@ public class ScriptLib {
     }
 
     public int UnlockFloatSignal(int groupId, int gadgetSignalId) {
-        logger.warn("[LUA] Call unimplemented UnlockFloatSignal with {} {}", groupId, gadgetSignalId);
-
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null) {
+            logger.warn("[LUA] UnlockFloatSignal: no active scene");
+            return -1;
+        }
+        var entity = manager.getScene().getEntityByConfigId(gadgetSignalId, groupId);
+        if (!(entity instanceof EntityGadget gadget)) {
+            logger.warn("[LUA] UnlockFloatSignal: gadget {} in group {} is absent",
+                    gadgetSignalId, groupId);
+            return -1;
+        }
+        // 推断：浮标信号的解锁表现使用场景 gadget 的启动状态及其现有状态通知。
+        gadget.updateState(ScriptGadgetState.GearStart);
+        logger.debug("[LUA] UnlockFloatSignal group={} gadget={}", groupId, gadgetSignalId);
         return 0;
     }
 
@@ -2008,5 +2189,177 @@ public class ScriptLib {
         }
 
         return configIds;
+    }
+
+    // ---- 任务卡 a 补的函数 ----
+    public int GoToFlowSuite(int groupId, int suite) {
+        return ScriptLibTaskA.goToFlowSuite(sceneScriptManager.getIfExists(), groupId, suite);
+    }
+
+    public int AddExtraFlowSuite(int groupId, int suite, int policy) {
+        return ScriptLibTaskA.extraFlowSuite(sceneScriptManager.getIfExists(), groupId, suite, policy, true);
+    }
+
+    public int RemoveExtraFlowSuite(int groupId, int suite, int policy) {
+        return ScriptLibTaskA.extraFlowSuite(sceneScriptManager.getIfExists(), groupId, suite, policy, false);
+    }
+
+    public int SetGroupDead(int groupId) {
+        return ScriptLibTaskA.setGroupDead(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), groupId);
+    }
+
+    public int FinishGroupLinkBundle(int groupId) {
+        return ScriptLibTaskA.finishGroupLinkBundle(sceneScriptManager.getIfExists(), groupId);
+    }
+
+    public int ChangeGroupTempValue(String name, int change, LuaTable options) {
+        return ScriptLibTaskA.tempValue(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, options, change, true);
+    }
+
+    public int SetGroupLogicStateValue(String name, int value) {
+        return ScriptLibTaskA.logicState(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, value);
+    }
+
+    public int GetGroupLogicStateValue(String name) {
+        return ScriptLibTaskA.logicState(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, null);
+    }
+
+    public int GetGadgetConfigId(LuaTable args) {
+        return ScriptLibTaskA.gadgetConfigId(sceneScriptManager.getIfExists(), args);
+    }
+
+    public int CreateGadgetByConfigIdByPos(int configId, LuaTable pos, LuaTable rot) {
+        return ScriptLibTaskA.createGadgetByPos(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), configId, pos, rot);
+    }
+
+    public int GetPlayerVehicleType(int uid) {
+        return ScriptLibTaskA.playerVehicleType(sceneScriptManager.getIfExists(), uid);
+    }
+
+    public LuaTable GetCurrentLevelTagVec(int groupId) {
+        return ScriptLibTaskA.currentLevelTags(sceneScriptManager.getIfExists(), groupId);
+    }
+
+    public String GetLevelTagNameById(int tagId) {
+        return ScriptLibTaskA.levelTagName(tagId);
+    }
+
+    // ---- 任务卡 B 补的函数 ----
+    public int AutoPoolMonsterTide(int sourceId, int groupId, LuaTable poolIds, int pointArrayId,
+            LuaTable pointIds, LuaTable affixes, LuaTable params) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = manager == null ? null : manager.getGroupById(groupId);
+        if (group == null || !manager.startPoolMonsterTide(sourceId, group, poolIds,
+                pointArrayId, pointIds, affixes, params)) {
+            logger.warn("[LUA] AutoPoolMonsterTide missing group, pool, or supported points group={} source={} pointArray={}",
+                    groupId, sourceId, pointArrayId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int KillMonsterTide(int groupId, int sourceId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.killMonsterTide(groupId, sourceId)) {
+            logger.debug("[LUA] KillMonsterTide found no tide group={} source={}", groupId, sourceId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int GetDeathZoneStatus(int zoneId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null
+                || manager.getScene().getHost() == null || zoneId < 0) {
+            logger.debug("[LUA] GetDeathZoneStatus invalid scene or zone {}", zoneId);
+            return -1;
+        }
+        return emu.grasscutter.scripts.lib.ScriptLibB.deathZoneStatus(
+                manager.getScene().getHost(), manager.getScene().getId(), zoneId);
+    }
+
+    public int ChangeDeathZone(int zoneId, LuaTable options) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null
+                || !emu.grasscutter.scripts.lib.ScriptLibB.changeDeathZone(
+                        manager.getScene().getHost(), manager.getScene().getId(), zoneId, options)) {
+            logger.warn("[LUA] ChangeDeathZone invalid scene or options zone={}", zoneId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int EndPoolMonsterTide(int groupId, int sourceId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.stopPoolMonsterTide(groupId, sourceId, false)) {
+            logger.debug("[LUA] EndPoolMonsterTide found no tide group={} source={}", groupId, sourceId);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int ClearPoolMonsterTide(int groupId, int sourceId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.stopPoolMonsterTide(groupId, sourceId, true)) {
+            logger.debug("[LUA] ClearPoolMonsterTide found no tide group={} source={}", groupId, sourceId);
+            return -1;
+        }
+        return 0;
+    }
+
+    // ---- 任务卡 C 补的函数 ----
+    public int PauseTimeAxis(String identifier) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || identifier == null || !manager.pauseTimeAxis(identifier)) {
+            logger.warn("[LUA] PauseTimeAxis: axis {} is absent", identifier);
+            return -1;
+        }
+        logger.debug("[LUA] PauseTimeAxis {}", identifier);
+        return 0;
+    }
+
+    public int ContinueTimeAxis(String identifier) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || identifier == null || !manager.continueTimeAxis(identifier)) {
+            logger.warn("[LUA] ContinueTimeAxis: axis {} is absent", identifier);
+            return -1;
+        }
+        logger.debug("[LUA] ContinueTimeAxis {}", identifier);
+        return 0;
+    }
+
+    // ---- 任务卡 d 补的函数 ----
+    public int GetGalleryProgressScore(String key, int galleryId) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null) {
+            logger.warn("[LUA] GetGalleryProgressScore: no scene for gallery {}", galleryId);
+            return -1;
+        }
+        int score = manager.getGalleryScriptState().getScore(galleryId, key);
+        if (score < 0) logger.warn("[LUA] GetGalleryProgressScore: invalid key or gallery {}", galleryId);
+        return score;
+    }
+
+    public int AddGalleryProgressScore(String key, int galleryId, int delta) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || !manager.getGalleryScriptState().addScore(galleryId, key, delta)) {
+            logger.warn("[LUA] AddGalleryProgressScore: invalid gallery {}, key {} or delta {}", galleryId, key, delta);
+            return -1;
+        }
+        return 0;
+    }
+
+    public int InitGalleryProgressScore(String key, int galleryId, LuaTable thresholds, int uiType, int scoreType) {
+        return InitGalleryProgressWithScore(key, galleryId, thresholds, 0, uiType, scoreType);
+    }
+
+    public int InitGalleryProgressWithScore(String key, int galleryId, LuaTable thresholds, int initialScore, int uiType, int scoreType) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || thresholds == null || !manager.getGalleryScriptState().setScore(galleryId, key, initialScore)) {
+            logger.warn("[LUA] InitGalleryProgressWithScore: invalid gallery {}, key {} or score {}", galleryId, key, initialScore);
+            return -1;
+        }
+        // 阈值与 UI 类型需对应的 7.1 进度通知协议，目前仅保存服务器分数。
+        return 0;
     }
 }

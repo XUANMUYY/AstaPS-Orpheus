@@ -662,16 +662,19 @@ public final class QuestManager extends BasePlayerManager {
                     acceptProgressLists.putIfAbsent(questData.getId(), new int[acceptCond.size()]);
                     for (int i = 0; i < acceptCond.size(); i++) {
                         val condition = acceptCond.get(i);
-                        // Quest-state conditions are live gates. An earlier NOT_EQUAL
-                        // may become false before the other prerequisite finishes.
-                        boolean liveQuestState =
+                        // These state gates can become false after an earlier match.
+                        boolean liveState =
                                 condition.getType() == QuestCond.QUEST_COND_STATE_EQUAL
-                                        || condition.getType() == QuestCond.QUEST_COND_STATE_NOT_EQUAL;
-                        if (condition.getType() == condType || liveQuestState) {
+                                        || condition.getType() == QuestCond.QUEST_COND_STATE_NOT_EQUAL
+                                        || condition.getType() == QuestCond.QUEST_COND_DAILY_TASK_VAR_EQ
+                                        || condition.getType() == QuestCond.QUEST_COND_DAILY_TASK_VAR_GT
+                                        || condition.getType() == QuestCond.QUEST_COND_DAILY_TASK_VAR_LT
+                                        || condition.getType() == QuestCond.QUEST_COND_ACTIVITY_COND;
+                        if (condition.getType() == condType || liveState) {
                             boolean result =
                                     questSystem.triggerCondition(owner, questData, condition, paramStr, params);
                             int[] progress = acceptProgressLists.get(questData.getId());
-                            if (liveQuestState) {
+                            if (liveState) {
                                 QuestProgress.recordCurrent(progress, i, result);
                             } else {
                                 QuestProgress.recordMatch(progress, i, result);
@@ -765,6 +768,10 @@ public final class QuestManager extends BasePlayerManager {
                                                 condition.getParam()[0],
                                                 item != null ? item.getCount() : 0);
                                     }
+                                    case QUEST_CONTENT_ITEM_NUM_EQUAL, QUEST_CONTENT_ITEM_NUM_GREATER ->
+                                            queueEvent(condition.getType(), condition.getParam()[0]);
+                                    case QUEST_CONTENT_PARENT_QUEST_STATE_EQUAL ->
+                                            queueEvent(condition.getType(), condition.getParam()[0]);
                                     case QUEST_CONTENT_UNLOCK_TRANS_POINT -> {
                                         var scenePoints =
                                                 getPlayer().getUnlockedScenePoints().get(condition.getParam()[0]);
@@ -783,11 +790,23 @@ public final class QuestManager extends BasePlayerManager {
                                     }
                                     case QUEST_CONTENT_PLAYER_LEVEL_UP -> queueEvent(
                                             condition.getType(), player.getLevel());
+                                    case QUEST_CONTENT_QUEST_VAR_NOT_EQUAL -> queueEvent(
+                                            condition.getType(), condition.getParam()[0]);
+                                    case QUEST_CONTENT_ITEM_NUM_LESS -> queueEvent(
+                                            condition.getType(), condition.getParam()[0]);
+                                    case QUEST_CONTENT_CITY_LEVEL_UP -> queueEvent(
+                                            condition.getType(), condition.getParam()[0]);
+                                    case QUEST_CONTENT_SHOP_SELL_OUT -> queueEvent(
+                                            condition.getType(), condition.getParam()[0]);
                                 }
                             }
                             // 状态型条件：开始时就身处目标场景也算满足；finish/failCond 都要求值。
                             if (hasContent(quest, QuestContent.QUEST_CONTENT_PRESENT_AT_SPECIFIC_SCENE)) {
                                 queueEvent(QuestContent.QUEST_CONTENT_PRESENT_AT_SPECIFIC_SCENE, getPlayer().getSceneId());
+                            }
+                            if (player.getWidgetId() > 0
+                                    && hasContent(quest, QuestContent.QUEST_CONTENT_SPECIFIC_WIDGET_ATTACHED)) {
+                                queueEvent(QuestContent.QUEST_CONTENT_SPECIFIC_WIDGET_ATTACHED, player.getWidgetId());
                             }
                             // 全局变量比较：开始时变量已满足的完成条件直接记上；失败条件只在变量变化时判，
                             // 不在接取瞬间判失败（推断，避免前面剧情的变量差一点就立即失败回滚）。

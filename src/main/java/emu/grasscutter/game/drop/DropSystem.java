@@ -96,8 +96,12 @@ public final class DropSystem extends BaseGameSystem {
 
     /** Use native roots only when they contain at least one positive-weight entry. */
     public boolean hasUsableDungeonRewardRoot(int dropId) {
-        return dropId > 0 && dropTable.containsKey(dropId)
-                && !isEmptyDropTable(dropTable.get(dropId));
+        return hasUsableNativeRoot(dropId, dropTable);
+    }
+
+    static boolean hasUsableNativeRoot(int dropId, Int2ObjectMap<DropTableData> table) {
+        return dropId > 0 && table.containsKey(dropId)
+                && !isEmptyDropTable(table.get(dropId));
     }
 
     public List<GameItem> handleDungeonRewardDrop(int dropId, boolean doubleReward) {

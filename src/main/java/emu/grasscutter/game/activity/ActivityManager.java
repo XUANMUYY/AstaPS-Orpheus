@@ -113,7 +113,7 @@ public class ActivityManager extends BasePlayerManager {
         // activity entry. Push it for every activity running now.
         // One broken activity must not take the login down with it.
         activityConfigItemMap.keySet().stream()
-                .filter(this::isActivityActive)
+                .filter(this::isActivityOpen)
                 .forEach(
                         activityId -> {
                             try {
@@ -130,6 +130,7 @@ public class ActivityManager extends BasePlayerManager {
     public void triggerWatcher(WatcherTriggerType watcherTriggerType, String... params) {
         var watchers =
                 activityConfigItemMap.values().stream()
+                        .filter(item -> isActivityOpen(item.getActivityId()))
                         .map(ActivityConfigItem::getActivityHandler)
                         .filter(Objects::nonNull)
                         .map(ActivityHandler::getWatchersMap)
@@ -167,12 +168,7 @@ public class ActivityManager extends BasePlayerManager {
 
     public boolean isActivityOpen(int activityId) {
         var activityConfig = activityConfigItemMap.get(activityId);
-        if (activityConfig == null) {
-            return false;
-        }
-
-        var now = new Date();
-        return now.after(activityConfig.getOpenTime()) && now.before(activityConfig.getCloseTime());
+        return activityConfig != null && activityConfig.isOpenAt(new Date());
     }
 
     public int getOpenDay(int activityId) {
@@ -199,7 +195,32 @@ public class ActivityManager extends BasePlayerManager {
     }
 
     public boolean meetsCondition(int activityCondId) {
+        for (var states : player.getQuestActivityConditionStates().values()) {
+            if (states.containsKey(activityCondId)) return states.get(activityCondId);
+        }
         return conditionExecutor.meetsCondition(activityCondId);
+    }
+
+    public boolean setQuestConditionState(int activityId, int conditionId, boolean active) {
+        // Inferred from quest action names and ActivityInfo.meet_cond_list: quest state overrides the calculated predicate.
+        if (GameData.getActivityDataMap().get(activityId) == null
+                || GameData.getActivityCondExcelConfigDataMap().get(conditionId) == null
+                || !conditionBelongsToActivity(activityId, conditionId)) return false;
+        var states = player.getQuestActivityConditionStates()
+                .computeIfAbsent(activityId, ignored -> new HashMap<>());
+        if (Objects.equals(states.put(conditionId, active), active)) return true;
+        player.save();
+        player.getQuestManager().queueEvent(
+                emu.grasscutter.game.quest.enums.QuestCond.QUEST_COND_ACTIVITY_COND, conditionId);
+        var info = getInfoProtoByActivityId(activityId);
+        if (info != null) player.sendPacket(new PacketActivityInfoNotify(info));
+        return true;
+    }
+
+    static boolean conditionBelongsToActivity(int activityId, int conditionId) {
+        if (activityId == 1001) return conditionId / 10 == 1001 || conditionId / 10 == 1002;
+        if (activityId == 5001) return conditionId / 100 == 5001;
+        return conditionId / 1000 == activityId;
     }
 
     public void triggerActivityConditions() {
@@ -216,7 +237,16 @@ public class ActivityManager extends BasePlayerManager {
         var activityHandler = activityConfig.getActivityHandler();
         var activityData = playerActivityDataMap.get(activityId);
 
-        return activityHandler.toProto(activityData, conditionExecutor);
+        ActivityConditionExecutor effectiveConditions = new ActivityConditionExecutor() {
+            @Override public boolean meetsCondition(int conditionId) {
+                return ActivityManager.this.meetsCondition(conditionId);
+            }
+
+            @Override public List<Integer> getMeetActivitiesConditions(List<Integer> conditionIds) {
+                return conditionIds.stream().filter(this::meetsCondition).toList();
+            }
+        };
+        return activityHandler.toProto(activityData, effectiveConditions);
     }
 
     public Optional<ActivityHandler> getActivityHandler(ActivityType type) {

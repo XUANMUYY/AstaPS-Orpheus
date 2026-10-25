@@ -17,6 +17,7 @@ public class SceneGadget extends SceneObject {
     /** Source-backed grade, when the imported marker actually identifies one. */
     public String chestGrade;
     public boolean showcutscene;
+    public boolean is_blossom_chest;
     boolean persistence;
     public int state;
 

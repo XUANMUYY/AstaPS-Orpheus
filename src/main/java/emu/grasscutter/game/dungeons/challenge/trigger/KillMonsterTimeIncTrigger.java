@@ -17,19 +17,16 @@ public class KillMonsterTimeIncTrigger extends ChallengeTrigger {
     @Override
     public void onBegin(WorldChallenge challenge) {}
 
+    public int grantedSeconds(int timeLeft) {
+        return Math.max(0, Math.min(increment == 0 ? maxTime : increment, maxTime - timeLeft));
+    }
+
     @Override
     public void onMonsterDeath(WorldChallenge challenge, EntityMonster monster) {
         var scene = challenge.getScene();
         var elapsed = scene.getSceneTimeSeconds() - challenge.getStartedAt();
         var timeLeft = challenge.getTimeLimit() - elapsed;
-        var increment = this.increment;
-        if (increment == 0) {
-            // Refresh time limit back to max
-            increment = maxTime - timeLeft;
-        } else if (maxTime < timeLeft + increment) {
-            // Don't add back more time than original limit
-            increment -= timeLeft + increment - maxTime;
-        }
+        var increment = grantedSeconds(timeLeft);
         challenge.setTimeLimit(challenge.getTimeLimit() + increment);
         scene.broadcastPacket(
                 new PacketChallengeDataNotify(

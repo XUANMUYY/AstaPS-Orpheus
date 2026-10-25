@@ -208,4 +208,8 @@ public final class BlossomActivity {
         }
         return chest;
     }
+
+    void attachScriptedChest(EntityGadget scriptedChest) {
+        chest = scriptedChest;
+    }
 }

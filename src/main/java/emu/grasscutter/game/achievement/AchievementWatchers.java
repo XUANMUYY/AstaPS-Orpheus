@@ -49,15 +49,24 @@ public final class AchievementWatchers {
             PushTipsManager.of(player).onWatcherEvent(watcherId);
             return;
         }
+        var data = GameData.getAchievementDataMap().get(watcherId);
+        if (data != null && data.getTriggerConfig() != null
+                && ServerAchievementTriggers.isServerOwned(data.getTriggerConfig().getTriggerType())) return;
         addProgress(player, achievements, watcherId, addProgress);
     }
 
     /** WatcherEventTypeNotify: progress every unfinished achievement of that trigger and params. */
     public static void onTypeEvent(Player player, int triggerType, List<Integer> params, int addProgress) {
+        // Internal enum values only restore Excel names; no client numeric event owns them.
+        if (triggerType >= 100000) return;
         var type = WatcherTriggerType.getTypeByValue(triggerType);
         if (type == null || type == WatcherTriggerType.TRIGGER_NONE) {
             Grasscutter.getLogger()
                     .debug("[Watcher] uid={} unknown trigger type {} params={}", player.getUid(), triggerType, params);
+            return;
+        }
+        if (ServerAchievementTriggers.isServerOwned(type)) {
+            PushTipsManager.of(player).onTypeEvent(type, params, addProgress);
             return;
         }
         var achievements = player.getAchievements();
@@ -110,22 +119,22 @@ public final class AchievementWatchers {
         if (!removed.isEmpty()) player.sendPacket(new PacketWatcherChangeNotify(List.of(), removed));
     }
 
-    /**
-     * Excel params are strings; numeric ones must equal the client's param at the same index.
-     * Named params (dummy point names and the like) cannot be sent as uint32 and are skipped.
-     */
+    /** Excel numeric params match the client's value at the same index. */
     public static boolean paramsMatch(String[] excelParams, List<Integer> clientParams) {
         if (excelParams == null) return true;
         for (int i = 0; i < excelParams.length; i++) {
             var param = excelParams[i];
-            if (param == null || param.isEmpty()) continue;
-            int value;
-            try {
-                value = Integer.parseInt(param.trim());
-            } catch (NumberFormatException e) {
-                continue;
+            if (param == null || param.isBlank()) continue;
+            if (clientParams == null || i >= clientParams.size()) return false;
+            boolean matched = false;
+            for (String part : param.split("[,;]", -1)) {
+                try {
+                    if (Integer.parseInt(part.trim()) == clientParams.get(i)) matched = true;
+                } catch (NumberFormatException e) {
+                    return false;
+                }
             }
-            if (i >= clientParams.size() || clientParams.get(i) != value) return false;
+            if (!matched) return false;
         }
         return true;
     }

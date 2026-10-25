@@ -168,7 +168,7 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
         if (itemData == null) {
             return false;
         }
-        if (itemData.isUseOnGain()) {
+        if (itemData.isUseOnGain() && !itemData.hasUnsupportedItemUseAction()) {
             return true;
         }
         int id = item.getItemId();
@@ -418,6 +418,10 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
                     .getQuestManager()
                     .queueEvent(
                             QuestContent.QUEST_CONTENT_OBTAIN_ITEM, result.getItemId(), result.getCount());
+            getPlayer().getQuestManager().queueEvent(
+                    QuestContent.QUEST_CONTENT_ITEM_NUM_LESS, result.getItemId());
+            getPlayer().getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_ITEM_NUM_EQUAL, result.getItemId());
+            getPlayer().getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_ITEM_NUM_GREATER, result.getItemId());
             if (result.getItemType() == ItemType.ITEM_RELIQUARY && result.getItemData() != null) {
                 int rank = result.getItemData().getRankLevel();
                 getPlayer().getPlayerProgress().addHandbookReliquaryHistory(rank, 1);
@@ -440,6 +444,10 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
             getPlayer()
                     .getQuestManager()
                     .queueEvent(QuestContent.QUEST_CONTENT_ITEM_LESS_THAN, item.getItemId(), item.getCount());
+            getPlayer().getQuestManager().queueEvent(
+                    QuestContent.QUEST_CONTENT_ITEM_NUM_LESS, item.getItemId());
+            getPlayer().getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_ITEM_NUM_EQUAL, item.getItemId());
+            getPlayer().getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_ITEM_NUM_GREATER, item.getItemId());
         } catch (Exception e) {
             Grasscutter.getLogger().debug("triggerRemItemEvents failed", e);
         }
@@ -474,7 +482,8 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
         if (data == null || data.getItemType() == null || data.getId() != item.getItemId()) {
             return InsertResult.refused(InventoryAddResult.Status.INVALID_ITEM);
         }
-        if (data.isUseOnGain()) {
+        // 未实现的自动使用操作先作为实物保存，避免领取时无效果却丢失奖励。
+        if (data.isUseOnGain() && !data.hasUnsupportedItemUseAction()) {
             // 7.1 weapon skin grants use an operation unknown to ItemUseOp.
             // Preserve the upstream unlock route rather than rejecting the item.
             var skinIds = WeaponSkinData.skinIdsForItem(item.getItemId());

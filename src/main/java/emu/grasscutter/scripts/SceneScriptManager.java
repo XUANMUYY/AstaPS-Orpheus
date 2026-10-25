@@ -19,6 +19,7 @@ import emu.grasscutter.game.world.*;
 import emu.grasscutter.net.proto.VisionTypeOuterClass;
 import emu.grasscutter.scripts.constants.EventType;
 import emu.grasscutter.scripts.data.*;
+import emu.grasscutter.scripts.lib.GalleryScriptState;
 import emu.grasscutter.scripts.service.*;
 import emu.grasscutter.server.event.game.SceneMetaLoadEvent;
 import emu.grasscutter.server.packet.send.PacketGroupSuiteNotify;
@@ -40,9 +41,11 @@ import org.luaj.vm2.lib.jse.CoerceJavaToLua;
 public class SceneScriptManager {
     private final Scene scene;
     private final SealBattleManager sealBattleManager;
+    private final GalleryScriptState galleryScriptState = new GalleryScriptState();
     private final Map<String, Integer> variables;
     /** Mutable fallbacks when a group instance is not cached yet (tower stage/TPL_TIME writes). */
     private final Map<Integer, Map<String, Integer>> orphanGroupVariables = new ConcurrentHashMap<>();
+    private final Map<Integer, Map<String, Integer>> groupTempValues = new ConcurrentHashMap<>();
     private SceneMeta meta;
     private volatile boolean isInit;
     private volatile boolean initAttempted;
@@ -70,6 +73,7 @@ public class SceneScriptManager {
     private final Map<Integer, SceneGroupInstance> cachedSceneGroupsInstances;
     private ScriptMonsterTideService scriptMonsterTideService;
     private final List<ScriptMonsterTideService> monsterTides = new ArrayList<>();
+    private final List<ScriptPoolMonsterTideService> poolMonsterTides = new ArrayList<>();
     private boolean restoringMonster;
     private ScriptMonsterSpawnService scriptMonsterSpawnService;
     /** blockid - loaded groupSet */
@@ -122,6 +126,10 @@ public class SceneScriptManager {
 
     public Scene getScene() {
         return scene;
+    }
+
+    public GalleryScriptState getGalleryScriptState() {
+        return galleryScriptState;
     }
 
     /** Used under this monitor before nonlethal commission suspension. */
@@ -268,6 +276,7 @@ public class SceneScriptManager {
     /** Reloading an open-world group is not a request to reset its puzzle progress. */
     public int restoreGroup(SceneGroupInstance instance, int overrideSuite) {
         var group = instance.getLuaGroup();
+        if (overrideSuite == 0 && instance.isScriptGroupDead()) return instance.getActiveSuiteId();
         int savedSuite = instance.getActiveSuiteId();
         if (getScene() != null && getScene().getSceneType() == SceneType.SCENE_WORLD && overrideSuite == 0
                 && group != null && group.suites != null
@@ -276,10 +285,24 @@ public class SceneScriptManager {
             // without resetting variables or refresh timestamps. Keep the loader's
             // existing refresh notification so scripts can initialize their runtime hooks.
             addGroupSuite(instance, group.getSuiteByIndex(savedSuite));
+            restoreExtraFlowSuites(instance);
             callEvent(new ScriptArgs(instance.getGroupId(), EventType.EVENT_GROUP_REFRESH));
             return savedSuite;
         }
-        return refreshGroup(instance, overrideSuite, false);
+        int restored = refreshGroup(instance, overrideSuite, false);
+        if (overrideSuite == 0) restoreExtraFlowSuites(instance);
+        return restored;
+    }
+
+    public Map<String, Integer> getGroupTempValues(int groupId) {
+        return groupTempValues.computeIfAbsent(groupId, id -> new ConcurrentHashMap<>());
+    }
+
+    private void restoreExtraFlowSuites(SceneGroupInstance instance) {
+        for (int suiteId : instance.getExtraFlowSuites()) {
+            var suite = instance.getLuaGroup().getSuiteByIndex(suiteId);
+            if (suite != null && suiteId != instance.getActiveSuiteId()) addGroupSuite(instance, suite);
+        }
     }
 
     public void refreshGroup(SceneGroupInstance groupInstance) {
@@ -303,6 +326,7 @@ public class SceneScriptManager {
             int suiteIndex,
             boolean excludePrevSuite,
             List<GameEntity> entitiesAdded) {
+        if (groupInstance.isScriptGroupDead()) return 0;
         SceneGroup group = groupInstance.getLuaGroup();
         if (LiyueCloudDungeonSupport.isTimerGroup(getScene(), group.id))
             liyueDungeonTimers.cancelGroup(group.id);
@@ -405,6 +429,7 @@ public class SceneScriptManager {
                             getScene().getId());
             if (targetGroupInstance == null) return false;
         }
+        if (targetGroupInstance.isScriptGroupDead()) return false;
         Grasscutter.getLogger().debug("Refreshing group {} suite {}", groupId, suiteId);
         suiteId =
                 refreshGroup(
@@ -915,6 +940,7 @@ public class SceneScriptManager {
     }
 
     public void unregisterGroup(SceneGroup group) {
+        clearPoolMonsterTidesForGroup(group.id);
         if (LiyueCloudDungeonSupport.isTimerGroup(getScene(), group.id))
             liyueDungeonTimers.cancelGroup(group.id);
         this.sceneGroups.remove(group.id);
@@ -1045,17 +1071,71 @@ public class SceneScriptManager {
         return this.monsterTides.stream().filter(tide -> tide.getGroupId() == groupId).toList();
     }
 
+    /** Lua 怪潮编号以场景组为作用域。 */
+    public boolean killMonsterTide(int groupId, int sourceId) {
+        List<ScriptMonsterTideService> selected;
+        synchronized (this) {
+            selected = getMonsterTides(groupId).stream()
+                    .filter(tide -> tide.getSource().equals(Integer.toString(sourceId))).toList();
+            monsterTides.removeAll(selected);
+            if (selected.contains(scriptMonsterTideService)) scriptMonsterTideService = null;
+        }
+        selected.forEach(ScriptMonsterTideService::destroy);
+        return !selected.isEmpty();
+    }
+
+    public boolean startPoolMonsterTide(int sourceId, SceneGroup group, LuaTable poolIds,
+            int pointArrayId, LuaTable pointIds, LuaTable affixes, LuaTable params) {
+        var tide = ScriptPoolMonsterTideService.prepare(this, group, sourceId, poolIds,
+                pointArrayId, pointIds, affixes, params);
+        if (tide == null) return false;
+        synchronized (this) {
+            if (destroyed) return false;
+            poolMonsterTides.add(tide);
+        }
+        if (tide.start()) return true;
+        synchronized (this) { poolMonsterTides.remove(tide); }
+        return false;
+    }
+
+    public boolean stopPoolMonsterTide(int groupId, int sourceId, boolean clear) {
+        List<ScriptPoolMonsterTideService> selected;
+        synchronized (this) {
+            selected = poolMonsterTides.stream()
+                    .filter(tide -> tide.groupId() == groupId && tide.sourceId() == sourceId).toList();
+            if (clear) poolMonsterTides.removeAll(selected);
+        }
+        for (var tide : selected) {
+            if (clear) tide.clear();
+            else tide.end();
+        }
+        return !selected.isEmpty();
+    }
+
+    private void clearPoolMonsterTidesForGroup(int groupId) {
+        if (poolMonsterTides == null) return;
+        List<ScriptPoolMonsterTideService> selected;
+        synchronized (this) {
+            selected = poolMonsterTides.stream().filter(tide -> tide.groupId() == groupId).toList();
+            poolMonsterTides.removeAll(selected);
+        }
+        selected.forEach(ScriptPoolMonsterTideService::clear);
+    }
+
     public synchronized void restoreMonsterTide(SceneGroup group, ScriptMonsterTideService.State state) {
         this.scriptMonsterTideService = ScriptMonsterTideService.restore(this, group, state);
         this.monsterTides.add(this.scriptMonsterTideService);
     }
 
     /** Drops a finished or discarded encounter's tides so stale counts cannot leak into a new one. */
-    public synchronized void unloadMonsterTides(int groupId) {
-        for (var tide : getMonsterTides(groupId)) {
-            tide.unload();
-            this.monsterTides.remove(tide);
-            if (this.scriptMonsterTideService == tide) this.scriptMonsterTideService = null;
+    public void unloadMonsterTides(int groupId) {
+        clearPoolMonsterTidesForGroup(groupId);
+        synchronized (this) {
+            for (var tide : getMonsterTides(groupId)) {
+                tide.unload();
+                this.monsterTides.remove(tide);
+                if (this.scriptMonsterTideService == tide) this.scriptMonsterTideService = null;
+            }
         }
     }
 
@@ -1264,6 +1344,11 @@ public class SceneScriptManager {
         // the SetGroupVariableValueByGroup in tower need the param to record the first stage time
         ongoingTriggers.add(trigger);
         try {
+            var activeAtEntry = scene.getChallenge();
+            if (activeAtEntry != null && params.source_eid != 0
+                    && this.getRegionById(params.source_eid) != null) {
+                activeAtEntry.setSourceRegionEntityId(params.source_eid);
+            }
             var ret = this.callScriptFunc(trigger.getAction(), trigger.currentGroup, params);
             // A trigger registered before this manager saw it has no counter yet
             var invocationsCounter =
@@ -1697,6 +1782,16 @@ public class SceneScriptManager {
         }
     }
 
+    public boolean pauseTimeAxis(String identifier) {
+        var axis = this.timeAxis.get(identifier);
+        return axis != null && axis.pause();
+    }
+
+    public boolean continueTimeAxis(String identifier) {
+        var axis = this.timeAxis.get(identifier);
+        return axis != null && axis.resume();
+    }
+
     /** Associates a scene cutscene with the groups waiting for its completion. */
     public synchronized void registerCutscene(int cutsceneId, int groupId) {
         if (destroyed || cutsceneId <= 0 || groupId <= 0) return;
@@ -1749,6 +1844,11 @@ public class SceneScriptManager {
             }
         }
         timeAxis.clear();
+
+        if (poolMonsterTides != null) {
+            for (var tide : List.copyOf(poolMonsterTides)) tide.clear();
+            poolMonsterTides.clear();
+        }
 
         if (scriptMonsterTideService != null) {
             try {

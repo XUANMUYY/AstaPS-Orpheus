@@ -48,6 +48,10 @@ public class AvatarPromoteData extends GameResource {
         return requiredPlayerLevel;
     }
 
+    public boolean isPlayerLevelEligible(int playerLevel) {
+        return playerLevel >= requiredPlayerLevel;
+    }
+
     @Override
     public void onLoad() {
         // Trim item params

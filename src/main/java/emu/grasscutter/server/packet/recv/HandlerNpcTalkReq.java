@@ -12,7 +12,8 @@ public class HandlerNpcTalkReq extends PacketHandler {
         var req = NpcTalkReq.parseFrom(payload);
 
         int npcEntityId = req.getNpcEntityId() != 0 ? req.getNpcEntityId() : req.getEntityId();
-        session.getPlayer().getTalkManager().triggerTalkAction(req.getTalkId(), npcEntityId);
-        session.send(new PacketNpcTalkRsp(req.getNpcEntityId(), req.getTalkId(), req.getEntityId()));
+        int retcode = session.getPlayer().getTalkManager().triggerTalkAction(req.getTalkId(), npcEntityId);
+        session.send(
+                new PacketNpcTalkRsp(retcode, req.getNpcEntityId(), req.getTalkId(), req.getEntityId()));
     }
 }

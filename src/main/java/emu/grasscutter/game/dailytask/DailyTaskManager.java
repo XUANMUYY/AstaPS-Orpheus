@@ -12,6 +12,7 @@ import emu.grasscutter.data.excels.DailyTaskLevelData;
 import emu.grasscutter.data.excels.DailyTaskRewardData;
 import emu.grasscutter.data.excels.RewardPreviewData;
 import emu.grasscutter.database.DatabaseHelper;
+import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ActionReason;
 import emu.grasscutter.game.world.Position;
@@ -29,6 +30,7 @@ import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.nio.file.Files;
 import java.util.concurrent.ConcurrentHashMap;
@@ -80,6 +82,38 @@ public class DailyTaskManager {
     private transient Player player;
 
     private List<DailyTask> dailyTasks = new ArrayList<>();
+    // Inferred from quest conditions: task ID and variable index are independent of today's four slots.
+    private java.util.Map<Integer, java.util.Map<Integer, Integer>> dailyTaskVars = new java.util.HashMap<>();
+
+    public synchronized int getDailyTaskVar(int taskId, int index) {
+        if (dailyTaskVars == null) dailyTaskVars = new java.util.HashMap<>();
+        return dailyTaskVars.getOrDefault(taskId, java.util.Map.of()).getOrDefault(index, 0);
+    }
+
+    public synchronized boolean setDailyTaskVar(int taskId, int index, int value) {
+        if (taskId <= 0 || index < 0) return false;
+        if (dailyTaskVars == null) dailyTaskVars = new java.util.HashMap<>();
+        int previous = getDailyTaskVar(taskId, index);
+        dailyTaskVars.computeIfAbsent(taskId, ignored -> new java.util.HashMap<>()).put(index, value);
+        if (previous != value) {
+            save();
+            triggerDailyTaskVarConditions(taskId);
+        }
+        return true;
+    }
+
+    public synchronized boolean incDailyTaskVar(int taskId, int index, int amount) {
+        if (taskId <= 0 || index < 0) return false;
+        return setDailyTaskVar(taskId, index, getDailyTaskVar(taskId, index) + amount);
+    }
+
+    private void triggerDailyTaskVarConditions(int taskId) {
+        if (player == null || player.getQuestManager() == null) return;
+        var quests = player.getQuestManager();
+        quests.queueEvent(emu.grasscutter.game.quest.enums.QuestCond.QUEST_COND_DAILY_TASK_VAR_EQ, taskId);
+        quests.queueEvent(emu.grasscutter.game.quest.enums.QuestCond.QUEST_COND_DAILY_TASK_VAR_GT, taskId);
+        quests.queueEvent(emu.grasscutter.game.quest.enums.QuestCond.QUEST_COND_DAILY_TASK_VAR_LT, taskId);
+    }
 
     /*
      * 1 = Mondstadt
@@ -145,6 +179,7 @@ public class DailyTaskManager {
 		 * it will NEVER reroll it merely because the server restarted.
 		 */
 		this.ensureDailyTasksForToday(false);
+		if (this.dailyTaskVars != null) this.dailyTaskVars.keySet().forEach(this::triggerDailyTaskVarConditions);
 
 		/*
 		 * Do not remove supposedly unsupported tasks here.
@@ -304,6 +339,9 @@ public class DailyTaskManager {
 		Collections.shuffle(candidates);
 
 		this.dailyTasks.clear();
+		var oldVariableTaskIds = this.dailyTaskVars == null ? Set.<Integer>of() : Set.copyOf(this.dailyTaskVars.keySet());
+		if (this.dailyTaskVars != null) this.dailyTaskVars.clear();
+		oldVariableTaskIds.forEach(this::triggerDailyTaskVarConditions);
 
 		for (DailyTaskData data : candidates) {
 			if (this.dailyTasks.size() >= DAILY_TASK_COUNT) {
@@ -853,13 +891,6 @@ public class DailyTaskManager {
 			return;
 		}
 
-		/*
-		 * If this kill finished commission #4, award the daily completion
-		 * bonus immediately. Until the proper Katheryne/claim proto is
-		 * identified, this acts as the server-side equivalent of claiming it.
-		 */
-		this.tryAutoClaimScoreReward();
-
         DailyTaskGroupLifecycle.progressChanged(this, scene, groupId);
 		this.save();
 		this.syncAll();
@@ -1102,19 +1133,13 @@ public class DailyTaskManager {
 					task);
 		}
 
-		/*
-		 * /dt finish should behave exactly like a naturally completed
-		 * commission with regard to the four-task completion bonus.
-		 */
-		this.tryAutoClaimScoreReward();
-
 		this.save();
 		this.syncAll();
 
 		return true;
 	}
 
-	private boolean tryAutoClaimScoreReward() {
+	private boolean tryClaimScoreReward() {
 		if (this.player == null) {
 			return false;
 		}
@@ -1130,23 +1155,32 @@ public class DailyTaskManager {
 		int rewardId =
 				this.getScoreRewardId();
 
-		if (!this.grantPreviewReward(
-				rewardId,
-				ActionReason.DailyTaskScore)) {
+		List<ItemParamData> items = this.getScoreRewardItems();
+		if (rewardId <= 0 || items.isEmpty()
+				|| items.stream().anyMatch(item -> item == null || item.getId() <= 0
+						|| item.getCount() <= 0 || GameData.getItemDataMap().get(item.getId()) == null)
+				|| !this.player.getInventory()
+						.addItems(
+								items.stream()
+										.map(item -> new GameItem(item.getId(), item.getCount()))
+										.toList(),
+								ActionReason.DailyTaskScore)
+						.allAccepted()) {
 			Grasscutter.getLogger()
 					.warn(
-							"[DailyTask] Failed to automatically grant the four-commission reward {} to UID {}.",
+							"[DailyTask] Failed to claim the four-commission reward {} for UID {}.",
 							rewardId,
 							this.player.getUid());
 
 			return false;
 		}
 
+		this.player.save();
 		this.scoreRewardTaken = true;
 
 		Grasscutter.getLogger()
 				.info(
-						"[DailyTask] Automatically granted four-commission reward {} to UID {}.",
+						"[DailyTask] Claimed four-commission reward {} for UID {}.",
 						rewardId,
 						this.player.getUid());
 
@@ -1164,9 +1198,7 @@ public class DailyTaskManager {
 	}
 
 	/**
-	 * The items the four-commission bonus pays out. The reward is granted automatically the moment
-	 * the fourth commission is finished, but the client still asks for it and wants the list back to
-	 * show, so this reads the same preview the grant used.
+	 * The items the four-commission bonus pays out when the client claims it.
 	 */
 	public List<ItemParamData> getScoreRewardItems() {
 		RewardPreviewData reward =
@@ -1181,7 +1213,7 @@ public class DailyTaskManager {
 	}
 
 	public synchronized boolean claimScoreReward() {
-		if (!this.tryAutoClaimScoreReward()) {
+		if (!this.tryClaimScoreReward()) {
 			return false;
 		}
 

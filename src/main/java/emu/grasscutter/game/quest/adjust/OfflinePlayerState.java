@@ -15,7 +15,7 @@ public final class OfflinePlayerState {
         var player = players.getFirst(); int uid = player.get("_id").getAsInt();
         var world = new JsonObject();
         for (var key : List.of("questGlobalVariables", "openStates", "unlockedScenePoints", "unlockedSceneAreas",
-                "forceLockedScenePoints", "pendingTransPointRewards", "transPointRewardSnapshots", "forcedFinishedQuests", "mainCharacterElement"))
+                "forceLockedScenePoints", "hiddenScenePoints", "unhiddenScenePoints", "aranaraCollectionStates", "questActivityConditionStates", "pendingTransPointRewards", "transPointRewardSnapshots", "forcedFinishedQuests", "mainCharacterElement"))
             if (player.has(key) && !player.get(key).isJsonNull()) world.add(key, player.get(key).deepCopy());
         var mains = new JsonObject(); var states = new TreeMap<Integer, Integer>();
         for (var main : documents(directory.resolve("quests.json"))) {

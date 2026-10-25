@@ -7,6 +7,7 @@ import emu.grasscutter.game.entity.*;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.FightProperty;
 import emu.grasscutter.game.quest.enums.QuestContent;
+import emu.grasscutter.game.quest.QuestVehicleFeatureTags;
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.VehicleInteractRspOuterClass.VehicleInteractRsp;
 import emu.grasscutter.net.proto.VehicleInteractTypeOuterClass.VehicleInteractType;
@@ -51,6 +52,8 @@ public class PacketVehicleInteractRsp extends BasePacket {
                             .queueEvent(
                                     QuestContent.QUEST_CONTENT_ENTER_VEHICLE,
                                     ((EntityVehicle) vehicle).getGadgetId());
+                    QuestVehicleFeatureTags.queue(player, ((EntityVehicle) vehicle).getGadgetId(),
+                            QuestContent.QUEST_CONTENT_ENTER_FEATURE_TAG_VEHICLE);
 
                     // For phlogiston. The gadget row may be absent, and a quarter of the rows
                     // that exist carry no jsonName - either way this falls back to type 1 rather
@@ -68,7 +71,13 @@ public class PacketVehicleInteractRsp extends BasePacket {
                     proto.setVehicleRot(player.getRotation().toProto());
                 }
                 case VehicleInteractType_VEHICLE_INTERACT_OUT -> {
-                    ((EntityVehicle) vehicle).getVehicleMembers().remove(vehicleMember);
+                    EntityVehicle mount = (EntityVehicle) vehicle;
+                    if (mount.getVehicleMembers().removeIf(member -> member.getUid() == player.getUid())) {
+                        player.getQuestManager().queueEvent(
+                                QuestContent.QUEST_CONTENT_LEAVE_VEHICLE, mount.getGadgetId());
+                        QuestVehicleFeatureTags.queue(player, mount.getGadgetId(),
+                                QuestContent.QUEST_CONTENT_LEAVE_FEATURE_TAG_VEHICLE);
+                    }
                 }
                 default -> {}
             }

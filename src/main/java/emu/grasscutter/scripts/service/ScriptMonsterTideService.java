@@ -8,8 +8,11 @@ import emu.grasscutter.scripts.listener.ScriptMonsterListener;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import emu.grasscutter.net.proto.VisionTypeOuterClass.VisionType;
 
 public final class ScriptMonsterTideService {
     private final SceneScriptManager sceneScriptManager;
@@ -25,6 +28,8 @@ public final class ScriptMonsterTideService {
     private final String source;
     private volatile boolean unloaded;
     private volatile boolean firstTurnStarted;
+    private boolean restored;
+    private final Set<Integer> spawnedEntityIds = ConcurrentHashMap.newKeySet();
 
     /** Persistable progress of one tide, so a restored encounter resumes its pending waves. */
     public static final class State {
@@ -77,6 +82,7 @@ public final class ScriptMonsterTideService {
         service.monsterKillCount.set(state.killCount);
         service.monsterAlive.set(state.alive);
         service.firstTurnStarted = state.started == null || state.started;
+        service.restored = true;
         return service;
     }
 
@@ -121,7 +127,10 @@ public final class ScriptMonsterTideService {
                     var monster =
                             sceneScriptManager.createMonster(
                                     currentGroup.id, currentGroup.block_id, getNextMonster());
-                    if (monster != null) sceneScriptManager.addEntity(monster);
+                    if (monster != null) {
+                        spawnedEntityIds.add(monster.getId());
+                        sceneScriptManager.addEntity(monster);
+                    }
                 }
             }
         }
@@ -159,6 +168,8 @@ public final class ScriptMonsterTideService {
             if (unloaded || monsterSceneLimit <= 0) {
                 return;
             }
+            if (sceneMonster != null && !monsterConfigIds.contains(sceneMonster.getConfigId())) return;
+            if (sceneMonster != null) spawnedEntityIds.remove(sceneMonster.getId());
             if (monsterAlive.decrementAndGet() >= monsterSceneLimit) {
                 // maybe not happen
                 return;
@@ -169,7 +180,10 @@ public final class ScriptMonsterTideService {
                 var next =
                         sceneScriptManager.createMonster(
                                 currentGroup.id, currentGroup.block_id, getNextMonster());
-                if (next != null) sceneScriptManager.addEntity(next);
+                if (next != null) {
+                    spawnedEntityIds.add(next.getId());
+                    sceneScriptManager.addEntity(next);
+                }
             }
             // call registered events that may spawn in more monsters
             var scriptArgs =
@@ -188,6 +202,20 @@ public final class ScriptMonsterTideService {
 
     public String getSource() {
         return source;
+    }
+
+    /** 停止本怪潮并移除残余实体，不计作战斗击杀。 */
+    public void destroy() {
+        unload();
+        var scene = sceneScriptManager.getScene();
+        for (var entity : List.copyOf(scene.getEntities().values())) {
+            if (entity instanceof EntityMonster
+                    && entity.getGroupId() == currentGroup.id
+                    && (spawnedEntityIds.contains(entity.getId())
+                            || (restored && monsterConfigIds.contains(entity.getConfigId()))))
+                scene.removeEntity(entity, VisionType.VisionType_VISION_REMOVE);
+        }
+        spawnedEntityIds.clear();
     }
 
     /** A finished tide holds nothing worth saving. */

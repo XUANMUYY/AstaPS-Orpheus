@@ -22,30 +22,43 @@ public class ItemUseOpenRandomChest extends ItemUseInt {
 
     @Override
     public boolean useItem(UseItemParams params) { // cash shop material bundles
+        if (params.count <= 0) return false;
         var data = params.player.getServer().getShopSystem().getShopChestData(this.i);
-        if (data == null) return false;
         var rewardItems = new ArrayList<GameItem>();
-        var reliquaryItems = new ArrayList<ItemParamData>();
-
-        for (var itemParamData : data) {
-            var itemData = GameData.getItemDataMap().getOrDefault(itemParamData.getItemId(), null);
-            if (itemData != null) {
+        if (data == null || data.isEmpty()) {
+            // 默认映射不完整时，以客户端同版本的原生掉落根节点为准。
+            var drops = params.player.getServer().getDropSystem();
+            if (!drops.hasUsableDungeonRewardRoot(this.i)) return false;
+            try {
+                for (int n = 0; n < params.count; n++) {
+                    rewardItems.addAll(drops.handleDungeonRewardDrop(this.i, false));
+                }
+            } catch (RuntimeException invalidDrop) {
+                return false;
+            }
+        } else {
+            var reliquaryItems = new ArrayList<ItemParamData>();
+            for (var itemParamData : data) {
+                var itemData = GameData.getItemDataMap().get(itemParamData.getItemId());
+                if (itemData == null || itemData.getItemType() == null
+                        || itemParamData.getCount() <= 0) return false;
                 if (Objects.requireNonNull(itemData.getItemType()) == ItemType.ITEM_RELIQUARY) {
                     reliquaryItems.add(itemParamData);
                 } else {
-                    rewardItems.add(new GameItem(itemParamData));
+                    try {
+                        rewardItems.add(new GameItem(itemParamData.getItemId(),
+                                Math.multiplyExact(itemParamData.getCount(), params.count)));
+                    } catch (ArithmeticException overflow) {
+                        return false;
+                    }
                 }
+            }
+            for (int n = 0; n < params.count && !reliquaryItems.isEmpty(); n++) {
+                rewardItems.add(new GameItem(reliquaryItems.get(new Random().nextInt(reliquaryItems.size()))));
             }
         }
 
-        if (!reliquaryItems.isEmpty()) {
-            rewardItems.add(new GameItem(reliquaryItems.get(new Random().nextInt(reliquaryItems.size()))));
-        }
-
-
-        if (!rewardItems.isEmpty()) {
-            params.player.getInventory().addItems(rewardItems, ActionReason.Shop);
-        }
-        return true;
+        return !rewardItems.isEmpty()
+                && params.player.getInventory().addItems(rewardItems, ActionReason.Shop).allAccepted();
     }
 }

@@ -28,6 +28,7 @@ import emu.grasscutter.utils.Utils;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import java.util.*;
+import java.util.function.IntFunction;
 import java.util.stream.Stream;
 import lombok.*;
 
@@ -56,6 +57,35 @@ public final class TeamManager extends BasePlayerDataManager {
     @Transient private List<TeamInfo> temporaryTeam;
     @Transient @Getter @Setter private boolean usingTrialTeam;
     @Transient @Getter @Setter private TeamInfo trialAvatarTeam;
+    @Transient private List<Integer> mirrorTrialAvatarIds = List.of();
+    @Transient @Getter private boolean questAvatarTeamLocked;
+    @Transient @Getter private int questTeamRequiredAvatarId;
+    @Transient private List<Integer> questLockGrantedTrialIds = List.of();
+
+    public void lockQuestAvatarTeam(int requiredAvatarId) {
+        this.questAvatarTeamLocked = true;
+        this.questTeamRequiredAvatarId = requiredAvatarId;
+    }
+
+    public void grantTrialAvatarAndLockTeam(int trialId, int mainQuestId) {
+        boolean alreadyGranted = getTrialAvatarGuid(trialId) != 0;
+        if (!alreadyGranted) this.addTrialAvatar(trialId, mainQuestId);
+        this.questAvatarTeamLocked = true;
+        if (!alreadyGranted) {
+            var ids = new ArrayList<>(this.questLockGrantedTrialIds);
+            ids.add(trialId);
+            this.questLockGrantedTrialIds = List.copyOf(ids);
+        }
+    }
+
+    public void unlockQuestAvatarTeam() {
+        if (!this.questAvatarTeamLocked) return;
+        this.questAvatarTeamLocked = false;
+        this.questTeamRequiredAvatarId = 0;
+        var granted = this.questLockGrantedTrialIds;
+        this.questLockGrantedTrialIds = List.of();
+        if (!granted.isEmpty()) this.removeTrialAvatar(granted);
+    }
 
     @Transient @Getter @Setter private Map<Integer, Avatar> trialAvatars;
 
@@ -158,9 +188,9 @@ public final class TeamManager extends BasePlayerDataManager {
     }
 
     public int getTeamId(TeamInfo team) {
-        for (int i = 1; i <= this.teams.size(); i++) {
-            if (this.teams.get(i).equals(team)) {
-                return i;
+        for (var entry : this.teams.entrySet()) {
+            if (entry.getValue() == team) {
+                return entry.getKey();
             }
         }
         return -1;
@@ -944,7 +974,7 @@ public final class TeamManager extends BasePlayerDataManager {
 
         if (dieType == PlayerDieType.PlayerDieType_PLAYER_DIE_DRAWN) {
 
-            this.getPlayer().sendPacket(new PacketWorldPlayerDieNotify(dieType, killedBy));
+            sendTeamDeathNotify(dieType, killedBy);
         } else {
 
             int replaceIndex = getDeadAvatarReplacement();
@@ -972,7 +1002,7 @@ public final class TeamManager extends BasePlayerDataManager {
                 reAlertMonstersAfterDeathSwap(next);
             } else {
 
-                this.getPlayer().sendPacket(new PacketWorldPlayerDieNotify(dieType, killedBy));
+                sendTeamDeathNotify(dieType, killedBy);
 
                 PlayerTeamDeathEvent event =
                     new PlayerTeamDeathEvent(
@@ -982,6 +1012,21 @@ public final class TeamManager extends BasePlayerDataManager {
         }
 
         this.getPlayer().sendPacket(new PacketAvatarDieAnimationEndRsp(deadAvatar.getId(), 0));
+    }
+
+    private void sendTeamDeathNotify(PlayerDieType dieType, int killerId) {
+        var scene = this.getPlayer().getScene();
+        var dungeon = scene != null ? scene.getDungeonManager() : null;
+        if (dungeon != null && !getActiveTeam().isEmpty()
+                && getActiveTeam().stream().allMatch(entity -> entity != null && entity.isDead())) {
+            // 推断：reviveCount 是当前副本运行中该玩家剩余的复活次数。
+            this.getPlayer().sendPacket(new PacketDungeonPlayerDieNotify(
+                    dieType, killerId, dungeon.getDungeonData().getId(), 0,
+                    dungeon.getRemainingRevives(this.getPlayer().getUid()),
+                    scene.getEntityById(killerId) instanceof EntityGadget));
+        } else {
+            this.getPlayer().sendPacket(new PacketWorldPlayerDieNotify(dieType, killerId));
+        }
     }
 
     /**
@@ -1292,6 +1337,72 @@ public final class TeamManager extends BasePlayerDataManager {
             }
         }
         return nativeParams != null ? nativeParams : List.of();
+    }
+
+    static List<Integer> selectMirrorTrialAvatarIds(
+            String versions, int mainAvatarId, IntFunction<Integer> avatarIdForTrial) {
+        if (versions == null) return null;
+        var parsedVersions = new ArrayList<List<Integer>>();
+        for (String version : versions.split(";", -1)) {
+            var ids = new ArrayList<Integer>();
+            if (!version.isBlank()) {
+                for (String part : version.split(",", -1)) {
+                    try {
+                        int id = Integer.parseInt(part.trim());
+                        if (id > 0) ids.add(id);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                }
+            }
+            parsedVersions.add(ids);
+        }
+        for (var ids : parsedVersions) {
+            if (mainAvatarId > 0 && ids.stream().anyMatch(
+                    id -> Objects.equals(avatarIdForTrial.apply(id), mainAvatarId))) {
+                return ids;
+            }
+        }
+        return parsedVersions.get(0);
+    }
+
+    public List<Integer> selectMirrorTrialAvatarIds(String versions) {
+        return selectMirrorTrialAvatarIds(versions, this.getPlayer().getMainCharacterId(), id -> {
+            var params = this.getTrialAvatarParam(id);
+            return params.isEmpty() ? null : params.get(0);
+        });
+    }
+
+    public void lockMirrorTeam(List<Integer> trialIds, int mainQuestId) {
+        if (!trialIds.isEmpty()) {
+            if (this.getPlayer().getScene() == null || !this.getPlayer().hasSentLoginPackets()) {
+                throw new IllegalStateException("Mirror team requires an active player scene");
+            }
+            for (int id : trialIds) {
+                var params = this.getTrialAvatarParam(id);
+                if (params.size() < 2 || !GameData.getAvatarDataMap().containsKey(params.get(0))) {
+                    throw new IllegalArgumentException("Unknown mirror trial avatar " + id);
+                }
+            }
+        }
+        this.unlockMirrorTeam();
+        if (trialIds.isEmpty()) return;
+        var scene = this.getPlayer().getScene();
+        if (scene != null) {
+            // setupTrialAvatars(false) clears the list but leaves old roster entities in the scene.
+            for (var entity : new ArrayList<>(this.getActiveTeam())) {
+                scene.removeEntity(entity, VisionTypeOuterClass.VisionType.VisionType_VISION_REMOVE);
+            }
+        }
+        this.addTrialAvatars(trialIds, mainQuestId, false);
+        this.mirrorTrialAvatarIds = List.copyOf(trialIds);
+        this.getPlayer().sendPacket(new PacketAvatarTeamUpdateNotify(this.getPlayer()));
+    }
+
+    public void unlockMirrorTeam() {
+        if (this.mirrorTrialAvatarIds.isEmpty()) return;
+        this.removeTrialAvatar(this.mirrorTrialAvatarIds);
+        this.mirrorTrialAvatarIds = List.of();
     }
 
     public boolean addTrialAvatar(int avatarId, int questMainId, GrantReason reason) {

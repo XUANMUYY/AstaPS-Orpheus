@@ -87,6 +87,8 @@ public final class GameData {
     private static final Map<String, AbilityEmbryoEntry> abilityEmbryos = new HashMap<>();
 
     // ExcelConfigs
+    @Getter private static final Int2ObjectMap<FeatureTagGroupData> featureTagGroupDataMap =
+            new Int2ObjectOpenHashMap<>();
     @Getter
     private static final Int2ObjectMap<ActivityCondExcelConfigData> activityCondExcelConfigDataMap =
             new Int2ObjectOpenHashMap<>();
@@ -225,6 +227,20 @@ public final class GameData {
     private static final Int2ObjectMap<CodexMaterialData> codexMaterialDataIdMap =
             new Int2ObjectOpenHashMap<>();
 
+    /** 书籍图鉴，按书的道具 ID 查。 */
+    @Getter
+    private static final Int2ObjectMap<emu.grasscutter.data.excels.codex.CodexBookData> codexBookDataIdMap =
+            new Int2ObjectOpenHashMap<>();
+
+    /** 景观图鉴，按景观点所在的 groupId + configId 查（键见 CodexViewData.configKey）。 */
+    @Getter
+    private static final Map<Long, emu.grasscutter.data.excels.codex.CodexViewData> codexViewDataByConfigMap =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    @Getter
+    private static final Int2ObjectMap<CodexBookData> codexBookDataMap =
+            new Int2ObjectOpenHashMap<>();
+
     @Getter
     private static final Int2ObjectMap<CodexQuestData> codexQuestDataIdMap =
             new Int2ObjectOpenHashMap<>();
@@ -239,6 +255,10 @@ public final class GameData {
 
     @Getter
     private static final Int2ObjectMap<CombineData> combineDataMap = new Int2ObjectOpenHashMap<>();
+
+    @Getter
+    private static final Int2ObjectMap<ReliquaryDecomposeData> reliquaryDecomposeDataMap =
+            new Int2ObjectOpenHashMap<>();
 
     @Getter
     private static final Int2ObjectMap<CookBonusData> cookBonusDataMap =
@@ -303,6 +323,10 @@ public final class GameData {
 
     @Getter
     private static final Int2ObjectMap<GadgetData> gadgetDataMap = new Int2ObjectOpenHashMap<>();
+
+    @Getter
+    private static final Int2ObjectMap<GadgetInteractData> gadgetInteractDataMap =
+            new Int2ObjectOpenHashMap<>();
 
     @Getter
     private static final Int2ObjectMap<GatherData> gatherDataMap = new Int2ObjectOpenHashMap<>();
@@ -408,6 +432,10 @@ public final class GameData {
 
     @Getter
     private static final Int2ObjectMap<PlayerLevelData> playerLevelDataMap =
+            new Int2ObjectOpenHashMap<>();
+
+    @Getter
+    private static final Int2ObjectMap<PlayerLevelLockData> playerLevelLockDataMap =
             new Int2ObjectOpenHashMap<>();
 
     @Getter
@@ -569,10 +597,16 @@ public final class GameData {
     private static final Int2ObjectMap<FetterData> fetterDataMap = new Int2ObjectOpenHashMap<>();
     private static final Int2ObjectMap<ReliquaryLevelData> reliquaryLevelDataMap =
             new Int2ObjectOpenHashMap<>();
-    private static final Int2ObjectMap<ShopGoodsData> shopGoodsDataMap =
+    @Getter private static final Int2ObjectMap<ShopGoodsData> shopGoodsDataMap =
+            new Int2ObjectOpenHashMap<>();
+    @Getter private static final Int2ObjectMap<HomeWorldLimitShopData> homeWorldLimitShopDataMap =
+            new Int2ObjectOpenHashMap<>();
+    @Getter private static final Int2ObjectMap<HomeWorldLeastShopData> homeWorldLeastShopDataMap =
             new Int2ObjectOpenHashMap<>();
 
     // The following are accessed via getMapByResourceDef, and will show as unused
+    private static final Int2ObjectMap<emu.grasscutter.data.excels.codex.CodexViewData> codexViewDataMap =
+            new Int2ObjectOpenHashMap<>();
     private static final Int2ObjectMap<CodexMaterialData> codexMaterialDataMap =
             new Int2ObjectOpenHashMap<>();
     private static final Int2ObjectMap<CodexQuestData> codexQuestDataMap =

@@ -33,8 +33,7 @@ public class TrialAvatarActivityHandler extends ActivityHandler {
             PlayerActivityData playerActivityData, ActivityInfo.Builder activityInfo) {
         TrialAvatarPlayerData trialAvatarPlayerData = getTrialAvatarPlayerData(playerActivityData);
 
-        // TODO: Apply trial avatar info.
-        // activityInfo.setTrialAvatarInfo(trialAvatarPlayerData.toProto());
+        activityInfo.setTrialAvatarInfo(trialAvatarPlayerData.toProto());
     }
 
     @Override
@@ -111,7 +110,10 @@ public class TrialAvatarActivityHandler extends ActivityHandler {
         this.setSelectedTrialAvatarIndex(0);
     }
 
-    public boolean getReward(Player player, int trialAvatarIndexId) {
+    public synchronized boolean getReward(Player player, int trialAvatarIndexId) {
+        if (!player.getActivityManager().isActivityOpen(getActivityConfigItem().getActivityId())) {
+            return false;
+        }
         val playerActivityData =
                 player
                         .getActivityManager()
@@ -125,7 +127,7 @@ public class TrialAvatarActivityHandler extends ActivityHandler {
                 getTrialAvatarPlayerData(playerActivityData.get());
         TrialAvatarPlayerData.RewardInfoItem rewardInfo =
                 trialAvatarPlayerData.getRewardInfo(trialAvatarIndexId);
-        if (rewardInfo == null) return false;
+        if (rewardInfo == null || !rewardInfo.isClaimable()) return false;
 
         RewardData rewardParam = GameData.getRewardDataMap().get(rewardInfo.getRewardId());
         if (rewardParam == null) return false;
@@ -137,6 +139,8 @@ public class TrialAvatarActivityHandler extends ActivityHandler {
         rewardInfo.setReceivedReward(true);
         playerActivityData.get().setDetail(trialAvatarPlayerData);
         playerActivityData.get().save();
+        player.sendPacket(new PacketActivityInfoNotify(
+                toProto(playerActivityData.get(), player.getActivityManager().getConditionExecutor())));
         return true;
     }
 

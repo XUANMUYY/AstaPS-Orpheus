@@ -124,4 +124,9 @@ public class MonsterData extends GameResource {
         private int DropId;
         private int HpPercent;
     }
+
+    /** 表里出现服务端不认识的怪物类型时按 MONSTER_NONE 处理，死亡链里取类型值不会空指针。 */
+    public MonsterType getType() {
+        return this.type != null ? this.type : MonsterType.MONSTER_NONE;
+    }
 }

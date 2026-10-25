@@ -28,6 +28,8 @@ import emu.grasscutter.net.proto.ResinCostTypeOuterClass;
 import emu.grasscutter.net.proto.SceneGadgetInfoOuterClass;
 import emu.grasscutter.net.proto.VisionTypeOuterClass;
 import emu.grasscutter.scripts.SceneScriptManager;
+import emu.grasscutter.scripts.constants.EventType;
+import emu.grasscutter.scripts.data.ScriptArgs;
 import emu.grasscutter.scripts.data.SceneBossChest;
 import emu.grasscutter.scripts.data.SceneGadget;
 import emu.grasscutter.scripts.data.SceneGroup;
@@ -323,6 +325,17 @@ public class GadgetChest extends GadgetContent {
                 return true;
             }
         }
+        if (ChestTypeResolver.resolve(gadget) == null && !ChestTypeResolver.isNativeInteract(gadget)) {
+            // 场景给了 chest_drop_id，但服务端掉落表缺这个根，外形又不是普通宝箱（如沙漠符文
+            // 70330386 指向的 1050269）：没有可发的奖励。以前在 WorldChestLootHelper 里抛异常，
+            // 开箱没有回应、脚本也不推进；现在记一条警告，照常完成开启。
+            Grasscutter.getLogger().warn(
+                    "Chest without loot: gadgetId={} group={} config={} chest_drop_id={}",
+                    gadget.getGadgetId(), gadget.getGroupId(), gadget.getConfigId(),
+                    meta != null ? meta.chest_drop_id : 0);
+            ordinaryClaimed = true;
+            return true;
+        }
         boolean permanent = ChestTypeResolver.resolve(gadget) != null
                 || (meta != null && meta.isOneoff);
         String identity = permanent && gadget.getGroupId() > 0 && gadget.getConfigId() > 0
@@ -447,6 +460,10 @@ public class GadgetChest extends GadgetContent {
                 creditChestOpen(player);
             }
         }
+        if (sceneGadget != null && sceneGadget.is_blossom_chest) {
+            entityGadget.getScene().getScriptManager().callEvent(new ScriptArgs(
+                    entityGadget.getGroupId(), EventType.EVENT_BLOSSOM_CHEST_DIE, configId));
+        }
     }
 
     private void creditChestOpen(Player player) {
@@ -459,6 +476,14 @@ public class GadgetChest extends GadgetContent {
                     gadgetId,
                     1);
         } catch (Throwable ignored) {
+        }
+        try {
+            if (getGadget().getScene().getSceneType() == SceneType.SCENE_WORLD) {
+                emu.grasscutter.game.achievement.ServerAchievementTriggers.onWorldChestOpened(
+                        player, getGadget().getGadgetId());
+            }
+        } catch (Throwable t) {
+            Grasscutter.getLogger().warn("[Achievement] chest hook failed: {}", t.toString());
         }
     }
 

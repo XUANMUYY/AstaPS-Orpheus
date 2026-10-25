@@ -32,6 +32,9 @@ public class WorldChallenge {
     private boolean success;
     private int startedAt;
     private int finishedTime;
+    private int sourceRegionEntityId;
+    private FatherChallenge fatherChallenge;
+    private List<Integer> uidList = List.of();
 
     /**
      * @param scene The scene the challenge is in.
@@ -110,7 +113,7 @@ public class WorldChallenge {
         var scene = this.getScene();
         var scriptManager = scene.getScriptManager();
         var dungeonManager = scene.getDungeonManager();
-        if (dungeonManager != null && dungeonManager.getDungeonData() != null) {
+        if (fatherChallenge == null && dungeonManager != null && dungeonManager.getDungeonData() != null) {
             scene
                     .getPlayers()
                     .forEach(
@@ -143,11 +146,7 @@ public class WorldChallenge {
                 }
             }
         }
-        var challengeSuccess =
-                scriptManager.callEvent(
-                        new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_SUCCESS)
-                                .setParam2(param2)
-                                .setEventSource(this.getChallengeIndex()));
+        var challengeSuccess = scriptManager.callEvent(successEventArgs(param2));
 
         // Lua TowerMirrorTeamSetUp / stage=1 is async via callEvent. Pass-condition settle must
         // wait, or the chamber settles on the upper half and the mid-half team swap is cancelled.
@@ -162,25 +161,39 @@ public class WorldChallenge {
             }
         }
 
-        this.getScene()
-                .triggerDungeonEvent(
-                        DungeonPassConditionType.DUNGEON_COND_FINISH_CHALLENGE,
-                        getChallengeId(),
-                        getChallengeIndex());
+        if (fatherChallenge == null) {
+            this.getScene()
+                    .triggerDungeonEvent(
+                            DungeonPassConditionType.DUNGEON_COND_FINISH_CHALLENGE,
+                            getChallengeId(),
+                            getChallengeIndex());
+        }
 
         this.challengeTriggers.forEach(t -> t.onFinish(this));
+        if (fatherChallenge != null) fatherChallenge.onChildFinished(this, true);
     }
 
     public void fail() {
         if (!this.inProgress()) return;
         this.finish(false);
 
-        // TODO: Set 'eventSource' in script arguments.
         var scriptManager = this.getScene().getScriptManager();
-        scriptManager.callEvent(
-                new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_FAIL)
-                        .setEventSource(this.getChallengeIndex()));
+        scriptManager.callEvent(failureEventArgs());
         challengeTriggers.forEach(t -> t.onFinish(this));
+        if (fatherChallenge != null) fatherChallenge.onChildFinished(this, false);
+    }
+
+    ScriptArgs failureEventArgs() {
+        return new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_FAIL, this.getChallengeId())
+                .setParam2(this.finishedTime)
+                .setEventSource(this.getChallengeIndex());
+    }
+
+    ScriptArgs successEventArgs(int elapsedOrRemaining) {
+        return new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_SUCCESS, this.getChallengeId())
+                .setParam2(elapsedOrRemaining)
+                .setEventSource(this.getChallengeIndex())
+                .setSourceEntityId(this.sourceRegionEntityId);
     }
 
     /**
@@ -216,7 +229,7 @@ public class WorldChallenge {
         getScene().getScriptManager().removeMonstersInGroup(group);
 
         getScene().broadcastPacket(new PacketDungeonChallengeFinishNotify(this));
-        if (success) {
+        if (success && fatherChallenge == null) {
             DomainRewardStatueHelper.onChallengeSuccess(getScene());
         }
     }

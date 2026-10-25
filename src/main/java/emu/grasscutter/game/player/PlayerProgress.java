@@ -6,6 +6,7 @@ import emu.grasscutter.game.quest.*;
 import emu.grasscutter.game.quest.enums.QuestContent;
 import it.unimi.dsi.fastutil.ints.*;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.*;
 
@@ -40,6 +41,17 @@ public class PlayerProgress {
     @Setter private int handbookChestOpenCount;
     /** rankLevel -> historical obtain count for handbook relic tasks. */
     private Map<Integer, Integer> handbookReliquaryHistoryCount;
+
+    /** 对话执行项 TALK_EXEC_SAVE_TALK_ID 存下的对话号，供 QUEST_COND_TALK_FINISH_SAVED 判定。 */
+    private Set<Integer> savedTalkIds;
+    /** 机关对话状态：「groupId_configId」→ 状态值，供 QUEST_COND_GADGET_TALK_STATE_EQUAL 判定。 */
+    private Map<String, Integer> gadgetTalkStates;
+    /** 活动事件道具解锁状态：「eventId_itemId」→ 1 表示已解锁。 */
+    private Map<String, Integer> eventItemLockStates;
+    /** 任务武器形态：武器号 → 形态（0/1）。 */
+    private Map<Integer, Integer> weaponModes;
+    /** 对话里完成的轶事号。 */
+    private Set<Integer> finishedAnecdotes;
 
     public PlayerProgress() {
         this.questProgressCountMap = new ConcurrentHashMap<>();
@@ -155,6 +167,65 @@ public class PlayerProgress {
     public int addToItemHistory(int itemId, int count) {
         val itemEntry = itemHistory.computeIfAbsent(itemId, (key) -> new ItemEntry(itemId));
         return itemEntry.addToObtainedCount(count);
+    }
+
+    // 老存档没有这些字段，读出来是 null，用到时再补。
+    private synchronized void ensureTalkState() {
+        if (this.savedTalkIds == null) this.savedTalkIds = ConcurrentHashMap.newKeySet();
+        if (this.gadgetTalkStates == null) this.gadgetTalkStates = new ConcurrentHashMap<>();
+        if (this.eventItemLockStates == null) this.eventItemLockStates = new ConcurrentHashMap<>();
+        if (this.weaponModes == null) this.weaponModes = new ConcurrentHashMap<>();
+        if (this.finishedAnecdotes == null) this.finishedAnecdotes = ConcurrentHashMap.newKeySet();
+    }
+
+    public boolean isTalkSaved(int talkId) {
+        ensureTalkState();
+        return this.savedTalkIds.contains(talkId);
+    }
+
+    public void saveTalkId(int talkId) {
+        ensureTalkState();
+        this.savedTalkIds.add(talkId);
+    }
+
+    public int getGadgetTalkState(int groupId, int configId) {
+        ensureTalkState();
+        return this.gadgetTalkStates.getOrDefault(groupId + "_" + configId, 0);
+    }
+
+    public void setGadgetTalkState(int groupId, int configId, int state) {
+        ensureTalkState();
+        this.gadgetTalkStates.put(groupId + "_" + configId, state);
+    }
+
+    public int getEventItemLockState(int eventId, int itemId) {
+        ensureTalkState();
+        return this.eventItemLockStates.getOrDefault(eventId + "_" + itemId, 0);
+    }
+
+    public void setEventItemLockState(int eventId, int itemId, int state) {
+        ensureTalkState();
+        this.eventItemLockStates.put(eventId + "_" + itemId, state);
+    }
+
+    public int getWeaponMode(int weaponId) {
+        ensureTalkState();
+        return this.weaponModes.getOrDefault(weaponId, 0);
+    }
+
+    public void setWeaponMode(int weaponId, int mode) {
+        ensureTalkState();
+        this.weaponModes.put(weaponId, mode);
+    }
+
+    public boolean isAnecdoteFinished(int anecdoteId) {
+        ensureTalkState();
+        return this.finishedAnecdotes.contains(anecdoteId);
+    }
+
+    public void finishAnecdote(int anecdoteId) {
+        ensureTalkState();
+        this.finishedAnecdotes.add(anecdoteId);
     }
 
     public int getCurrentProgress(String progressId) {

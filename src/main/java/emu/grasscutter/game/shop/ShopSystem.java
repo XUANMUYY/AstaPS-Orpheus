@@ -6,6 +6,7 @@ import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.*;
 import emu.grasscutter.data.common.ItemParamData;
 import emu.grasscutter.data.excels.ShopGoodsData;
+import emu.grasscutter.game.player.Player;
 import emu.grasscutter.server.game.*;
 import emu.grasscutter.utils.Utils;
 import it.unimi.dsi.fastutil.ints.*;
@@ -43,6 +44,12 @@ public class ShopSystem extends BaseGameSystem {
         return shopData;
     }
 
+    public List<ShopInfo> getShopData(Player player, int shopType) {
+        if (shopType != ShopType.SHOP_TYPE_HOME_LIMIT.shopTypeId) return shopData.get(shopType);
+        var home = player.getCurHomeWorld() == null ? player.getHome() : player.getCurHomeWorld().getHome();
+        return HomeLimitedShop.goods(home, Utils.getCurrentSeconds());
+    }
+
     public List<ItemParamData> getShopChestData(int chestId) {
         return this.shopChestData.get(chestId);
     }
@@ -54,6 +61,11 @@ public class ShopSystem extends BaseGameSystem {
             if (banners.size() > 0) {
                 for (ShopTable shopTable : banners) {
                     shopTable.getItems().forEach(ShopInfo::removeVirtualCosts);
+                    for (ShopInfo item : shopTable.getItems()) {
+                        var excel = GameData.getShopGoodsDataMap().get(item.getGoodsId());
+                        if (excel != null && excel.getShopType() == shopTable.getShopId())
+                            item.applyPrecondition(excel);
+                    }
                     getShopData().put(shopTable.getShopId(), shopTable.getItems());
                 }
                 Grasscutter.getLogger().debug("Shop data successfully loaded.");
@@ -108,7 +120,6 @@ public class ShopSystem extends BaseGameSystem {
     }
 
     public synchronized void load() {
-        loadShop();
         loadShopChest();
         loadArtifactShop();
     }
@@ -118,6 +129,8 @@ public class ShopSystem extends BaseGameSystem {
      * shop system is built before them and has no item data to work from yet.
      */
     public synchronized void loadArtifactShop() {
+        // 资源表在 GameServer 构造后才加载，此处重建才能接上 Excel 前置条件。
+        loadShop();
         this.artifactShop.install(getShopData());
     }
 

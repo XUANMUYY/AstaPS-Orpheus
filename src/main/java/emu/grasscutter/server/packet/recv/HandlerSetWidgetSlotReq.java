@@ -1,6 +1,7 @@
 package emu.grasscutter.server.packet.recv;
 
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.quest.enums.QuestContent;
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.*;
 import emu.grasscutter.server.game.GameSession;
@@ -46,6 +47,10 @@ public class HandlerSetWidgetSlotReq extends PacketHandler {
 
         // SetWidgetSlotRsp
         session.send(new PacketSetWidgetSlotRsp(req.getMaterialId()));
+        if (attach && player.getWidgetId() == req.getMaterialId() && req.getMaterialId() > 0) {
+            player.getQuestManager().queueEvent(
+                    QuestContent.QUEST_CONTENT_SPECIFIC_WIDGET_ATTACHED, req.getMaterialId());
+        }
 
         // Follower pets (Endora, mini seelies): optional helper may be absent from some jar builds.
         tryInvokeWidgetPetHelper(player, previousMaterialId, player.getWidgetId());
