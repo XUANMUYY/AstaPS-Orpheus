@@ -985,7 +985,7 @@ public class ScriptLib {
 
         var timeAxis = new SceneTimeAxis(
                 scriptManager, group.id,
-                identifier, delays[0], shouldLoop
+                identifier, delays.clone(), shouldLoop
         );
         scriptManager.initTimeAxis(timeAxis);
         timeAxis.start();
