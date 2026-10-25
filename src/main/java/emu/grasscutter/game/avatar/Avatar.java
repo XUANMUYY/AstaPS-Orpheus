@@ -882,13 +882,20 @@ public class Avatar {
                 .intStream()
                 .mapToObj(GameData.getAvatarTalentDataMap()::get)
                 .filter(Objects::nonNull)
-                .map(AvatarTalentData::getOpenConfig)
-                .filter(Objects::nonNull)
-                .forEach(
-                        openConfig -> {
-                            this.addToExtraAbilityEmbryos(openConfig);
-                            talentOwners.add(ExtraTalents.owner(openConfig));
-                        });
+                .forEach(talent -> {
+                    if (talent.getAddProps() != null) {
+                        for (FightPropData prop : talent.getAddProps()) {
+                            if (prop.getProp() != null && prop.getValue() != 0f) {
+                                this.addFightProperty(prop.getProp(), prop.getValue());
+                            }
+                        }
+                    }
+                    String openConfig = talent.getOpenConfig();
+                    if (openConfig != null) {
+                        this.addToExtraAbilityEmbryos(openConfig);
+                        talentOwners.add(ExtraTalents.owner(openConfig));
+                    }
+                });
 
         ExtraTalents.forOwners(talentOwners, this.getAvatarData().getName())
                 .forEach(this::addToExtraAbilityEmbryos);
@@ -1187,13 +1194,13 @@ public class Avatar {
     private boolean unlockConstellation(int talentId, boolean skipPayment, boolean finalizeChange) {
         // Get talent
         AvatarTalentData talentData = GameData.getAvatarTalentDataMap().get(talentId);
-        if (talentData == null) return false;
+        if (talentData == null || !this.canUnlockConstellation(talentId, talentData)) return false;
         var player = this.getPlayer();
 
         // Pay constellation item if possible
         if (!skipPayment
                 && (player != null)
-                && !player.getInventory().payItem(talentData.getMainCostItemId(), 1)) {
+                && !player.getInventory().payItem(talentData.getMainCostItemId(), talentData.getMainCostItemCount())) {
             return false;
         }
 
@@ -1215,6 +1222,13 @@ public class Avatar {
             this.save();
         }
         return true;
+    }
+
+    boolean canUnlockConstellation(int talentId, AvatarTalentData talentData) {
+        return this.skillDepot != null
+                && this.skillDepot.getTalents().contains(talentId)
+                && !this.talentIdList.contains(talentId)
+                && (talentData.PrevTalent() == 0 || this.talentIdList.contains(talentData.PrevTalent()));
     }
 
     public void forceConstellationLevel(int level) {
