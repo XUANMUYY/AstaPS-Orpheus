@@ -21,4 +21,20 @@ final class WorldChallengeEventArgsTest {
         assertEquals(228, args.param1);
         assertEquals("999", args.source);
     }
+
+    @Test
+    void successKeepsTheRegionThatStartedTheChallenge() {
+        var group = new SceneGroup();
+        group.id = 199001094;
+        var challenge = new WorldChallenge(null, group, 2020, 1002, List.of(), 0, 0, List.of());
+        challenge.setSourceRegionEntityId(700123);
+
+        var args = challenge.successEventArgs(42);
+
+        assertEquals(EventType.EVENT_CHALLENGE_SUCCESS, args.type);
+        assertEquals(group.id, args.group_id);
+        assertEquals("1002", args.source);
+        assertEquals(42, args.param2);
+        assertEquals(700123, args.source_eid);
+    }
 }

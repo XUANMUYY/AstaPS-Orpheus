@@ -32,6 +32,7 @@ public class WorldChallenge {
     private boolean success;
     private int startedAt;
     private int finishedTime;
+    private int sourceRegionEntityId;
 
     /**
      * @param scene The scene the challenge is in.
@@ -143,11 +144,7 @@ public class WorldChallenge {
                 }
             }
         }
-        var challengeSuccess =
-                scriptManager.callEvent(
-                        new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_SUCCESS)
-                                .setParam2(param2)
-                                .setEventSource(this.getChallengeIndex()));
+        var challengeSuccess = scriptManager.callEvent(successEventArgs(param2));
 
         // Lua TowerMirrorTeamSetUp / stage=1 is async via callEvent. Pass-condition settle must
         // wait, or the chamber settles on the upper half and the mid-half team swap is cancelled.
@@ -183,6 +180,13 @@ public class WorldChallenge {
     ScriptArgs failureEventArgs() {
         return new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_FAIL, this.getChallengeId())
                 .setEventSource(this.getChallengeIndex());
+    }
+
+    ScriptArgs successEventArgs(int elapsedOrRemaining) {
+        return new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_SUCCESS)
+                .setParam2(elapsedOrRemaining)
+                .setEventSource(this.getChallengeIndex())
+                .setSourceEntityId(this.sourceRegionEntityId);
     }
 
     /**

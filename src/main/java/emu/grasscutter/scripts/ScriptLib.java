@@ -293,6 +293,8 @@ public class ScriptLib {
             return 1;
         }
 
+        challenge.setSourceRegionEntityId(currentChallengeSourceRegion(scene));
+
         if (challenge instanceof DungeonChallenge dungeonChallenge) {
 
             dungeonChallenge.setStage(getSceneScriptManager().getVariables(parameters[1]).getOrDefault("stage", -1) == 0);
@@ -301,6 +303,13 @@ public class ScriptLib {
         scene.setChallenge(challenge);
         challenge.start();
         return 0;
+    }
+
+    private int currentChallengeSourceRegion(Scene scene) {
+        var event = callParams.getIfExists();
+        int entityId = event == null ? 0 : event.source_eid;
+        return entityId != 0 && scene.getScriptManager().getRegionById(entityId) != null
+                ? entityId : 0;
     }
 
     public int AddBlossomScheduleProgressByGroupId(int groupId) {
