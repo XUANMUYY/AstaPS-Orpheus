@@ -309,7 +309,9 @@ public enum WatcherTriggerType {
     TRIGGER_IRODORI_FINISH_POETRY_THEME(1134),
     TRIGGER_PHOTO_FINISH_POS_ID(1135),
     TRIGGER_CRYSTAL_LINK_LEVEL_SCORE_REACH(1138),
-    TRIGGER_CRYSTAL_LINK_TOTAL_MAX_SCORE_REACH(1139);
+    TRIGGER_CRYSTAL_LINK_TOTAL_MAX_SCORE_REACH(1139),
+    TRIGGER_GAMBLING_CHESS_VOTE_STAGE_VOTED(1140),
+    TRIGGER_GAMBLING_CHESS_VOTE_DAY_REACH(1141);
 
     private static final Int2ObjectMap<WatcherTriggerType> map = new Int2ObjectOpenHashMap<>();
     private static final Map<String, WatcherTriggerType> stringMap = new HashMap<>();

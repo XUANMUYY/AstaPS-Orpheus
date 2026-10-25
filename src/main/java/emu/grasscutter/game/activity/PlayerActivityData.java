@@ -65,10 +65,10 @@ public class PlayerActivityData {
         this.detail = JsonUtils.encode(detail);
     }
 
-    public void takeWatcherReward(int watcherId) {
+    public synchronized boolean takeWatcherReward(int watcherId) {
         var watcher = watcherInfoMap.get(watcherId);
-        if (watcher == null || watcher.isTakenReward()) {
-            return;
+        if (watcher == null || !watcher.isFinished() || watcher.isTakenReward()) {
+            return false;
         }
 
         var reward =
@@ -78,7 +78,7 @@ public class PlayerActivityData {
                         .map(id -> GameData.getRewardDataMap().get(id.intValue()));
 
         if (reward.isEmpty()) {
-            return;
+            return false;
         }
 
         List<GameItem> rewards = new ArrayList<>();
@@ -89,6 +89,7 @@ public class PlayerActivityData {
         player.getInventory().addItems(rewards, ActionReason.ActivityWatcher);
         watcher.setTakenReward(true);
         save();
+        return true;
     }
 
     @Entity

@@ -23,6 +23,7 @@ public class PacketGetActivityInfoRsp extends BasePacket {
             return;
         }
         activityIdList.stream()
+                .filter(activityManager::isActivityOpen)
                 .map(activityManager::getInfoProtoByActivityId)
                 .filter(Objects::nonNull)
                 .forEach(proto::addActivityInfoList);
