@@ -20,6 +20,7 @@ import emu.grasscutter.net.proto.EnterTypeOuterClass;
 import emu.grasscutter.net.proto.VisionTypeOuterClass.VisionType;
 import emu.grasscutter.scripts.constants.*;
 import emu.grasscutter.scripts.data.*;
+import emu.grasscutter.scripts.lib.PointArrayAvatarMovement;
 import emu.grasscutter.server.event.player.PlayerTeleportEvent.TeleportType;
 import emu.grasscutter.server.packet.send.*;
 import emu.grasscutter.server.packet.send.PacketSceneEntityAppearNotify;
@@ -391,9 +392,10 @@ public class ScriptLib {
     }
 
     public int BeginCameraSceneLook(LuaTable sceneLookParams) {
-        logger.warn("[LUA] Call unimplemented BeginCameraSceneLook with {}", printTable(sceneLookParams));
-
-        return 0;
+        // 7.1 protocol.desc has an opcode but no BeginCameraSceneLookNotify schema. Do not send
+        // an empty packet: it would report success while the camera remains unchanged.
+        logger.warn("[LUA] BeginCameraSceneLook cannot send: 7.1 notification schema is absent");
+        return -1;
     }
 
     public int CancelGroupTimerEvent(int groupID, String source) {
@@ -1087,10 +1089,41 @@ public class ScriptLib {
         return 0;
     }
 
-    public int MoveAvatarByPointArray(int uid, int targetId, LuaTable var3, String var4) {
-        logger.warn("[LUA] Call unimplemented MoveAvatarByPointArray with {} {} {} {}", uid, targetId, printTable(var3), var4);
-
-        return 0;
+    public int MoveAvatarByPointArray(int uid, int pointArrayId, LuaTable route,
+                                      LuaTable moveParams, String marker) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null || route == null) {
+            logger.warn("[LUA] MoveAvatarByPointArray: missing scene or route, array={}", pointArrayId);
+            return -1;
+        }
+        var scene = manager.getScene();
+        var player = scene.getPlayers().stream().filter(p -> p.getUid() == uid).findFirst().orElse(null);
+        if (player == null) {
+            logger.warn("[LUA] MoveAvatarByPointArray: uid {} is not in scene {}", uid, scene.getId());
+            return -1;
+        }
+        var activeTeam = player.getTeamManager().getActiveTeam();
+        if (activeTeam == null || activeTeam.isEmpty()) {
+            logger.warn("[LUA] MoveAvatarByPointArray: uid {} has no active avatar", uid);
+            return -1;
+        }
+        try {
+            var destination = PointArrayAvatarMovement.destination(scene.getId(), pointArrayId, route);
+            if (destination == null) {
+                logger.warn("[LUA] MoveAvatarByPointArray: destination missing, scene={} array={}",
+                        scene.getId(), pointArrayId);
+                return -1;
+            }
+            // 推断：传送机关只依赖路线终点；当前协议没有已验证的玩家路线移动通知。
+            softTeleportInScene(scene, player, destination, null);
+            logger.debug("[LUA] MoveAvatarByPointArray uid={} array={} destination={}",
+                    uid, pointArrayId, destination);
+            return 0;
+        } catch (Exception e) {
+            logger.warn("[LUA] MoveAvatarByPointArray: cannot read point array {} in scene {}: {}",
+                    pointArrayId, scene.getId(), e.toString());
+            return -1;
+        }
     }
 
     public int MoveAvatarByPointArrayWithTemplate(int uid, int pointarray_id, int[] routelist, int var4, LuaTable var5) {
@@ -1833,8 +1866,20 @@ public class ScriptLib {
     }
 
     public int UnlockFloatSignal(int groupId, int gadgetSignalId) {
-        logger.warn("[LUA] Call unimplemented UnlockFloatSignal with {} {}", groupId, gadgetSignalId);
-
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null) {
+            logger.warn("[LUA] UnlockFloatSignal: no active scene");
+            return -1;
+        }
+        var entity = manager.getScene().getEntityByConfigId(gadgetSignalId, groupId);
+        if (!(entity instanceof EntityGadget gadget)) {
+            logger.warn("[LUA] UnlockFloatSignal: gadget {} in group {} is absent",
+                    gadgetSignalId, groupId);
+            return -1;
+        }
+        // 推断：浮标信号的解锁表现使用场景 gadget 的启动状态及其现有状态通知。
+        gadget.updateState(ScriptGadgetState.GearStart);
+        logger.debug("[LUA] UnlockFloatSignal group={} gadget={}", groupId, gadgetSignalId);
         return 0;
     }
 
@@ -2008,5 +2053,26 @@ public class ScriptLib {
         }
 
         return configIds;
+    }
+
+    // ---- 任务卡 C 补的函数 ----
+    public int PauseTimeAxis(String identifier) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || identifier == null || !manager.pauseTimeAxis(identifier)) {
+            logger.warn("[LUA] PauseTimeAxis: axis {} is absent", identifier);
+            return -1;
+        }
+        logger.debug("[LUA] PauseTimeAxis {}", identifier);
+        return 0;
+    }
+
+    public int ContinueTimeAxis(String identifier) {
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || identifier == null || !manager.continueTimeAxis(identifier)) {
+            logger.warn("[LUA] ContinueTimeAxis: axis {} is absent", identifier);
+            return -1;
+        }
+        logger.debug("[LUA] ContinueTimeAxis {}", identifier);
+        return 0;
     }
 }
