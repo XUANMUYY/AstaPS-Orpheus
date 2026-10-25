@@ -35,6 +35,7 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.GameDepot;
 import emu.grasscutter.data.excels.GatherData;
 import emu.grasscutter.data.excels.RefreshPolicyExcelConfigData;
+import emu.grasscutter.game.props.RefreshType;
 import emu.grasscutter.database.DatabaseManager;
 import emu.grasscutter.game.dungeons.DomainDungeonHelper;
 import emu.grasscutter.game.entity.EntityGadget;
@@ -263,7 +264,13 @@ public final class OpenWorldSpawnHelper {
             return false;
         }
         long l2 = System.currentTimeMillis() / 1000L;
-        return l2 >= l + (long)OpenWorldSpawnHelper.intervalSeconds(scene, n2 = OpenWorldSpawnHelper.readRefreshId(document, scene, n));
+        n2 = OpenWorldSpawnHelper.readRefreshId(document, scene, n);
+        var policy = GameData.getRefreshPolicyExcelConfigDataMap().get(n2);
+        if (policy != null && policy.getType() == RefreshType.REFRESH_DAILY) {
+            long nextRefresh = policy.nextDailyRefreshAt(l);
+            if (nextRefresh > 0) return l2 >= nextRefresh;
+        }
+        return l2 >= l + (long)OpenWorldSpawnHelper.intervalSeconds(scene, n2);
     }
 
     public static void onGathered(EntityGadget entityGadget, int n) {
