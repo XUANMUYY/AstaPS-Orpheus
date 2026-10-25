@@ -43,6 +43,7 @@ public class SceneScriptManager {
     private final Map<String, Integer> variables;
     /** Mutable fallbacks when a group instance is not cached yet (tower stage/TPL_TIME writes). */
     private final Map<Integer, Map<String, Integer>> orphanGroupVariables = new ConcurrentHashMap<>();
+    private final Map<Integer, Map<String, Integer>> groupTempValues = new ConcurrentHashMap<>();
     private SceneMeta meta;
     private volatile boolean isInit;
     private volatile boolean initAttempted;
@@ -268,6 +269,7 @@ public class SceneScriptManager {
     /** Reloading an open-world group is not a request to reset its puzzle progress. */
     public int restoreGroup(SceneGroupInstance instance, int overrideSuite) {
         var group = instance.getLuaGroup();
+        if (overrideSuite == 0 && instance.isScriptGroupDead()) return instance.getActiveSuiteId();
         int savedSuite = instance.getActiveSuiteId();
         if (getScene() != null && getScene().getSceneType() == SceneType.SCENE_WORLD && overrideSuite == 0
                 && group != null && group.suites != null
@@ -276,10 +278,24 @@ public class SceneScriptManager {
             // without resetting variables or refresh timestamps. Keep the loader's
             // existing refresh notification so scripts can initialize their runtime hooks.
             addGroupSuite(instance, group.getSuiteByIndex(savedSuite));
+            restoreExtraFlowSuites(instance);
             callEvent(new ScriptArgs(instance.getGroupId(), EventType.EVENT_GROUP_REFRESH));
             return savedSuite;
         }
-        return refreshGroup(instance, overrideSuite, false);
+        int restored = refreshGroup(instance, overrideSuite, false);
+        if (overrideSuite == 0) restoreExtraFlowSuites(instance);
+        return restored;
+    }
+
+    public Map<String, Integer> getGroupTempValues(int groupId) {
+        return groupTempValues.computeIfAbsent(groupId, id -> new ConcurrentHashMap<>());
+    }
+
+    private void restoreExtraFlowSuites(SceneGroupInstance instance) {
+        for (int suiteId : instance.getExtraFlowSuites()) {
+            var suite = instance.getLuaGroup().getSuiteByIndex(suiteId);
+            if (suite != null && suiteId != instance.getActiveSuiteId()) addGroupSuite(instance, suite);
+        }
     }
 
     public void refreshGroup(SceneGroupInstance groupInstance) {
@@ -303,6 +319,7 @@ public class SceneScriptManager {
             int suiteIndex,
             boolean excludePrevSuite,
             List<GameEntity> entitiesAdded) {
+        if (groupInstance.isScriptGroupDead()) return 0;
         SceneGroup group = groupInstance.getLuaGroup();
         if (LiyueCloudDungeonSupport.isTimerGroup(getScene(), group.id))
             liyueDungeonTimers.cancelGroup(group.id);
@@ -405,6 +422,7 @@ public class SceneScriptManager {
                             getScene().getId());
             if (targetGroupInstance == null) return false;
         }
+        if (targetGroupInstance.isScriptGroupDead()) return false;
         Grasscutter.getLogger().debug("Refreshing group {} suite {}", groupId, suiteId);
         suiteId =
                 refreshGroup(

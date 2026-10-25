@@ -825,9 +825,7 @@ public class ScriptLib {
     }
 
     public int GetGroupTempValue(String name, LuaTable var2) {
-        logger.warn("[LUA] Call unimplemented GetGroupTempValue with {} {}", name, printTable(var2));
-
-        return 0;
+        return ScriptLibTaskA.tempValue(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, var2, null, false);
     }
 
     public int GetGroupVariableValue(String var) {
@@ -1364,9 +1362,7 @@ public class ScriptLib {
     }
 
     public int SetGroupTempValue(String name, int value, LuaTable var3) {
-        logger.warn("[LUA] Call unimplemented SetGroupTempValue with {} {} {}", name, value, printTable(var3));
-
-        return 0;
+        return ScriptLibTaskA.tempValue(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, var3, value, false);
     }
 
     public int SetGroupVariableValue(String var, int value) {
@@ -2008,5 +2004,58 @@ public class ScriptLib {
         }
 
         return configIds;
+    }
+
+    // ---- 任务卡 a 补的函数 ----
+    public int GoToFlowSuite(int groupId, int suite) {
+        return ScriptLibTaskA.goToFlowSuite(sceneScriptManager.getIfExists(), groupId, suite);
+    }
+
+    public int AddExtraFlowSuite(int groupId, int suite, int policy) {
+        return ScriptLibTaskA.extraFlowSuite(sceneScriptManager.getIfExists(), groupId, suite, policy, true);
+    }
+
+    public int RemoveExtraFlowSuite(int groupId, int suite, int policy) {
+        return ScriptLibTaskA.extraFlowSuite(sceneScriptManager.getIfExists(), groupId, suite, policy, false);
+    }
+
+    public int SetGroupDead(int groupId) {
+        return ScriptLibTaskA.setGroupDead(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), groupId);
+    }
+
+    public int FinishGroupLinkBundle(int groupId) {
+        return ScriptLibTaskA.finishGroupLinkBundle(sceneScriptManager.getIfExists(), groupId);
+    }
+
+    public int ChangeGroupTempValue(String name, int change, LuaTable options) {
+        return ScriptLibTaskA.tempValue(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, options, change, true);
+    }
+
+    public int SetGroupLogicStateValue(String name, int value) {
+        return ScriptLibTaskA.logicState(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, value);
+    }
+
+    public int GetGroupLogicStateValue(String name) {
+        return ScriptLibTaskA.logicState(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), name, null);
+    }
+
+    public int GetGadgetConfigId(LuaTable args) {
+        return ScriptLibTaskA.gadgetConfigId(sceneScriptManager.getIfExists(), args);
+    }
+
+    public int CreateGadgetByConfigIdByPos(int configId, LuaTable pos, LuaTable rot) {
+        return ScriptLibTaskA.createGadgetByPos(sceneScriptManager.getIfExists(), currentGroup.getIfExists(), configId, pos, rot);
+    }
+
+    public int GetPlayerVehicleType(int uid) {
+        return ScriptLibTaskA.playerVehicleType(sceneScriptManager.getIfExists(), uid);
+    }
+
+    public LuaTable GetCurrentLevelTagVec(int groupId) {
+        return ScriptLibTaskA.currentLevelTags(sceneScriptManager.getIfExists(), groupId);
+    }
+
+    public String GetLevelTagNameById(int tagId) {
+        return ScriptLibTaskA.levelTagName(tagId);
     }
 }
