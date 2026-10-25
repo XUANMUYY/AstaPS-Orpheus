@@ -3,6 +3,7 @@ package emu.grasscutter.game.talk;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.excels.TalkConfigData;
 import emu.grasscutter.data.excels.TalkConfigData.TalkExecParam;
+import emu.grasscutter.game.entity.GameEntity;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.server.game.*;
 import it.unimi.dsi.fastutil.ints.*;
@@ -60,6 +61,16 @@ public final class TalkSystem extends BaseGameSystem {
      * @param execParam The talk parameter.
      */
     public void triggerExec(Player player, TalkConfigData talkData, TalkExecParam execParam) {
+        this.triggerExec(player, talkData, execParam, null);
+    }
+
+    /**
+     * Notifies the associated handler of a talk being triggered.
+     *
+     * @param talkEntity 对话对象在服务端的实体，可能为 null。
+     */
+    public void triggerExec(
+            Player player, TalkConfigData talkData, TalkExecParam execParam, GameEntity talkEntity) {
         var handler = this.execHandlers.get(execParam.getType().getValue());
         if (handler == null) {
             Grasscutter.getLogger()
@@ -71,6 +82,12 @@ public final class TalkSystem extends BaseGameSystem {
         }
 
         // Execute the handler.
-        handler.execute(player, talkData, execParam);
+        try {
+            handler.execute(player, talkData, execParam, talkEntity);
+        } catch (RuntimeException e) {
+            // 单个执行项出错不影响同一对话的其他执行项。
+            Grasscutter.getLogger()
+                    .warn("Talk exec {} of talk {} failed.", execParam.getType(), talkData.getId(), e);
+        }
     }
 }

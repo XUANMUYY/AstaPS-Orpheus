@@ -21,7 +21,13 @@ public enum TalkExec {
     TALK_EXEC_INC_QUEST_GLOBAL_VAR(11),
     TALK_EXEC_DEC_QUEST_GLOBAL_VAR(12),
     TALK_EXEC_TRANS_SCENE_DUMMY_POINT(13),
-    TALK_EXEC_SAVE_TALK_ID(14);
+    TALK_EXEC_SAVE_TALK_ID(14),
+    // 以下五个只在 7.x 资源里按名字出现，编号按出现顺序续排，只在服务端内部使用。
+    TALK_EXEC_NOTIFY_GROUP_LUA_TALK_FINISH(15),
+    TALK_EXEC_UNLOCK_EVENTS_ITEM(16),
+    TALK_EXEC_FINISH_ANECDOTE(17),
+    TALK_EXEC_CHANGE_OPENSTATE(18),
+    TALK_EXEC_CHANGE_WEAPON_MODE(19);
 
     private static final Int2ObjectMap<TalkExec> execMap = new Int2ObjectOpenHashMap<>();
     private static final Map<String, TalkExec> execStringMap = new HashMap<>();
