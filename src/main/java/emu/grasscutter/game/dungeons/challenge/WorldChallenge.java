@@ -175,12 +175,14 @@ public class WorldChallenge {
         if (!this.inProgress()) return;
         this.finish(false);
 
-        // TODO: Set 'eventSource' in script arguments.
         var scriptManager = this.getScene().getScriptManager();
-        scriptManager.callEvent(
-                new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_FAIL)
-                        .setEventSource(this.getChallengeIndex()));
+        scriptManager.callEvent(failureEventArgs());
         challengeTriggers.forEach(t -> t.onFinish(this));
+    }
+
+    ScriptArgs failureEventArgs() {
+        return new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_FAIL, this.getChallengeId())
+                .setEventSource(this.getChallengeIndex());
     }
 
     /**
