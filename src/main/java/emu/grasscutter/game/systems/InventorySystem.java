@@ -559,7 +559,8 @@ public class InventorySystem extends BaseGameSystem {
         }
 
         // Level check
-        if (weapon.getLevel() != currentPromoteData.getUnlockMaxLevel()) {
+        if (weapon.getLevel() != currentPromoteData.getUnlockMaxLevel()
+                || !nextPromoteData.isPlayerLevelEligible(player.getLevel())) {
             return;
         }
 
