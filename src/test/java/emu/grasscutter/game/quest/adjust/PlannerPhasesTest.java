@@ -53,10 +53,10 @@ class PlannerPhasesTest {
     @Test void missingContentHandlerWithoutCompensationBlocks() {
         var s = sub(1, List.of(), "LOGIC_NONE");
         var q = new QuestCatalog.Sub(1, 1, 1, "test", false, s.acceptLogic(), s.finishLogic(), s.accept(),
-                List.of(condition("QUEST_CONTENT_GADGET_STATE_CHANGE", 123, 201)), List.of(), List.of());
+                List.of(condition("QUEST_CONTENT_ACTIVITY_TRIGGER_UPDATE", 123, 201)), List.of(), List.of());
         var p = new QuestPlanner(new QuestCatalog(Map.of(1, q), Map.of()), new ExecPolicy(Map.of()), t -> false)
                 .plan(new PlayerState(0, Map.of(), new JsonObject()), 1, "advance", Set.of());
-        assertTrue(p.blockers().stream().anyMatch(b -> b.type().equals("QUEST_CONTENT_GADGET_STATE_CHANGE")));
+        assertTrue(p.blockers().stream().anyMatch(b -> b.type().equals("QUEST_CONTENT_ACTIVITY_TRIGGER_UPDATE")));
     }
     @Test void registeredLuaProgressStillRequiresPersistentCompensation() {
         var q = new QuestCatalog.Sub(1, 1, 1, "lua", false, "LOGIC_NONE", "LOGIC_NONE", List.of(),

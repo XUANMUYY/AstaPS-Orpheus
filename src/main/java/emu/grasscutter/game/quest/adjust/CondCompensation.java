@@ -27,6 +27,9 @@ public final class CondCompensation {
         else if (type.contains("QUEST_VAR_") || type.contains("GLOBAL_VAR_")) action = "satisfy_variable";
         else if (type.contains("DUNGEON")) action = "skipped; dungeon_first_clear_reward_not_granted";
         else if (type.contains("OBTAIN_ITEM")) action = "skipped; items_from_preceding_steps";
+        // 机关状态归所属 group 的 Lua 与后续 REFRESH_GROUP_SUITE 等 exec 管理；条件本身只是「观察到变化」。
+        // 跳过时不强改机关状态，避免把套件里随后要重置的机关卡在中间态（推断，见 docs/服务端任务缺口.md）。
+        else if (type.equals("QUEST_CONTENT_GADGET_STATE_CHANGE")) action = "gadget_state_event_skipped; group_state_left_to_lua_and_suite_execs";
         else if (TRANSIENT.contains(type)) action = "transient_event_skipped; lifecycle_execs_still_required";
         else action = "cond_unhandled; world_effect_requires_audit";
         return new QuestPlanner.Effect(type, p, action);

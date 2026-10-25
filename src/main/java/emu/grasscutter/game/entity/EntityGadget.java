@@ -226,6 +226,14 @@ public class EntityGadget extends EntityBaseGadget {
                                         state,
                                         this.getConfigId())
                                 .setParam3(oldState));
+        // 任务 finish/failCond QUEST_CONTENT_GADGET_STATE_CHANGE：[groupId, configId] + 新状态。
+        if (this.getGroupId() > 0) {
+            for (var player : getScene().getPlayers()) {
+                player.getQuestManager().queueEvent(
+                        emu.grasscutter.game.quest.enums.QuestContent.QUEST_CONTENT_GADGET_STATE_CHANGE,
+                        String.valueOf(state), this.getGroupId(), this.getConfigId());
+            }
+        }
     }
 
     /** Replace gadget content even if {@link #buildContent()} already assigned one. */
