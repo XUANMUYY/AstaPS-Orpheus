@@ -410,6 +410,24 @@ public class World implements Iterable<Player> {
             EnterReason enterReason,
             DungeonData dungeonData,
             Position teleportTo) {
+        return transferPlayerToScene(player, sceneId, teleportType, enterReason, dungeonData, teleportTo, null);
+    }
+
+    /** 传送到资源指定的点位时带上点位的朝向（锚点、传送点的 tranRot）；teleportRot 为 null 时保留原朝向。 */
+    public boolean transferPlayerToPoint(
+            Player player, int sceneId, TeleportType teleportType, Position teleportTo, Position teleportRot) {
+        return transferPlayerToScene(
+                player, sceneId, teleportType, EnterReason.TransPoint, null, teleportTo, teleportRot);
+    }
+
+    public boolean transferPlayerToScene(
+            Player player,
+            int sceneId,
+            TeleportType teleportType,
+            EnterReason enterReason,
+            DungeonData dungeonData,
+            Position teleportTo,
+            Position teleportRot) {
         // Get enter types
         val teleportProps =
                 TeleportProperties.builder()
@@ -417,6 +435,7 @@ public class World implements Iterable<Player> {
                         .teleportType(teleportType)
                         .enterReason(enterReason)
                         .teleportTo(teleportTo)
+                        .teleportRot(teleportRot)
                         .enterType(EnterType.EnterType_ENTER_JUMP);
 
         val sceneData = GameData.getSceneDataMap().get(sceneId);
