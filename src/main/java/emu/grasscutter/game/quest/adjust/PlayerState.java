@@ -26,6 +26,8 @@ public record PlayerState(int uid, Map<Integer, Integer> quests, JsonObject worl
         world.add("forceLockedScenePoints", sets(player.getForceLockedScenePoints()));
         world.add("hiddenScenePoints", sets(player.getHiddenScenePoints()));
         world.add("unhiddenScenePoints", sets(player.getUnhiddenScenePoints()));
+        world.add("aranaraCollectionStates", AdjustJson.GSON.toJsonTree(new TreeMap<>(player.getAranaraCollectionStates())));
+        world.add("questActivityConditionStates", AdjustJson.GSON.toJsonTree(new TreeMap<>(player.getQuestActivityConditionStates())));
         world.add("pendingTransPointRewards", sets(player.getPendingTransPointRewards()));
         world.add("transPointRewardSnapshots", AdjustJson.GSON.toJsonTree(player.getTransPointRewardSnapshots()));
         world.add("forcedFinishedQuests", AdjustJson.GSON.toJsonTree(new TreeSet<>(player.getForcedFinishedQuests())));

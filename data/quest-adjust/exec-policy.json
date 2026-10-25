@@ -376,8 +376,8 @@
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
     "QUEST_CONTENT_FINISH_ANY_FOOD_COOK": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 8,
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
@@ -412,8 +412,8 @@
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
     "QUEST_CONTENT_LEAVE_FEATURE_TAG_VEHICLE": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 6,
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
@@ -430,14 +430,14 @@
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
     "QUEST_CONTENT_ENTER_FEATURE_TAG_VEHICLE": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 5,
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
     "QUEST_CONTENT_SHOP_SELL_OUT": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 5,
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
@@ -472,8 +472,8 @@
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
     "QUEST_CONTENT_UNLOCK_ANY_TRANS_POINT": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 4,
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
@@ -508,8 +508,8 @@
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
     "QUEST_CONTENT_QUEST_VAR_NOT_EQUAL": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 3,
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
@@ -526,14 +526,14 @@
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
     "QUEST_CONTENT_CALL_PLAYER_TRAIN_IN_RANGE": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 2,
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
     "QUEST_CONTENT_CITY_LEVEL_UP": {
-      "action": "block",
-      "status": "enum_only",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 2,
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
@@ -562,8 +562,8 @@
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
     "QUEST_CONTENT_AVATAR_RENAME_COMPLETE": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 1,
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
@@ -574,8 +574,8 @@
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
     "QUEST_CONTENT_ITEM_NUM_LESS": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 1,
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
@@ -598,8 +598,8 @@
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
     "QUEST_CONTENT_SPECIFIC_WIDGET_ATTACHED": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 1,
       "note": "条件不靠执行策略跳过：accept 求值入 journal；finish 按补偿表处理，缺失项在计划中报告。"
     },
@@ -790,10 +790,10 @@
       "note": "统计找到处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecChangeMapAreaState.java；运行时仍核验注册及执行结果，非原生验收结论。"
     },
     "QUEST_EXEC_UPDATE_PARENT_QUEST_REWARD_INDEX": {
-      "action": "block",
-      "status": "enum_only",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 95,
-      "note": "统计为 enum_only；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecUpdateParentQuestRewardIndex.java；记录主任务奖励档位，父任务完成时只发选中那一档。重放必须执行，否则补发邮件会按全部档位发奖。"
     },
     "QUEST_EXEC_ADD_ABYSS_WAR_ACCOUNT_DATA": {
       "action": "skip",
@@ -814,10 +814,10 @@
       "note": "类型核对：回滚、随机写入或任意 Lua 通知会破坏确定性或存在未审计的世界副作用；本期阻断。"
     },
     "QUEST_EXEC_SET_DAILY_TASK_VAR": {
-      "action": "block",
-      "status": "enum_only",
+      "action": "skip",
+      "status": "handled",
       "occurrences": 68,
-      "note": "统计为 enum_only；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecSetDailyTaskVar.java；写当日委托变量。委托属当天临时进度，剧情跳过不改，记 journal。"
     },
     "QUEST_EXEC_CLEAR_TIME_VAR": {
       "action": "handled",
@@ -862,10 +862,10 @@
       "note": "统计为 missing；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
     },
     "QUEST_EXEC_INC_DAILY_TASK_VAR": {
-      "action": "block",
-      "status": "enum_only",
+      "action": "skip",
+      "status": "handled",
       "occurrences": 34,
-      "note": "统计为 enum_only；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecIncDailyTaskVar.java；写当日委托变量。委托属当天临时进度，剧情跳过不改，记 journal。"
     },
     "QUEST_EXEC_SET_OPEN_STATE": {
       "action": "handled",
@@ -880,10 +880,10 @@
       "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_MODIFY_ARANARA_COLLECTION_STATE": {
-      "action": "block",
-      "status": "enum_only",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 31,
-      "note": "统计为 enum_only；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecModifyAranaraCollectionState.java；写玩家 aranaraCollectionStates 并发 AddAranaraCollectionNotify。持久状态，重放照常执行。"
     },
     "QUEST_EXEC_ACTIVE_DAMSELETTE_FREE_MOON_PHASE": {
       "action": "block",
@@ -898,10 +898,10 @@
       "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecClearVehicle.java；乘员下车并移除该玩家在该场景的这种载具。载具只属于剧情当下、不写存档：跳过时不生成、不上下车，记 journal。"
     },
     "QUEST_EXEC_BATCH_SET_OPEN_STATE": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 24,
-      "note": "统计为 missing；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecBatchSetOpenState.java；逐项设置开放状态，重放照常执行并按 SET_OPEN_STATE 同样校验。"
     },
     "QUEST_EXEC_DEL_PACK_ITEM_BATCH": {
       "action": "handled",
@@ -934,10 +934,10 @@
       "note": "统计为 missing；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
     },
     "QUEST_EXEC_REFRESH_WORLD_QUEST_FLOW_GROUP_SUITE": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 21,
-      "note": "统计为 missing；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecRefreshWorldQuestFlowGroupSuite.java；按组脚本目录推出所属场景后照 REFRESH_GROUP_SUITE 刷新，玩家不在场时先写任务套件记录。部分组在资源里缺脚本，执行会失败并记日志。"
     },
     "QUEST_EXEC_DEACTIVE_ITEM_GIVING": {
       "action": "handled",
@@ -946,22 +946,22 @@
       "note": "统计找到处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecDeactivateItemGiving.java；运行时仍核验注册及执行结果，非原生验收结论。"
     },
     "QUEST_EXEC_ACTIVE_ACTIVITY_COND_STATE": {
-      "action": "block",
-      "status": "enum_only",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 18,
-      "note": "统计为 enum_only；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecActiveActivityCondState.java；写玩家 questActivityConditionStates。持久状态，重放照常执行。"
     },
     "QUEST_EXEC_INACTIVE_ACTIVITY_COND_STATE": {
-      "action": "block",
-      "status": "enum_only",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 18,
-      "note": "统计为 enum_only；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecInactiveActivityCondState.java；写玩家 questActivityConditionStates。持久状态，重放照常执行。"
     },
     "QUEST_EXEC_REGISTER_DYNAMIC_GROUP_ONLY": {
-      "action": "block",
-      "status": "enum_only",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 17,
-      "note": "统计为 enum_only；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecRegisterDynamicGroupOnly.java；只注册动态组，不额外刷 suite。部分组在资源里缺脚本。"
     },
     "QUEST_EXEC_UNLOCK_DUNGEON_MIRROR_AVATAR_TEAM": {
       "action": "skip",
@@ -1067,15 +1067,15 @@
     },
     "QUEST_EXEC_LOCK_AVATAR_TEAM": {
       "action": "skip",
-      "status": "enum_only",
+      "status": "handled",
       "occurrences": 4,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecLockAvatarTeam.java；只记录锁队状态（transient）。剧情跳过不重建临时队伍：锁队只属于剧情当下，跳过时不执行，记 journal；收尾清理残留试用角色。"
     },
     "QUEST_EXEC_GRANT_TRIAL_AVATAR_AND_LOCK_TEAM": {
       "action": "skip",
-      "status": "enum_only",
+      "status": "handled",
       "occurrences": 3,
-      "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecGrantTrialAvatarAndLockTeam.java；发放试用角色并记录锁队。剧情跳过不重建临时队伍：锁队只属于剧情当下，跳过时不执行，记 journal；收尾清理残留试用角色。"
     },
     "QUEST_EXEC_GRANT_TRIAL_AVATAR_AND_LOCK_TEAM_V2": {
       "action": "skip",

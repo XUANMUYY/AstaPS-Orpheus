@@ -6,6 +6,7 @@ import emu.grasscutter.data.excels.ItemData;
 import emu.grasscutter.data.excels.avatar.AvatarCostumeData;
 import emu.grasscutter.game.inventory.*;
 import emu.grasscutter.game.props.ActionReason;
+import emu.grasscutter.game.quest.enums.QuestContent;
 import emu.grasscutter.game.shop.*;
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.BuyGoodsReqOuterClass;
@@ -223,6 +224,8 @@ public class HandlerBuyGoodsReq extends PacketHandler {
                         || !player.getCostumeList().contains(costumeData.getId()))) {
             player.addCostume(costumeData.getId());
         }
+
+        player.getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_SHOP_SELL_OUT, shopType, 1);
 
         // Return full server-side goods (buy_limit / next_refresh), not the client stub.
         var limit = player.getGoodsLimit(sg.getGoodsId());

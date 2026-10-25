@@ -124,10 +124,18 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
                 if (type.equals("QUEST_EXEC_UNLOCK_POINT") && !player.getUnlockedScenePoints(Integer.parseInt(p.get(0))).contains(Integer.parseInt(p.get(1)))) mismatches.add(type + p);
                 else if (type.equals("QUEST_EXEC_LOCK_POINT") && !player.getForceLockedScenePoints(Integer.parseInt(p.get(0))).contains(Integer.parseInt(p.get(1)))) mismatches.add(type + p);
                 else if ((type.equals("QUEST_EXEC_UNHIDE_SCENE_POINT") || type.equals("QUEST_EXEC_HIDE_SCENE_POINT"))
-                        && !scenePointIds(p.get(1)).stream().allMatch((type.contains("UNHIDE") ? player.getUnhiddenScenePoints(Integer.parseInt(p.get(0)))
+                        && !csvInts(p.get(1)).stream().allMatch((type.contains("UNHIDE") ? player.getUnhiddenScenePoints(Integer.parseInt(p.get(0)))
                                 : player.getHiddenScenePoints(Integer.parseInt(p.get(0))))::contains)) mismatches.add(type + p);
                 else if (type.equals("QUEST_EXEC_UNLOCK_AREA") && !player.getUnlockedSceneAreas(Integer.parseInt(p.get(0))).contains(Integer.parseInt(p.get(1)))) mismatches.add(type + p);
                 else if (type.equals("QUEST_EXEC_SET_OPEN_STATE") || type.equals("QUEST_EXEC_SET_OPEN_STATE_V2")) expectedOpen.put(Integer.parseInt(p.get(0)), Integer.parseInt(p.get(1)));
+                else if (type.equals("QUEST_EXEC_BATCH_SET_OPEN_STATE")) {
+                    var keys = csvInts(p.get(0)); var values = csvInts(p.get(1));
+                    if (keys.size() != values.size()) throw new IllegalArgumentException("开放状态参数长度不符");
+                    for (int i = 0; i < keys.size(); i++) expectedOpen.put(keys.get(i), values.get(i));
+                } else if (type.equals("QUEST_EXEC_UPDATE_PARENT_QUEST_REWARD_INDEX")) {
+                    var owner = player.getQuestManager().getMainQuests().get(step.mainId());
+                    if (owner == null || !Integer.valueOf(Integer.parseInt(p.get(0).trim())).equals(owner.getRewardIndex())) mismatches.add(type + p);
+                }
                 else if (Set.of("QUEST_EXEC_SET_QUEST_VAR", "QUEST_EXEC_INC_QUEST_VAR", "QUEST_EXEC_DEC_QUEST_VAR").contains(type)) {
                     int key = Integer.parseInt(p.get(0)), n = Integer.parseInt(p.get(1));
                     int old = expectedVars.getOrDefault(key, originalVars[key]);
@@ -213,7 +221,7 @@ final class OnlineQuestRuntime implements QuestReplayer.Runtime {
      * （2026-10-25 测试号 2 跳蒙德序章时播了初见风魔龙、初到蒙德城两段 CG）。
      * 之后只回心跳，执行完照旧强制重新登录，客户端以登录时的全量数据为准；邮件、世界效果都已落库。
      */
-    private static List<Integer> scenePointIds(String csv) {
+    private static List<Integer> csvInts(String csv) {
         return Arrays.stream(csv.split(",")).map(String::trim).map(Integer::valueOf).toList();
     }
     static void silenceClient(Player player) {

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+option java_package = "emu.grasscutter.net.proto";
+
+import "AvatarRenameInfo.proto";
+
+message AvatarRenameInfoNotify {
+  repeated AvatarRenameInfo avatar_rename_list = 15;
+}
