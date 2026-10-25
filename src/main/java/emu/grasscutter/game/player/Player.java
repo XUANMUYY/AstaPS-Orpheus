@@ -645,6 +645,16 @@ public class Player implements PlayerHook, FieldFetch {
         return this.unlockedScenePoints.computeIfAbsent(sceneId, i -> new CopyOnWriteArraySet<>());
     }
 
+    public Map<Integer, Set<Integer>> getHiddenScenePoints() {
+        if (this.hiddenScenePoints == null) this.hiddenScenePoints = new HashMap<>();
+        return this.hiddenScenePoints;
+    }
+
+    public Map<Integer, Set<Integer>> getUnhiddenScenePoints() {
+        if (this.unhiddenScenePoints == null) this.unhiddenScenePoints = new HashMap<>();
+        return this.unhiddenScenePoints;
+    }
+
     public Set<Integer> getHiddenScenePoints(int sceneId) {
         if (this.hiddenScenePoints == null) this.hiddenScenePoints = new HashMap<>();
         return this.hiddenScenePoints.computeIfAbsent(sceneId, i -> new CopyOnWriteArraySet<>());
