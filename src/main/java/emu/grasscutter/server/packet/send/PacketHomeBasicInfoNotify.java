@@ -1,6 +1,8 @@
 package emu.grasscutter.server.packet.send;
 
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.shop.HomeLimitedShop;
+import emu.grasscutter.utils.Utils;
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.*;
 
@@ -18,6 +20,7 @@ public class PacketHomeBasicInfoNotify extends BasePacket {
         var owner = home.getPlayer();
         var sceneId = owner.getCurrentRealmId() + 2000;
         var homeScene = home.getHomeSceneItem(sceneId);
+        var shopSchedule = HomeLimitedShop.schedule(Utils.getCurrentSeconds());
 
         proto.setBasicInfo(
                 HomeBasicInfoOuterClass.HomeBasicInfo.newBuilder()
@@ -28,7 +31,11 @@ public class PacketHomeBasicInfoNotify extends BasePacket {
                         .setExp(home.getExp())
                         .setLevel(home.getLevel())
                         .setOwnerNickName(owner.getNickname())
-                        // TODO limit shop
+                        .setLimitedShopInfo(HomeLimitedShopInfoOuterClass.HomeLimitedShopInfo.newBuilder()
+                                .setUid(owner.getUid())
+                                .setNextOpenTime(shopSchedule.nextOpen())
+                                .setNextGuestOpenTime(shopSchedule.guestOpen())
+                                .setNextCloseTime(shopSchedule.close()))
                         .build());
 
         this.setData(proto);

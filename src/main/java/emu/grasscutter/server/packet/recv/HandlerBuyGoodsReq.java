@@ -30,15 +30,15 @@ public class HandlerBuyGoodsReq extends PacketHandler {
 
     /** 购买一种商品；旧版（23592）与国服 7.1（20999）请求共用，回包都是 BuyGoodsRsp。 */
     public static void process(GameSession session, int shopType, int goodsId, int buyCount) {
+        var player = session.getPlayer();
         List<ShopInfo> configShop =
-                session.getServer().getShopSystem().getShopData().get(shopType);
+                session.getServer().getShopSystem().getShopData(player, shopType);
         if (configShop == null) {
             session.send(new PacketBuyGoodsRsp(Retcode.RET_SVR_ERROR));
             return;
         }
 
         // Don't trust your users' input
-        var player = session.getPlayer();
 
         // A non-positive count buys nothing and cannot be honest. Worse, it inverts the whole
         // purchase: payItems checks `held < cost * count`, which is never true for a negative
@@ -89,6 +89,14 @@ public class HandlerBuyGoodsReq extends PacketHandler {
             return;
         }
         ShopInfo sg = sg2.get();
+        int currentTs = Utils.getCurrentSeconds();
+        if (!ShopPurchaseEligibility.canBuy(sg, player.getLevel(),
+                player.getHome() == null ? 0 : player.getHome().getLevel(), currentTs,
+                id -> { var limit = player.getGoodsLimit(id); return limit != null && limit.getHasBought() > 0; },
+                id -> ShopPurchaseEligibility.finishedQuest(player, id))) {
+            session.send(new PacketBuyGoodsRsp(Retcode.RET_SHOP_NOT_OPEN));
+            return;
+        }
         int itemId = sg.getGoodsItem().getId();
         AvatarCostumeData costumeData =
                 GameData.getAvatarCostumeDataItemIdMap().get(itemId);
@@ -111,7 +119,6 @@ public class HandlerBuyGoodsReq extends PacketHandler {
             return;
         }
 
-        int currentTs = Utils.getCurrentSeconds();
         boolean refreshes = sg.getShopRefreshType() != ShopInfo.ShopRefreshType.NONE;
         ShopLimit shopLimit = player.getGoodsLimit(sg.getGoodsId());
         int bought = 0;

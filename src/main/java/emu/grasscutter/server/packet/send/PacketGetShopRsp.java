@@ -15,7 +15,10 @@ import java.util.*;
 public class PacketGetShopRsp extends BasePacket {
     public PacketGetShopRsp(Player player, int shopType) {
         super(PacketOpcodes.GetShopRsp);
+        this.setData(GetShopRspOuterClass.GetShopRsp.newBuilder().setShop(buildShop(player, shopType)).build());
+    }
 
+    public static Shop buildShop(Player player, int shopType) {
         Shop.Builder shop =
                 Shop.newBuilder()
                         .setShopType(shopType)
@@ -23,8 +26,8 @@ public class PacketGetShopRsp extends BasePacket {
                         .setCityReputationLevel(10); // mock
 
         ShopSystem manager = Grasscutter.getGameServer().getShopSystem();
-        if (manager.getShopData().get(shopType) != null) {
-            List<ShopInfo> list = manager.getShopData().get(shopType);
+        List<ShopInfo> list = manager.getShopData(player, shopType);
+        if (list != null) {
             List<ShopGoods> goodsList = new ArrayList<>();
             int shopNextRefreshTime = 0;
             int currentTs = Utils.getCurrentSeconds();
@@ -94,7 +97,7 @@ public class PacketGetShopRsp extends BasePacket {
         }
 
         player.save();
-        this.setData(GetShopRspOuterClass.GetShopRsp.newBuilder().setShop(shop).build());
+        return shop.build();
     }
 
     /** Returns buyLimit when the player already owns this costume item; otherwise 0. */

@@ -5,6 +5,9 @@ import emu.grasscutter.data.*;
 import emu.grasscutter.data.common.ItemParamData;
 import emu.grasscutter.game.shop.ShopInfo;
 import java.util.List;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 @ResourceType(name = "ShopGoodsExcelConfigData.json")
 public class ShopGoodsData extends GameResource {
@@ -21,6 +24,11 @@ public class ShopGoodsData extends GameResource {
     private List<ItemParamData> costItems;
     private int minPlayerLevel;
     private int maxPlayerLevel;
+    private int minShowLevel;
+    private String beginTime;
+    private String endTime;
+    private String precondition;
+    private List<String> preconditionParamList;
 
     private int buyLimit;
 
@@ -96,6 +104,18 @@ public class ShopGoodsData extends GameResource {
 
     public int getMaxPlayerLevel() {
         return maxPlayerLevel;
+    }
+
+    public int getMinShowLevel() { return minShowLevel; }
+    public String getPrecondition() { return precondition; }
+    public List<String> getPreconditionParamList() { return preconditionParamList; }
+    public int getBeginTimestamp() { return parseShopTime(beginTime); }
+    public int getEndTimestamp() { return parseShopTime(endTime); }
+
+    static int parseShopTime(String value) {
+        if (value == null || value.isBlank()) return 0;
+        return Math.toIntExact(LocalDateTime.parse(value, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                .atZone(ZoneId.of("Asia/Shanghai")).toEpochSecond());
     }
 
     public int getBuyLimit() {

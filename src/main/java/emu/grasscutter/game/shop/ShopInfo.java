@@ -21,6 +21,9 @@ public class ShopInfo {
     @Getter @Setter private int hcoin = 0;
     @Getter @Setter private int disableType = 0;
     @Getter @Setter private int secondarySheetId = 0;
+    @Getter @Setter private int minShowLevel;
+    @Getter @Setter private String precondition;
+    @Getter @Setter private List<String> preconditionParamList = List.of();
 
     private String refreshType;
     @Setter private transient ShopRefreshType shopRefreshType;
@@ -40,6 +43,9 @@ public class ShopInfo {
 
         this.minLevel = sgd.getMinPlayerLevel();
         this.maxLevel = sgd.getMaxPlayerLevel();
+        this.beginTime = sgd.getBeginTimestamp();
+        this.endTime = sgd.getEndTimestamp() == 0 ? Integer.MAX_VALUE : sgd.getEndTimestamp();
+        applyPrecondition(sgd);
         var costItems = sgd.getCostItems();
         this.costItemList =
                 costItems == null
@@ -53,7 +59,15 @@ public class ShopInfo {
         this.shopRefreshParam = sgd.getRefreshParam();
     }
 
+    public void applyPrecondition(ShopGoodsData data) {
+        this.minShowLevel = data.getMinShowLevel();
+        this.precondition = data.getPrecondition();
+        this.preconditionParamList = data.getPreconditionParamList() == null
+                ? List.of() : data.getPreconditionParamList();
+    }
+
     public ShopRefreshType getShopRefreshType() {
+        if (shopRefreshType != null) return shopRefreshType;
         if (refreshType == null) return ShopRefreshType.NONE;
         return switch (refreshType) {
             case "SHOP_REFRESH_DAILY" -> ShopInfo.ShopRefreshType.SHOP_REFRESH_DAILY;
