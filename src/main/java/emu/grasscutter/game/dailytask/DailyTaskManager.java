@@ -80,6 +80,38 @@ public class DailyTaskManager {
     private transient Player player;
 
     private List<DailyTask> dailyTasks = new ArrayList<>();
+    // Inferred from quest conditions: task ID and variable index are independent of today's four slots.
+    private java.util.Map<Integer, java.util.Map<Integer, Integer>> dailyTaskVars = new java.util.HashMap<>();
+
+    public synchronized int getDailyTaskVar(int taskId, int index) {
+        if (dailyTaskVars == null) dailyTaskVars = new java.util.HashMap<>();
+        return dailyTaskVars.getOrDefault(taskId, java.util.Map.of()).getOrDefault(index, 0);
+    }
+
+    public synchronized boolean setDailyTaskVar(int taskId, int index, int value) {
+        if (taskId <= 0 || index < 0) return false;
+        if (dailyTaskVars == null) dailyTaskVars = new java.util.HashMap<>();
+        int previous = getDailyTaskVar(taskId, index);
+        dailyTaskVars.computeIfAbsent(taskId, ignored -> new java.util.HashMap<>()).put(index, value);
+        if (previous != value) {
+            save();
+            triggerDailyTaskVarConditions(taskId);
+        }
+        return true;
+    }
+
+    public synchronized boolean incDailyTaskVar(int taskId, int index, int amount) {
+        if (taskId <= 0 || index < 0) return false;
+        return setDailyTaskVar(taskId, index, getDailyTaskVar(taskId, index) + amount);
+    }
+
+    private void triggerDailyTaskVarConditions(int taskId) {
+        if (player == null || player.getQuestManager() == null) return;
+        var quests = player.getQuestManager();
+        quests.queueEvent(emu.grasscutter.game.quest.enums.QuestCond.QUEST_COND_DAILY_TASK_VAR_EQ, taskId);
+        quests.queueEvent(emu.grasscutter.game.quest.enums.QuestCond.QUEST_COND_DAILY_TASK_VAR_GT, taskId);
+        quests.queueEvent(emu.grasscutter.game.quest.enums.QuestCond.QUEST_COND_DAILY_TASK_VAR_LT, taskId);
+    }
 
     /*
      * 1 = Mondstadt
@@ -145,6 +177,7 @@ public class DailyTaskManager {
 		 * it will NEVER reroll it merely because the server restarted.
 		 */
 		this.ensureDailyTasksForToday(false);
+		if (this.dailyTaskVars != null) this.dailyTaskVars.keySet().forEach(this::triggerDailyTaskVarConditions);
 
 		/*
 		 * Do not remove supposedly unsupported tasks here.
@@ -304,6 +337,9 @@ public class DailyTaskManager {
 		Collections.shuffle(candidates);
 
 		this.dailyTasks.clear();
+		var oldVariableTaskIds = this.dailyTaskVars == null ? Set.<Integer>of() : Set.copyOf(this.dailyTaskVars.keySet());
+		if (this.dailyTaskVars != null) this.dailyTaskVars.clear();
+		oldVariableTaskIds.forEach(this::triggerDailyTaskVarConditions);
 
 		for (DailyTaskData data : candidates) {
 			if (this.dailyTasks.size() >= DAILY_TASK_COUNT) {

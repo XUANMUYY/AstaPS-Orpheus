@@ -6,11 +6,12 @@ import emu.grasscutter.game.quest.QuestValueExec;
 import emu.grasscutter.game.quest.enums.QuestExec;
 import emu.grasscutter.game.quest.handlers.QuestExecHandler;
 
-/** The server has no avatar-team lock state to release for this quest action. */
+/** Releases the transient quest team lock and its granted trial avatars. */
 @QuestValueExec(QuestExec.QUEST_EXEC_UNLOCK_AVATAR_TEAM)
 public final class ExecUnlockAvatarTeam extends QuestExecHandler {
     @Override
     public boolean execute(GameQuest quest, QuestData.QuestExecParam condition, String... params) {
+        if (quest != null) quest.getOwner().getTeamManager().unlockQuestAvatarTeam();
         return true;
     }
 }

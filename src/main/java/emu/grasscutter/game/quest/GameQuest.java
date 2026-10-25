@@ -252,6 +252,11 @@ public class GameQuest {
         this.getOwner().sendPacket(new PacketQuestListUpdateNotify(this));
 
         if (this.getQuestData().isFinishParent()) {
+            // Parent rewards are granted synchronously; its final child's index action must run first.
+            this.getQuestData().getFinishExec().stream()
+                    .filter(e -> e.getType() == QuestExec.QUEST_EXEC_UPDATE_PARENT_QUEST_REWARD_INDEX)
+                    .forEach(e -> new emu.grasscutter.game.quest.exec.ExecUpdateParentQuestRewardIndex()
+                            .execute(this, e, e.getParam()));
             // This quest finishes the questline - the main quest will also save the quest to db, so we
             // don't have to call save() here
             this.getMainQuest().finish();
@@ -259,6 +264,9 @@ public class GameQuest {
 
         this.getQuestData()
                 .getFinishExec()
+                .stream()
+                .filter(e -> !this.getQuestData().isFinishParent()
+                        || e.getType() != QuestExec.QUEST_EXEC_UPDATE_PARENT_QUEST_REWARD_INDEX)
                 .forEach(e -> getOwner().getServer().getQuestSystem().triggerExec(this, e, e.getParam()));
         // Some subQuests have conditions that subQuests are finished (even from different MainQuests)
         this.getOwner()

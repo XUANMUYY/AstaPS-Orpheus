@@ -33,6 +33,23 @@ public class GameMainQuest {
     @Getter private long[] timeVar;
     @Getter private ParentQuestState state;
     @Getter private boolean isFinished;
+    @Getter private Integer rewardIndex;
+
+    public boolean setRewardIndex(int index) {
+        // Resource indices are inferred to be zero-based; every observed index fits its reward list.
+        if (index < 0 || this.isFinished) return false;
+        var data = GameData.getMainQuestDataMap().get(this.parentQuestId);
+        if (data == null || data.getRewardIdList() == null || index >= data.getRewardIdList().length) return false;
+        this.rewardIndex = index;
+        this.save();
+        return true;
+    }
+
+    static int[] selectedRewards(int[] rewardIds, Integer index) {
+        if (rewardIds == null) return new int[0];
+        if (index == null) return rewardIds;
+        return index >= 0 && index < rewardIds.length ? new int[] {rewardIds[index]} : new int[0];
+    }
     // Completion evidence for MQ1000 rescue plot reports that arrive before acceptance.
     @Getter @Setter(AccessLevel.PACKAGE) private boolean liyueRescuePlotReported;
     @Getter @Setter(AccessLevel.PACKAGE) private int liyueAmberSuite;
@@ -191,7 +208,7 @@ public class GameMainQuest {
         // Add rewards
         MainQuestData mainQuestData = GameData.getMainQuestDataMap().get(this.getParentQuestId());
         if (mainQuestData.getRewardIdList() != null) {
-            for (int rewardId : mainQuestData.getRewardIdList()) {
+            for (int rewardId : selectedRewards(mainQuestData.getRewardIdList(), this.rewardIndex)) {
                 RewardData rewardData = GameData.getRewardDataMap().get(rewardId);
                 if (rewardData == null) {
                     continue;

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+option java_package = "emu.grasscutter.net.proto";
+
+// Kitkat 7.1: AranaraCollectionDataNotify CmdId 4234, AddAranaraCollectionNotify CmdId 25348.
+enum AranaraCollectionState {
+  ARANARA_COLLECTION_STATE_NONE = 0;
+  ARANARA_COLLECTION_STATE_COLLECTABLE = 1;
+  ARANARA_COLLECTION_STATE_COLLECTED = 2;
+  ARANARA_COLLECTION_STATE_FINISHED = 3;
+}
+
+message AranaraCollectionSuite {
+  map<uint32, AranaraCollectionState> collection_id_state_map = 4;
+  uint32 collection_type = 7;
+}
+
+message AranaraCollectionDataNotify {
+  repeated AranaraCollectionSuite collection_suite_list = 3;
+}
+
+message AddAranaraCollectionNotify {
+  AranaraCollectionState from_state = 9;
+  AranaraCollectionState target_state = 12;
+  uint32 collection_id = 13;
+  uint32 collection_type = 14;
+}

@@ -58,6 +58,34 @@ public final class TeamManager extends BasePlayerDataManager {
     @Transient @Getter @Setter private boolean usingTrialTeam;
     @Transient @Getter @Setter private TeamInfo trialAvatarTeam;
     @Transient private List<Integer> mirrorTrialAvatarIds = List.of();
+    @Transient @Getter private boolean questAvatarTeamLocked;
+    @Transient @Getter private int questTeamRequiredAvatarId;
+    @Transient private List<Integer> questLockGrantedTrialIds = List.of();
+
+    public void lockQuestAvatarTeam(int requiredAvatarId) {
+        this.questAvatarTeamLocked = true;
+        this.questTeamRequiredAvatarId = requiredAvatarId;
+    }
+
+    public void grantTrialAvatarAndLockTeam(int trialId, int mainQuestId) {
+        boolean alreadyGranted = getTrialAvatarGuid(trialId) != 0;
+        if (!alreadyGranted) this.addTrialAvatar(trialId, mainQuestId);
+        this.questAvatarTeamLocked = true;
+        if (!alreadyGranted) {
+            var ids = new ArrayList<>(this.questLockGrantedTrialIds);
+            ids.add(trialId);
+            this.questLockGrantedTrialIds = List.copyOf(ids);
+        }
+    }
+
+    public void unlockQuestAvatarTeam() {
+        if (!this.questAvatarTeamLocked) return;
+        this.questAvatarTeamLocked = false;
+        this.questTeamRequiredAvatarId = 0;
+        var granted = this.questLockGrantedTrialIds;
+        this.questLockGrantedTrialIds = List.of();
+        if (!granted.isEmpty()) this.removeTrialAvatar(granted);
+    }
 
     @Transient @Getter @Setter private Map<Integer, Avatar> trialAvatars;
 
