@@ -15,6 +15,7 @@ public class CombineData extends GameResource {
     private int subCombineType;
     private int resultItemId;
     private int resultItemCount;
+    private int dropId;
     private int scoinCost;
     private List<ItemParamData> randomItems;
     private List<ItemParamData> materialItems;
@@ -66,6 +67,10 @@ public class CombineData extends GameResource {
 
     public int getResultItemCount() {
         return resultItemCount;
+    }
+
+    public int getDropId() {
+        return dropId;
     }
 
     public int getScoinCost() {
