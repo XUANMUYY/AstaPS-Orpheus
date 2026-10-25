@@ -1264,6 +1264,11 @@ public class SceneScriptManager {
         // the SetGroupVariableValueByGroup in tower need the param to record the first stage time
         ongoingTriggers.add(trigger);
         try {
+            var activeAtEntry = scene.getChallenge();
+            if (activeAtEntry != null && params.source_eid != 0
+                    && this.getRegionById(params.source_eid) != null) {
+                activeAtEntry.setSourceRegionEntityId(params.source_eid);
+            }
             var ret = this.callScriptFunc(trigger.getAction(), trigger.currentGroup, params);
             // A trigger registered before this manager saw it has no counter yet
             var invocationsCounter =

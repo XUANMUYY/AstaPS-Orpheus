@@ -59,6 +59,14 @@ public final class FatherChallenge extends WorldChallenge {
     }
 
     @Override
+    public void setSourceRegionEntityId(int entityId) {
+        super.setSourceRegionEntityId(entityId);
+        for (var child : List.copyOf(children.values())) {
+            child.challenge().setSourceRegionEntityId(entityId);
+        }
+    }
+
+    @Override
     public synchronized void start() {
         if (started) return;
         super.start();

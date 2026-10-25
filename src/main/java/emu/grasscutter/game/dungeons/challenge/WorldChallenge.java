@@ -185,11 +185,12 @@ public class WorldChallenge {
 
     ScriptArgs failureEventArgs() {
         return new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_FAIL, this.getChallengeId())
+                .setParam2(this.finishedTime)
                 .setEventSource(this.getChallengeIndex());
     }
 
     ScriptArgs successEventArgs(int elapsedOrRemaining) {
-        return new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_SUCCESS)
+        return new ScriptArgs(this.getGroup().id, EventType.EVENT_CHALLENGE_SUCCESS, this.getChallengeId())
                 .setParam2(elapsedOrRemaining)
                 .setEventSource(this.getChallengeIndex())
                 .setSourceEntityId(this.sourceRegionEntityId);
