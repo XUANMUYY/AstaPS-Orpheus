@@ -783,6 +783,14 @@ public final class QuestManager extends BasePlayerManager {
                                     }
                                     case QUEST_CONTENT_PLAYER_LEVEL_UP -> queueEvent(
                                             condition.getType(), player.getLevel());
+                                    case QUEST_CONTENT_QUEST_VAR_NOT_EQUAL -> queueEvent(
+                                            condition.getType(), condition.getParam()[0]);
+                                    case QUEST_CONTENT_ITEM_NUM_LESS -> queueEvent(
+                                            condition.getType(), condition.getParam()[0]);
+                                    case QUEST_CONTENT_CITY_LEVEL_UP -> queueEvent(
+                                            condition.getType(), condition.getParam()[0]);
+                                    case QUEST_CONTENT_SHOP_SELL_OUT -> queueEvent(
+                                            condition.getType(), condition.getParam()[0]);
                                 }
                             }
                             // 状态型条件：开始时就身处目标场景也算满足；finish/failCond 都要求值。
