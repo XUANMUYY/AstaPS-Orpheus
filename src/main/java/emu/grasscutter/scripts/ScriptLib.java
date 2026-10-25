@@ -1197,9 +1197,19 @@ public class ScriptLib {
     }
 
     public int RefreshBlossomGroup(LuaTable var1) {
-        logger.warn("[LUA] Call unimplemented RefreshBlossomGroup with {}", printTable(var1));
-
-        return 0;
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int groupId = var1.get("group_id").optint(0);
+        if (groupId == 0 && group != null) groupId = group.id;
+        int suite = var1.get("suite").optint(0);
+        if (manager == null || groupId <= 0 || suite <= 0) return 1;
+        var instance = manager.getGroupInstanceById(groupId);
+        if (instance == null || instance.getLuaGroup() == null
+                || instance.getLuaGroup().getSuiteByIndex(suite) == null) return 1;
+        // 推断：is_delay_unload affects entity teardown timing; the current group API
+        // only supports immediate replacement. Keep the native suite and exclude_prev behavior.
+        return manager.refreshGroup(instance, suite,
+                var1.get("exclude_prev").optboolean(false)) == suite ? 0 : 1;
     }
 
     public int RefreshGroup(LuaTable table) {
