@@ -453,8 +453,7 @@ const Admin = (() => {
     const lines = [`进背包 ${r.bag.length} 种，邮件 ${r.mail.length} 种（${r.mails} 封）`];
     if (r.rejected) lines.push(`背包放不下、没有发：${r.rejected.map((i) => "#" + i.id).join("、")}`);
     if (r.backupId) lines.push("备份：" + r.backupId);
-    $("g-result").textContent = lines.join("
-");
+    $("g-result").textContent = lines.join("\n");
     toast(lines[0]);
     basket.clear();
   });
