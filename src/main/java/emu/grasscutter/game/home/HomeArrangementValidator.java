@@ -15,15 +15,16 @@ public final class HomeArrangementValidator {
 
     public static boolean isValid(HomeSceneItem scene, HomeSceneItem otherScene,
                                   HomeSceneArrangementInfo requested, IntUnaryOperator ownedCount) {
-        if (scene == null || otherScene == null || requested.getSceneId() != scene.getSceneId()) {
+        if (scene == null || requested.getSceneId() != scene.getSceneId()) {
             return false;
         }
         var oldCounts = new HashMap<Integer, Integer>();
         addScene(oldCounts, scene);
-        addScene(oldCounts, otherScene);
+        // 另一侧（室内/室外）还没生成时不计入，不能因此拒绝保存。
+        if (otherScene != null) addScene(oldCounts, otherScene);
 
         var desired = new HashMap<Integer, Integer>();
-        addScene(desired, otherScene);
+        if (otherScene != null) addScene(desired, otherScene);
         Set<Integer> seenBlocks = new HashSet<>();
         for (var block : requested.getBlockArrangementInfoListList()) {
             if (!scene.getBlockItems().containsKey(block.getBlockId())
@@ -43,9 +44,12 @@ public final class HomeArrangementValidator {
         }
         for (var entry : desired.entrySet()) {
             var item = GameData.getItemDataMap().get(entry.getKey());
-            if (item == null || item.getItemType() != ItemType.ITEM_FURNITURE
-                    || !withinOwned(oldCounts.getOrDefault(entry.getKey(), 0),
-                            entry.getValue(), ownedCount.applyAsInt(entry.getKey()))) {
+            int previous = oldCounts.getOrDefault(entry.getKey(), 0);
+            // 物品表里没有、或不是家具类型的 ID（默认布局里的常驻物件等）背包里没有对应数量，
+            // 只要求不比原来多，避免整次保存被拒。
+            int owned = item == null || item.getItemType() != ItemType.ITEM_FURNITURE
+                    ? 0 : ownedCount.applyAsInt(entry.getKey());
+            if (!withinOwned(previous, entry.getValue(), owned)) {
                 return false;
             }
         }
@@ -59,7 +63,7 @@ public final class HomeArrangementValidator {
 
     private static void addScene(Map<Integer, Integer> counts, HomeSceneItem scene) {
         scene.getBlockItems().values().forEach(block -> addBlock(counts, block));
-        if (!scene.isRoom()) add(counts, scene.getMainHouse().getFurnitureId());
+        if (!scene.isRoom() && scene.getMainHouse() != null) add(counts, scene.getMainHouse().getFurnitureId());
     }
 
     private static void addBlock(Map<Integer, Integer> counts, HomeBlockItem block) {
