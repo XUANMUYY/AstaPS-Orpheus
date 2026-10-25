@@ -183,6 +183,29 @@ public final class PushTipsManager {
         return this.unlockMatching("watcher " + watcherId, tip -> tip.getWatcherId() == watcherId);
     }
 
+    /**
+     * WatcherEventTypeNotify：客户端按触发类型上报，解锁观察器类型和参数都对得上的提示。
+     * 推断：提示的观察器进度基本都是 1，这里不累计进度，单次上报够数才解锁。
+     */
+    public int onTypeEvent(WatcherTriggerType type, List<Integer> params, int addProgress) {
+        if (type == null) return 0;
+        var state = this.codex().getPushTipsState();
+        int unlocked = 0;
+        for (var tip : new ArrayList<>(this.catalog.tips())) {
+            if (tip.getWatcherId() <= 0 || state.containsKey(tip.getPushTipsId())) continue;
+            var watcher = this.catalog.watcher(tip.getWatcherId());
+            if (watcher == null || !watcher.isUsed() || watcher.getTriggerConfig() == null) continue;
+            if (watcher.getTriggerConfig().getTriggerType() != type) continue;
+            if (!emu.grasscutter.game.achievement.AchievementWatchers.paramsMatch(
+                    watcher.getTriggerConfig().getParamList(), params)) continue;
+            if (Math.max(1, addProgress) < watcher.getProgress()) continue;
+            if (this.unlock(tip.getPushTipsId(), "type " + type + " via watcher " + tip.getWatcherId())) {
+                unlocked++;
+            }
+        }
+        return unlocked;
+    }
+
     /** A sub quest finished: unlock the tips whose TRIGGER_FINISH_QUEST_OR lists it. */
     public int onQuestFinished(int subQuestId) {
         return this.unlockByTrigger(

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.gson.Gson;
 import emu.grasscutter.data.excels.GlobalWatcherConfigData;
 import emu.grasscutter.data.excels.codex.PushTipsConfigData;
+import emu.grasscutter.game.props.WatcherTriggerType;
 import emu.grasscutter.net.packet.BasePacket;
 import emu.grasscutter.net.packet.PacketOpcodes;
 import emu.grasscutter.net.proto.PushTipsReadFinishRspOuterClass.PushTipsReadFinishRsp;
@@ -226,6 +227,25 @@ final class PushTipsManagerTest {
         assertEquals(PushTipsManager.STATE_START, manager.states().get(5001));
         assertFalse(manager.pendingWatcherIds().contains(5001));
         assertEquals(0, manager.onWatcherEvent(99999));
+    }
+
+    @Test
+    void typeEventUnlocksWindCrystalTutorial() {
+        // 官方 8001 / 提示 1037：靠近风神瞳时客户端按 TRIGGER_WIND_CRYSTAL 上报，不带观察器号。
+        catalog.addWatcher(
+                "{\"id\":8001,\"triggerConfig\":{\"triggerType\":\"TRIGGER_WIND_CRYSTAL\","
+                        + "\"paramList\":[\"\",\"\",\"\",\"\",\"\"]},\"progress\":1}");
+        catalog.addTip(
+                "{\"pushTipsId\":1037,\"codexType\":\"CODEX_ADVENTURE\",\"watcherId\":8001}", 60100013);
+        assertTrue(manager.pendingWatcherIds().contains(8001));
+
+        assertEquals(0, manager.onTypeEvent(WatcherTriggerType.TRIGGER_NEW_MONSTER, List.of(), 1));
+        assertEquals(1, manager.onTypeEvent(WatcherTriggerType.TRIGGER_WIND_CRYSTAL, List.of(), 1));
+
+        assertEquals(PushTipsManager.STATE_START, manager.states().get(1037));
+        assertFalse(manager.pendingWatcherIds().contains(8001), "观察器撤掉后客户端不再每秒上报");
+        assertEquals(1, count(PacketOpcodes.WatcherChangeNotify));
+        assertEquals(0, manager.onTypeEvent(WatcherTriggerType.TRIGGER_WIND_CRYSTAL, List.of(), 1));
     }
 
     @Test
