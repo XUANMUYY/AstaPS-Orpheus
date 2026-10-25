@@ -131,6 +131,9 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter private Map<Integer, ActiveCookCompoundData> activeCookCompounds;
     @Getter private Map<Integer, Integer> questGlobalVariables;
     @Getter private Map<Integer, Integer> openStates;
+    // 任务 QUEST_EXEC_SET_MAP_LAYER_UNLOCK_STATE 写入的地图分层状态（层 ID -> 1 解锁 / 0 锁定）。
+    // 没有记录的层保持原先的默认全开；旧存档读出来是 null，用 getMapLayerUnlockStates() 取。
+    private Map<Integer, Integer> mapLayerUnlockStates;
     // TPS ammunition reserve, keyed by TpsAmmunitionExcelConfigData id.
     private Map<Integer, Integer> tpsAmmunition;
     // TPS weapons the TPS traveler wears; it is a trial avatar and is never saved itself.
@@ -312,6 +315,7 @@ public class Player implements PlayerHook, FieldFetch {
         this.unlockedRecipies = new HashMap<>();
         this.questGlobalVariables = new HashMap<>();
         this.openStates = new HashMap<>();
+        this.mapLayerUnlockStates = new HashMap<>();
         this.sceneTags = new HashMap<>();
         this.unlockedSceneAreas = new HashMap<>();
         this.unlockedScenePoints = new HashMap<>();
@@ -616,6 +620,11 @@ public class Player implements PlayerHook, FieldFetch {
                 expeditionLimit += data.getExpeditionLimitAdd();
         }
         return expeditionLimit;
+    }
+
+    public synchronized Map<Integer, Integer> getMapLayerUnlockStates() {
+        if (this.mapLayerUnlockStates == null) this.mapLayerUnlockStates = new HashMap<>();
+        return this.mapLayerUnlockStates;
     }
 
     public Set<Integer> getUnlockedSceneAreas(int sceneId) {

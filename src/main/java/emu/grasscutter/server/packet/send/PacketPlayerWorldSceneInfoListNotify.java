@@ -46,7 +46,7 @@ public class PacketPlayerWorldSceneInfoListNotify extends BasePacket {
                 worldInfoBuilder.setMapLayerInfo(
                         MapLayerInfo._MapLayerInfo.newBuilder()
                                 .addAllUnlockMapLayerList(
-                                        GameData.getMapLayerDataMap().keySet()) // MapLayer Ids
+                                        unlockedMapLayers(player)) // MapLayer Ids
                                 // the floor list is the one unnamed repeated field of 7.0's _MapLayerInfo
                                 .addAllUnlockMapLayerGroupList(
                                         GameData.getMapLayerGroupDataMap()
@@ -67,5 +67,14 @@ public class PacketPlayerWorldSceneInfoListNotify extends BasePacket {
         proto.addAllIIFJABJJJBF(emu.grasscutter.game.world.WorldRegions.allAreaIds());
 
         this.setData(proto);
+    }
+
+    /** 默认全开（沿用原行为）；任务显式锁定（状态 0）的层不下发。 */
+    static java.util.List<Integer> unlockedMapLayers(java.util.Collection<Integer> allLayers, Map<Integer, Integer> states) {
+        return allLayers.stream().filter(id -> states.getOrDefault(id, 1) != 0).sorted().toList();
+    }
+
+    private static java.util.List<Integer> unlockedMapLayers(Player player) {
+        return unlockedMapLayers(GameData.getMapLayerDataMap().keySet(), player.getMapLayerUnlockStates());
     }
 }

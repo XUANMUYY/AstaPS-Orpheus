@@ -81,6 +81,7 @@ public enum QuestExec implements QuestTrigger {
     QUEST_EXEC_BATCH_SET_QUEST_VAR(71),
     QUEST_EXEC_SET_IS_GAME_TIME_LOCKED_V2(72),
     QUEST_EXEC_SET_OPEN_STATE_V2(73),
+    QUEST_EXEC_SET_MAP_LAYER_UNLOCK_STATE(74),
     QUEST_EXEC_UNKNOWN(9999);
 
     private final int value;

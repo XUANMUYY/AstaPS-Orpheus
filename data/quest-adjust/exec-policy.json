@@ -754,10 +754,10 @@
       "note": "类型核对：临时试用/队伍、当前能量、天气表现或独立玩法通知；剧情跳过时试用角色发放/移除及所有后缀变体一律跳过，记journal，收尾清理残留。"
     },
     "QUEST_EXEC_SET_MAP_LAYER_UNLOCK_STATE": {
-      "action": "block",
-      "status": "missing",
+      "action": "handled",
+      "status": "handled",
       "occurrences": 195,
-      "note": "统计为 missing；没有可用处理器或世界写入语义未核实，保守阻断，待人工核对。"
+      "note": "处理器：src/main/java/emu/grasscutter/game/quest/exec/ExecSetMapLayerUnlockState.java；写玩家 mapLayerUnlockStates 并重发 PlayerWorldSceneInfoListNotify。未记录的层仍默认全开（沿用原行为），只有显式锁定的层不下发。"
     },
     "QUEST_EXEC_UNLOCK_AVATAR_TEAM_V2": {
       "action": "skip",
