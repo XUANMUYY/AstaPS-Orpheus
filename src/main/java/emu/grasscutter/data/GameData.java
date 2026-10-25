@@ -227,6 +227,16 @@ public final class GameData {
     private static final Int2ObjectMap<CodexMaterialData> codexMaterialDataIdMap =
             new Int2ObjectOpenHashMap<>();
 
+    /** 书籍图鉴，按书的道具 ID 查。 */
+    @Getter
+    private static final Int2ObjectMap<emu.grasscutter.data.excels.codex.CodexBookData> codexBookDataIdMap =
+            new Int2ObjectOpenHashMap<>();
+
+    /** 景观图鉴，按景观点所在的 groupId + configId 查（键见 CodexViewData.configKey）。 */
+    @Getter
+    private static final Map<Long, emu.grasscutter.data.excels.codex.CodexViewData> codexViewDataByConfigMap =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     @Getter
     private static final Int2ObjectMap<CodexBookData> codexBookDataMap =
             new Int2ObjectOpenHashMap<>();
@@ -595,6 +605,8 @@ public final class GameData {
             new Int2ObjectOpenHashMap<>();
 
     // The following are accessed via getMapByResourceDef, and will show as unused
+    private static final Int2ObjectMap<emu.grasscutter.data.excels.codex.CodexViewData> codexViewDataMap =
+            new Int2ObjectOpenHashMap<>();
     private static final Int2ObjectMap<CodexMaterialData> codexMaterialDataMap =
             new Int2ObjectOpenHashMap<>();
     private static final Int2ObjectMap<CodexQuestData> codexQuestDataMap =

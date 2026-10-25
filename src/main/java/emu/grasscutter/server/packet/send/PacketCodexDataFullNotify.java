@@ -90,12 +90,6 @@ public class PacketCodexDataFullNotify extends BasePacket {
                             }
                         });
 
-        player.getCodex().getUnlockedBook().forEach(bookId -> {
-            if (GameData.getCodexBookDataMap().containsKey(bookId)) {
-                bookTypeData.addCodexIdList(bookId).addHaveViewedList(true);
-            }
-        });
-
         player
                 .getCodex()
                 .getUnlockedReliquarySuitCodex()
@@ -105,6 +99,12 @@ public class PacketCodexDataFullNotify extends BasePacket {
                                     .addCodexIdList(reliquarySuit)
                                     .addAllHaveViewedList(Collections.singleton(true));
                         });
+
+        // 书籍、景观：存的就是图鉴 ID
+        player.getCodex().unlockedBooksIncludingHeld().forEach(
+                bookCodexId -> bookTypeData.addCodexIdList(bookCodexId).addHaveViewedList(true));
+        player.getCodex().getUnlockedView().forEach(
+                viewCodexId -> viewTypeData.addCodexIdList(viewCodexId).addHaveViewedList(true));
 
         // Tips the player has recorded (and that have a codex entry).
         var pushTips = PushTipsManager.of(player);
