@@ -33,7 +33,102 @@ public final class AdminMail {
 
     private AdminMail() {}
 
+    /** 定时邮件：到点前存在 data/admin/mail-scheduled.json，每 15 秒检查一次，到点按原请求发出。 */
+    private static final Path SCHEDULED = Path.of("data/admin/mail-scheduled.json");
+    private static final List<Map<String, Object>> scheduled = new ArrayList<>();
+    private static java.util.concurrent.ScheduledExecutorService timer;
+
     static Map<String, Object> send(AdminRouter.Request r) throws Exception {
+        long sendAt = r.longValue("sendAt", 0);
+        if (sendAt > Instant.now().getEpochSecond() + 5) {
+            var copy = r.body().deepCopy();
+            copy.remove("sendAt");
+            check(new AdminRouter.Request(r.ctx(), copy)); // 现在就校验，别等到点才报错
+            var row = new LinkedHashMap<String, Object>();
+            row.put("id", java.util.UUID.randomUUID().toString().substring(0, 8));
+            row.put("sendAt", sendAt);
+            row.put("title", copy.get("title").getAsString());
+            row.put("target", copy.get("target").getAsString());
+            row.put("request", copy.toString());
+            synchronized (scheduled) {
+                scheduled.add(row);
+                saveScheduled();
+            }
+            return Map.of("scheduled", row.get("id"), "sendAt", sendAt);
+        }
+        return deliver(r);
+    }
+
+    /** 只做参数和附件校验，不发。 */
+    private static void check(AdminRouter.Request r) throws Exception {
+        r.string("target");
+        if (r.string("title").strip().length() > 60) throw new IllegalArgumentException("标题不能超过 60 字");
+        int days = r.integer("expireDays", 30);
+        if (days < 1 || days > 3650) throw new IllegalArgumentException("有效期要在 1 到 3650 天之间");
+        attachments(r.has("items") ? r.get("items").getAsJsonArray() : new JsonArray());
+    }
+
+    private static void tick() {
+        long now = Instant.now().getEpochSecond();
+        List<Map<String, Object>> due;
+        synchronized (scheduled) {
+            due = scheduled.stream().filter(m -> ((Number) m.get("sendAt")).longValue() <= now).toList();
+            if (due.isEmpty()) return;
+            scheduled.removeAll(due);
+            saveScheduled();
+        }
+        for (var row : due) {
+            try {
+                deliver(new AdminRouter.Request(null, JsonParser.parseString((String) row.get("request")).getAsJsonObject()));
+            } catch (Exception e) {
+                Grasscutter.getLogger().warn("Scheduled admin mail {} failed", row.get("id"), e);
+            }
+        }
+    }
+
+    private static void saveScheduled() {
+        try {
+            Files.createDirectories(SCHEDULED.getParent());
+            Files.writeString(SCHEDULED, new Gson().toJson(scheduled), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            Grasscutter.getLogger().warn("Unable to write {}", SCHEDULED, e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static synchronized void start() {
+        if (timer != null) return;
+        try {
+            if (Files.exists(SCHEDULED)) {
+                List<Map<String, Object>> stored = new Gson().fromJson(Files.readString(SCHEDULED, StandardCharsets.UTF_8), List.class);
+                if (stored != null) scheduled.addAll(stored);
+            }
+        } catch (Exception e) {
+            Grasscutter.getLogger().warn("Unable to read {}", SCHEDULED, e);
+        }
+        timer = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = new Thread(r, "admin-mail");
+            t.setDaemon(true);
+            return t;
+        });
+        timer.scheduleWithFixedDelay(AdminMail::tick, 15, 15, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
+    static boolean cancel(String id) {
+        synchronized (scheduled) {
+            if (!scheduled.removeIf(m -> id.equals(m.get("id")))) throw new IllegalArgumentException("没有找到待发送的邮件 " + id);
+            saveScheduled();
+            return true;
+        }
+    }
+
+    static List<Map<String, Object>> scheduledList() {
+        synchronized (scheduled) {
+            return scheduled.stream().map(m -> Map.of("id", m.get("id"), "sendAt", m.get("sendAt"), "title", m.get("title"), "target", m.get("target"))).toList();
+        }
+    }
+
+    private static Map<String, Object> deliver(AdminRouter.Request r) throws Exception {
         var target = r.string("target"); // UID 或 all
         var title = r.string("title").strip();
         var content = r.string("content", "").strip();
@@ -144,7 +239,10 @@ public final class AdminMail {
     }
 
     static void register(AdminRouter router) {
+        start();
         router.post("mail/send", AdminMail::send);
+        router.get("mail/scheduled", r -> Map.of("scheduled", scheduledList()));
+        router.post("mail/cancel", r -> Map.of("cancelled", cancel(r.string("id"))));
         router.get("mail/history", r -> Map.of("history", history()));
     }
 }
