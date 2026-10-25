@@ -145,6 +145,7 @@ public class GameMainQuest {
         questManager.queueEvent(QuestContent.QUEST_CONTENT_QUEST_VAR_EQUAL, index, value);
         questManager.queueEvent(QuestContent.QUEST_CONTENT_QUEST_VAR_GREATER, index, value);
         questManager.queueEvent(QuestContent.QUEST_CONTENT_QUEST_VAR_LESS, index, value);
+        questManager.queueEvent(QuestContent.QUEST_CONTENT_QUEST_VAR_NOT_EQUAL, index, value);
 
         this.getOwner()
                 .sendPacket(new PacketQuestUpdateQuestVarNotify(this.getParentQuestId(), this.questVars));
