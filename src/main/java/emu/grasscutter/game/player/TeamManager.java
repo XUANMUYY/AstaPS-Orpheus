@@ -158,9 +158,9 @@ public final class TeamManager extends BasePlayerDataManager {
     }
 
     public int getTeamId(TeamInfo team) {
-        for (int i = 1; i <= this.teams.size(); i++) {
-            if (this.teams.get(i).equals(team)) {
-                return i;
+        for (var entry : this.teams.entrySet()) {
+            if (entry.getValue() == team) {
+                return entry.getKey();
             }
         }
         return -1;
