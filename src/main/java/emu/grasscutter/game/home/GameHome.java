@@ -263,6 +263,13 @@ public class GameHome {
         return GameData.getHomeWorldLevelDataMap().get(level);
     }
 
+    public List<FurnitureMakeSlotItem> getFurnitureMakeSlotItemList() {
+        if (furnitureMakeSlotItemList == null) {
+            furnitureMakeSlotItemList = new ArrayList<>();
+        }
+        return furnitureMakeSlotItemList;
+    }
+
     public Set<Integer> onTalkedWithAvatar(int avatarId, int talkId) {
         if (this.finishedTalkIdMap == null) {
             this.finishedTalkIdMap = new HashMap<>();

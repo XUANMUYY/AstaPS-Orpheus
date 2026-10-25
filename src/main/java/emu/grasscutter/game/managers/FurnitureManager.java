@@ -59,9 +59,8 @@ public class FurnitureManager extends BasePlayerManager {
             return;
         }
 
-        // check slot count
-        if (player.getHome().getLevelData().getFurnitureMakeSlotCount()
-                <= player.getHome().getFurnitureMakeSlotItemList().size()) {
+        var slots = player.getHome().getFurnitureMakeSlotItemList();
+        if (getMakeSlotCount(player.getHome().getLevel()) <= slots.size()) {
             player
                     .getSession()
                     .send(new PacketFurnitureMakeStartRsp(Retcode.RET_FURNITURE_MAKE_SLOT_FULL_VALUE, null));
@@ -80,6 +79,7 @@ public class FurnitureManager extends BasePlayerManager {
 
         var furnitureSlot =
                 FurnitureMakeSlotItem.of()
+                        .index(nextSlotIndex(slots))
                         .avatarId(avatarId)
                         .makeId(makeId)
                         .beginTime(Utils.getCurrentSeconds())
@@ -87,7 +87,7 @@ public class FurnitureManager extends BasePlayerManager {
                         .build();
 
         // add furniture make task
-        player.getHome().getFurnitureMakeSlotItemList().add(furnitureSlot);
+        slots.add(furnitureSlot);
         player
                 .getSession()
                 .send(
@@ -101,11 +101,21 @@ public class FurnitureManager extends BasePlayerManager {
     }
 
     public void queryStatus() {
-        if (player.getHome().getFurnitureMakeSlotItemList() == null) {
-            player.getHome().setFurnitureMakeSlotItemList(new ArrayList<>());
-        }
-
         player.sendPacket(new PacketFurnitureMakeRsp(player.getHome()));
+    }
+
+    static int getMakeSlotCount(int trustRank) {
+        // 推断：7.1 等级表已无 slot 字段；官方 4.6 将队列上限提高到 10，Luna VI 在信任 10 级提高到 15。
+        return trustRank >= 10 ? 15 : 10;
+    }
+
+    static int nextSlotIndex(List<FurnitureMakeSlotItem> slots) {
+        int index = 0;
+        while (true) {
+            int candidate = index;
+            if (slots.stream().noneMatch(slot -> slot.getIndex() == candidate)) return index;
+            index++;
+        }
     }
 
     public void take(int index, int makeId, boolean isFastFinish) {
