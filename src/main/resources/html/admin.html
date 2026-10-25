@@ -132,6 +132,125 @@
   #login { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--nav); }
   #login form { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; background: #FFFFFF; border-radius: 12px; padding: 28px; }
   #login-error { color: var(--bad); margin: 0; min-height: 1.5em; font-size: 13px; }
+
+  /* ===== 统一站点：导航分组、首页、状态组件（在上面的模板样式之上补充） ===== */
+  :root { --shadow: 0 1px 2px rgba(20, 30, 50, .04), 0 2px 8px rgba(20, 30, 50, .05); --shadow-lift: 0 6px 20px rgba(20, 30, 50, .10); --radius: 12px; }
+  .card { box-shadow: var(--shadow); }
+  .btn, .pill, .chips button, [role=tab], nav a, .cats button { transition: background .15s, border-color .15s, color .15s, box-shadow .15s, transform .15s; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.danger-fill { border: none; background: #B42318; color: #FFFFFF; font-weight: 500; }
+  .btn.danger-fill:hover { background: #912018; }
+  .btn.busy { position: relative; color: transparent !important; }
+  .btn.busy::after { content: ""; position: absolute; inset: 0; margin: auto; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-color: var(--muted) transparent var(--muted) transparent; animation: spin .8s linear infinite; }
+  .btn.primary.busy::after, .btn.danger-fill.busy::after { border-color: #FFFFFF transparent #FFFFFF transparent; }
+  .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin .8s linear infinite; display: inline-block; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-row { display: flex; align-items: center; gap: 10px; color: var(--muted); padding: 18px 4px; font-size: 13px; }
+  .error-box { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 12px 14px; border-radius: 10px; background: var(--bad-soft); color: var(--bad); font-size: 13px; }
+  .empty { background: transparent; }
+  .callout { padding: 12px 16px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-dark); font-size: 13px; line-height: 1.7; display: flex; flex-direction: column; gap: 2px; }
+  .callout b { font-size: 14px; }
+  .callout.danger { background: var(--bad-soft); color: #7A1F1F; }
+  .callout.ok { background: var(--ok-soft); color: var(--ok); }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .mono { font-family: ui-monospace, "JetBrains Mono", Consolas, monospace; font-size: 12.5px; }
+  details.more > summary, details.card > summary { cursor: pointer; color: var(--accent); font-size: 14px; list-style-position: inside; }
+  details.card > summary { color: var(--text); font-weight: 500; }
+
+  /* 导航：分组、图标、搜索、状态；窄屏折叠成顶栏 */
+  nav { gap: 2px; overflow-y: auto; }
+  nav .nav-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  nav .brand { padding: 0 8px 16px; }
+  nav #nav-toggle { display: none; width: 44px; height: 44px; border: 1px solid var(--nav-active); background: transparent; color: #FFFFFF; border-radius: 8px; cursor: pointer; }
+  nav .nav-body { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  nav .search { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 40px; padding: 0 12px; margin: 0 0 12px; border: 1px solid var(--nav-active); border-radius: 8px; background: #232C3B; color: var(--nav-muted); cursor: pointer; font-size: 13px; text-align: left; }
+  nav .search:hover { color: #FFFFFF; }
+  nav .search kbd { font: 11px ui-monospace, monospace; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--nav-active); }
+  nav .group { font-size: 12px; color: var(--nav-muted); padding: 14px 12px 4px; letter-spacing: .5px; }
+  nav a { justify-content: flex-start; padding: 9px 12px; font-size: 14px; }
+  nav a svg, .task-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  nav a .tag { margin-left: auto; }
+  nav .foot { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .health { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--nav-muted); padding: 0 4px; }
+  .health::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--nav-muted); flex: none; }
+  .health.NORMAL::before { background: #4CC283; } .health.BUSY::before { background: #6D9CFF; } .health.WARNING::before { background: #E3B04B; } .health.DANGER::before { background: #FF7B7B; }
+  @media (max-width: 899px) {
+    #app { flex-direction: column; }
+    nav { max-width: none; flex: none; padding: 12px 16px; position: sticky; top: 0; z-index: 20; height: auto; }
+    nav .brand { padding: 0; }
+    nav #nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
+    nav .nav-body { display: none; padding-top: 12px; }
+    body.nav-open nav .nav-body { display: flex; }
+    body.nav-open nav { max-height: 100vh; }
+  }
+
+  /* 首页 */
+  .hero { display: flex; flex-direction: column; gap: 12px; padding: 28px; background: linear-gradient(180deg, #FFFFFF, #F8FAFF); }
+  .hero h1 { margin: 0; font-size: 26px; }
+  .hero .input { height: 52px; font-size: 16px; border-radius: 12px; }
+  .task-group h3 { margin: 0 0 10px; font-size: 13px; color: var(--muted); font-weight: 500; }
+  .task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .task-card { display: flex; gap: 12px; align-items: flex-start; padding: 16px; background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius); text-decoration: none; color: var(--text); box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s, border-color .15s; }
+  .task-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); border-color: #C7D3EE; color: var(--text); }
+  .task-card b { display: block; font-size: 15px; font-weight: 500; }
+  .task-card small, .palette-list small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.6; margin-top: 2px; }
+  .task-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none; }
+  .steps-intro { margin: 0; padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 1.9; }
+
+  /* 统一弹层：确认框、快速搜索 */
+  .modal-mask { position: fixed; inset: 0; z-index: 60; background: rgba(15, 20, 30, .45); display: flex; align-items: flex-start; justify-content: center; padding: 12vh 16px 16px; animation: fade .12s ease-out; }
+  .modal { width: 100%; max-width: 440px; background: #FFFFFF; border-radius: 14px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 50px rgba(15, 20, 30, .25); animation: pop .15s ease-out; }
+  .modal h2 { margin: 0; font-size: 17px; }
+  .modal p { margin: 0; color: var(--muted); line-height: 1.7; white-space: pre-line; }
+  .modal.palette { max-width: 600px; padding: 14px; gap: 10px; }
+  .palette-list { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow: auto; }
+  .palette-list button { display: flex; gap: 12px; align-items: center; text-align: left; padding: 10px 12px; border: none; border-radius: 10px; background: transparent; cursor: pointer; }
+  .palette-list button.on, .palette-list button:hover { background: var(--accent-soft); }
+  @keyframes fade { from { opacity: 0; } } @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+
+  /* 提示 */
+  #toast div { display: flex; flex-direction: column; gap: 2px; animation: pop .15s ease-out; }
+  #toast div b { font-size: 13px; }
+
+  /* 状态卡、终端、任务进度 */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .stat { background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; box-shadow: var(--shadow); min-width: 0; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .stat b { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat.ok b { color: var(--ok); } .stat.bad b { color: var(--bad); }
+  .card .stat { box-shadow: none; }
+  .health-text.NORMAL { color: var(--ok); } .health-text.BUSY { color: var(--accent); } .health-text.WARNING { color: var(--warn); } .health-text.DANGER { color: var(--bad); }
+  .meter { display: block; height: 4px; border-radius: 4px; background: var(--line); margin-top: 8px; overflow: hidden; }
+  .meter span { display: block; height: 100%; width: 0; background: #4F9A63; transition: width .4s; }
+  .meter span.mid { background: #D69E2E; } .meter span.high { background: #C53030; }
+  .term { background: #0F141C; color: #D5D9E0; border-radius: 10px; font: 12.5px/1.6 ui-monospace, "JetBrains Mono", Consolas, monospace; height: 560px; overflow: auto; padding: 12px 14px; white-space: pre-wrap; word-break: break-word; }
+  #c-out { height: 420px; }
+  .term .line.cmd { color: #FFFFFF; } .term .line.cmd::before { content: "› "; color: #7CB7FF; }
+  .term .line.ERROR { color: #FF8A8A; } .term .line.note { color: #8A93A3; }
+  .term .loading-row { color: #8A93A3; }
+  .log-row { display: grid; grid-template-columns: 64px 52px minmax(0, 1fr); gap: 10px; }
+  .log-row .time, .log-row .src { color: #6B7380; }
+  .log-row .lvl { font-size: 11px; font-weight: 700; } .lvl.INFO { color: #7CB7FF; } .lvl.WARN { color: #F2B84B; } .lvl.ERROR { color: #FF7070; } .lvl.DEBUG, .lvl.TRACE { color: #8A93A3; }
+  .log-row.WARN .msg { color: #F3D9A4; } .log-row.ERROR .msg { color: #FFB3B3; }
+  @media (max-width: 600px) { .log-row { grid-template-columns: 1fr; gap: 0; } }
+  .prompt { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 10px; padding: 6px 6px 6px 14px; }
+  .prompt span { color: var(--accent); font-weight: 700; }
+  .prompt input { flex: 1; border: 0; outline: none; font: 14px ui-monospace, Consolas, monospace; min-width: 0; height: 36px; background: transparent; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #FFFFFF; }
+  .seg button { border: 0; background: transparent; padding: 0 14px; height: 36px; cursor: pointer; color: var(--muted); font-size: 13px; margin: 0; border-bottom: 0; }
+  .seg button[aria-pressed=true], .seg button[aria-selected=true] { background: var(--accent-soft); color: var(--accent-dark); font-weight: 500; }
+  .step { display: inline-flex; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #FFFFFF; font-size: 13px; align-items: center; justify-content: center; margin-right: 8px; vertical-align: 2px; }
+  .chip-field { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: start; }
+  .chip-field > span { font-size: 13px; color: var(--muted); padding-top: 6px; }
+  @media (max-width: 600px) { .chip-field { grid-template-columns: 1fr; } }
+  .pick-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .check-list { margin-top: 6px; height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
+  .check-list label { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .check-list label:hover { background: #F7F8FA; }
+  .check-list .mono { min-width: 64px; }
+  .kv-list { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 13px; }
+  .kv-list dt { color: var(--muted); } .kv-list dd { margin: 0; word-break: break-all; }
 </style>
 </head>
 <body>
@@ -146,20 +265,67 @@
 
 <div id="app" class="hidden">
   <nav aria-label="后台导航">
-    <div class="brand"><div class="logo">O</div><div style="display:flex;flex-direction:column"><span style="color:#fff;font-weight:700;font-size:15px">Orpheus 后台</span><span class="tag">原神 7.1 自用服</span></div></div>
-    <a href="#schedule" data-page="schedule">公告与活动</a>
-    <a href="#mail" data-page="mail">发邮件</a>
-    <a href="#account" data-page="account">账户编辑</a>
-    <a href="#give" data-page="give">发物品</a>
-    <div class="sep"></div>
-    <a href="/console#quest"><span>任务进度</span><span class="tag live">已上线</span></a>
-    <a href="#gacha" data-page="gacha"><span>卡池排期</span><span class="tag">另行开发</span></a>
-    <a href="/console">日志与命令</a>
-    <div class="spacer"></div>
-    <button id="logout" type="button">退出登录</button>
+    <div class="nav-head">
+      <div class="brand"><div class="logo">O</div><div style="display:flex;flex-direction:column"><span style="color:#fff;font-weight:700;font-size:15px">Orpheus 后台</span><span class="tag">原神 7.1 自用服</span></div></div>
+      <button id="nav-toggle" type="button" aria-label="展开或收起导航">☰</button>
+    </div>
+    <div class="nav-body">
+      <button id="nav-search" type="button" class="search"><span>我想……</span><kbd>Ctrl K</kbd></button>
+      <a href="#home" data-page="home" data-icon="star">首页</a>
+      <div class="group">给玩家东西</div>
+      <a href="#give" data-page="give" data-icon="gift">发物品</a>
+      <a href="#mail" data-page="mail" data-icon="mail">发邮件</a>
+      <div class="group">改玩家数据</div>
+      <a href="#account" data-page="account" data-icon="user">账户编辑</a>
+      <a href="#quest" data-page="quest" data-icon="flag">任务进度</a>
+      <div class="group">通知和排期</div>
+      <a href="#schedule" data-page="schedule" data-icon="bell">公告与活动</a>
+      <a href="#gacha" data-page="gacha" data-icon="star">卡池排期<span class="tag">规划中</span></a>
+      <div class="group">看服务器</div>
+      <a href="#players" data-page="players" data-icon="users">在线玩家</a>
+      <a href="#logs" data-page="logs" data-icon="list">服务器日志</a>
+      <a href="#command" data-page="command" data-icon="terminal">控制台命令</a>
+      <div class="foot">
+        <div class="health" id="nav-health"><span id="nav-health-text">读取状态…</span></div>
+        <button id="logout" type="button">退出登录</button>
+      </div>
+    </div>
   </nav>
 
   <main id="pages">
+    <!-- 首页 -->
+    <section class="page hidden" data-page="home">
+      <h1 class="visually-hidden">首页</h1>
+      <section class="card hero">
+        <h2 style="margin:0;font-size:26px">今天要做什么？</h2>
+        <input id="h-search" class="input" type="search" placeholder="输入想做的事，比如：发原石、改角色等级、推进剧情、停服公告、查报错" aria-label="搜索要做的事">
+        <span class="muted small">回车直接打开第一个结果；任何页面按 Ctrl+K 都能随时搜。</span>
+      </section>
+      <div class="wrap">
+        <div id="h-tasks" style="flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:20px"></div>
+        <aside style="flex:1 1 300px;max-width:100%;display:flex;flex-direction:column;gap:20px">
+          <section class="card">
+            <div class="between"><h2>服务器</h2><a href="#players" style="font-size:13px">详情</a></div>
+            <div id="h-health" class="row"><span class="spinner"></span></div>
+          </section>
+          <section class="card">
+            <div class="between"><h2>账号</h2><span class="muted small" id="h-online-count"></span></div>
+            <div id="h-online" style="display:flex;flex-direction:column;gap:10px"></div>
+          </section>
+          <section class="card">
+            <h2>第一次用？</h2>
+            <ol class="steps-intro">
+              <li>上面的搜索框写你想做的事，点结果就到对应页面。</li>
+              <li>每页最上面一行写着这页能做什么；灰色小字是注意事项。</li>
+              <li>会改存档的操作都会先自动备份，并弹框让你确认。</li>
+              <li>红色提示是出错了，写着原因；看不懂就去「服务器日志」搜同一时间的记录。</li>
+            </ol>
+          </section>
+        </aside>
+      </div>
+    </section>
+
+
 
     <!-- 公告与活动 -->
     <section class="page hidden" data-page="schedule">
@@ -264,7 +430,7 @@
         <div><h1>账户编辑</h1><p>改动先进待保存列表，确认后一次写入；写入前自动备份存档。</p></div>
         <div class="row"><label for="a-player" class="muted" style="font-size:13px">玩家</label><select id="a-player" class="input" style="min-width:280px"></select><button id="a-reload" type="button" class="btn sm">刷新</button></div>
       </div>
-      <p id="a-hint" class="empty">选一个在线玩家。离线玩家改不了：玩家在线时内存存档才是最新的，直接改库会被下一次存档盖掉。</p>
+      <div id="a-hint" class="empty">选一个在线玩家。离线玩家改不了：玩家在线时内存存档才是最新的，直接改库会被下一次存档盖掉。</div>
       <div id="a-body" class="hidden" style="display:flex;flex-direction:column;gap:20px">
         <section class="card summary">
           <div class="avatar" id="a-initial">旅</div>
@@ -314,10 +480,126 @@
       </div>
     </section>
 
+    <!-- 任务进度 -->
+    <section class="page hidden" data-page="quest">
+      <div class="page-head"><div><h1>任务进度</h1><p>按任务树推进或回退一个账号的剧情，补发奖励和世界状态。先生成只读计划，核对无误再执行。</p></div></div>
+      <div class="callout danger" role="note"><b>执行前必读</b>账号必须在线，站在自己的大世界（场景 3）里保持不动。执行结束会被强制下线，必须重新登录。任务道具进背包，其余奖励走邮件。计划里有阻断项时不能执行。</div>
+      <div class="wrap">
+        <div style="flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:20px">
+          <section class="card">
+            <div class="between"><h2><span class="step">1</span>选账号</h2><button id="q-refresh" type="button" class="btn sm">刷新在线账号</button></div>
+            <div class="row" style="align-items:flex-end">
+              <label class="field" style="flex:1 1 280px">在线账号<select id="q-player" class="input"></select></label>
+              <label class="field" style="flex:0 1 200px">UID（离线撤销时填写）<input id="q-uid" class="input" type="number" min="1" list="player-list"></label>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="between"><h2><span class="step">2</span>选目标</h2>
+              <div role="tablist" aria-label="目标来源" class="seg"><button type="button" role="tab" data-qmode="form" aria-selected="true">勾选 / 搜索</button><button type="button" role="tab" data-qmode="json" aria-selected="false">目标文件 / JSON</button></div></div>
+            <div id="q-form" style="display:flex;flex-direction:column;gap:14px">
+              <p class="note">同一选择器内各维度取交集，同一维度多选取并集；每日委托不支持。</p>
+              <div id="q-options-state"></div>
+              <div class="chip-field"><span>地区</span><div id="q-regions" class="chips"></div></div>
+              <div class="chip-field"><span>类别</span><div id="q-categories" class="chips"></div></div>
+              <div class="chip-field"><span>扩展区域</span><div id="q-expansions" class="chips"></div></div>
+              <input id="q-search" class="input" type="search" placeholder="搜索中文任务名 / 章节名 / ID" aria-label="搜索任务">
+              <div class="pick-lists">
+                <div><div class="between"><b>章节</b><span class="muted small" id="q-chapters-count"></span></div><div id="q-chapters" class="check-list"></div></div>
+                <div><div class="between"><b>主任务</b><span class="muted small" id="q-parents-count"></span></div><div id="q-parents" class="check-list"></div></div>
+              </div>
+              <div class="row"><span class="muted small" id="q-selected">尚未选择章节 / 主任务</span><button id="q-clear" type="button" class="btn sm">清空章节 / 主任务</button></div>
+              <details class="more"><summary>更多条件：排除某些类别、设停止点</summary><div style="display:flex;flex-direction:column;gap:14px;padding-top:12px">
+              <div class="chip-field"><span>排除类别</span><div id="q-exclude" class="chips"></div></div>
+              <div class="chip-field"><span>排除扩展区域</span><div id="q-exclude-expansions" class="chips"></div></div>
+              <div class="row" style="align-items:flex-end">
+                <label class="field">停止在<select id="q-stop-kind" class="input"><option value="">无停止点</option><option value="chapter">章节之前</option><option value="parent">主任务之前</option><option value="sub">子任务之前</option></select></label>
+                <label class="field" style="flex:1 1 220px">停止点 ID 或精确中文名<input id="q-stop" class="input" placeholder="如 1101；子任务必须填 ID"></label>
+              </div>
+              </div></details>
+            </div>
+            <details class="more" id="q-json-box"><summary>目标 JSON（高级：上传目标文件或直接粘贴）</summary><div style="display:flex;flex-direction:column;gap:12px;padding-top:12px">
+            <div class="row"><label class="btn sm" style="display:inline-flex;align-items:center;gap:6px">上传目标 JSON<input id="q-upload" type="file" accept=".json,application/json" class="visually-hidden"></label><span class="muted small">不超过 1 MiB，上传后切到 JSON 模式</span></div>
+            <label class="field">目标 JSON（勾选时自动生成；也可以直接粘贴修改）<textarea id="q-goal" class="input mono" rows="8" placeholder='{"version":2,"stopBefore":{"chapter":{"id":1101}}}'></textarea></label>
+            </div></details>
+          </section>
+
+          <section class="card">
+            <div class="between"><h2><span class="step">3</span>计划与执行</h2>
+              <div class="row"><button id="q-plan" type="button" class="btn primary">生成只读计划</button><button id="q-apply" type="button" class="btn danger-fill" disabled>确认执行</button></div></div>
+            <div id="q-plan-view"><p class="empty">还没有计划。选好账号和目标后点「生成只读计划」，不会改任何数据。</p></div>
+          </section>
+        </div>
+
+        <div style="flex:1 1 340px;max-width:100%;display:flex;flex-direction:column;gap:20px">
+          <section class="card">
+            <div class="between"><h2><span class="step">4</span>执行进度</h2><button id="q-job-refresh" type="button" class="btn sm" disabled>刷新</button></div>
+            <div id="q-job"><p class="empty">还没有执行或撤销任务</p></div>
+          </section>
+          <section class="card">
+            <div class="between"><h2><span class="step">5</span>撤销与备份</h2><button id="q-backups" type="button" class="btn sm">查看备份</button></div>
+            <label class="field">撤销任务 ID / 备份 ID<input id="q-undo-id" class="input mono"></label>
+            <button id="q-undo" type="button" class="btn danger">撤销该次调整</button>
+            <p class="note">撤销前账号必须离线。已领取奖励、成就等不可回退项保留；与调整后正常进度冲突的字段保留并报告。撤销也会先备份。这里不会自动执行或自动撤销。</p>
+            <div id="q-backup-list"></div>
+          </section>
+        </div>
+      </div>
+      <details class="card"><summary>计划 / 报告完整 JSON</summary><pre id="q-report" class="mono" tabindex="0" style="max-height:480px;overflow:auto;white-space:pre-wrap;margin:0"></pre></details>
+    </section>
+
+    <!-- 在线玩家与服务器状态 -->
+    <section class="page hidden" data-page="players">
+      <div class="page-head"><div><h1>在线玩家</h1><p>服务器状态和当前在线的账号，5 秒刷新一次。</p></div><span class="muted small" id="o-updated"></span></div>
+      <div class="stats">
+        <div class="stat"><span>在线玩家</span><b id="s-players">-</b><small id="s-version"></small></div>
+        <div class="stat"><span>运行时间</span><b id="s-uptime">-</b><small id="s-started"></small></div>
+        <div class="stat"><span>状态</span><b id="s-health">-</b><small id="s-diagnosis"></small></div>
+        <div class="stat"><span>进程 CPU</span><b id="s-cpu">-</b><small id="s-syscpu"></small><i class="meter"><span id="m-cpu"></span></i></div>
+        <div class="stat"><span>JVM 内存</span><b id="s-mem">-</b><small id="s-memsub"></small><i class="meter"><span id="m-mem"></span></i></div>
+        <div class="stat"><span>系统内存</span><b id="s-sysmem">-</b><small id="s-sysmemsub"></small><i class="meter"><span id="m-sysmem"></span></i></div>
+      </div>
+      <section class="card">
+        <div class="between"><h2>在线账号</h2><span class="muted small">点右边的按钮直接带着 UID 去对应页面</span></div>
+        <div class="table-box"><table>
+          <thead><tr><th>UID</th><th>昵称</th><th>冒险等级</th><th>世界等级</th><th>场景</th><th></th></tr></thead>
+          <tbody id="o-list"></tbody>
+        </table></div>
+      </section>
+    </section>
+
+    <!-- 日志 -->
+    <section class="page hidden" data-page="logs">
+      <div class="page-head"><div><h1>服务器日志</h1><p>实时日志，2 秒刷新；浏览器里最多保留 2000 行。</p></div></div>
+      <section class="card">
+        <div class="row">
+          <div class="seg" role="group" aria-label="日志级别" id="l-levels">
+            <button type="button" data-level="ALL" aria-pressed="true">全部</button><button type="button" data-level="INFO" aria-pressed="false">INFO</button>
+            <button type="button" data-level="WARN" aria-pressed="false">WARN</button><button type="button" data-level="ERROR" aria-pressed="false">ERROR</button>
+            <button type="button" data-level="DEBUG" aria-pressed="false">DEBUG</button>
+          </div>
+          <input id="l-filter" class="input sm" type="search" placeholder="过滤日志" aria-label="过滤日志" style="flex:1 1 200px">
+          <label class="row" style="gap:6px;font-size:13px"><input id="l-follow" type="checkbox" checked> 自动滚动</label>
+          <button id="l-clear" type="button" class="btn sm">清空</button>
+        </div>
+        <div class="term" id="l-out" aria-live="off"></div>
+      </section>
+    </section>
+
+    <!-- 命令 -->
+    <section class="page hidden" data-page="command">
+      <div class="page-head"><div><h1>控制台命令</h1><p>和服务器控制台一样，不用加 /；↑↓ 切换历史。常用操作优先用左边的页面，命令留给页面还没覆盖的事。</p></div></div>
+      <section class="card">
+        <div class="row"><span class="muted small">示例：</span><span class="chips" id="c-examples"></span><span style="flex:1"></span><button id="c-clear" type="button" class="btn sm">清空输出</button></div>
+        <div class="term" id="c-out" aria-live="polite"><div class="line note">输入命令后回车执行，输出显示在这里。</div></div>
+        <form id="c-form" class="prompt"><span aria-hidden="true">›</span><input id="c-input" type="text" autocomplete="off" spellcheck="false" placeholder="例如：list 或 give @10001 201 x1000" aria-label="命令"><button type="submit" class="btn primary sm">执行</button></form>
+      </section>
+    </section>
+
     <!-- 卡池排期（占位） -->
     <section class="page hidden" data-page="gacha">
       <div class="page-head"><div><h1>卡池排期</h1><p>由另一个开发会话负责，完成后挂在这里。</p></div></div>
-      <div class="card"><p class="note">在那之前请直接改 Banners.json 里各卡池的 disabled、beginTime、endTime 字段，服务端会热加载。</p></div>
+      <div class="empty" style="background:#fff">在那之前请直接改 Banners.json 里各卡池的 disabled、beginTime、endTime 字段，服务端会热加载。</div>
     </section>
   </main>
 </div>
@@ -325,16 +607,18 @@
 <div id="toast" aria-live="polite"></div>
 
 <script>
-/* 公共层：登录、请求、提示、玩家、物品卡片。各页面通过 Admin.page(name, init) 登记。 */
+/* 公共层：登录、请求、提示、确认框、加载/空状态、页面切换、玩家、物品卡片。
+   各页面用 Admin.page(name, { init, show, hide }) 登记：init 第一次打开时跑一次，show/hide 每次进出页面时跑（用来开关轮询）。 */
 const Admin = (() => {
   const $ = (id) => document.getElementById(id);
-  const TOKEN_KEY = "astaps-console-token"; // 和 /console 共用同一次登录
+  const TOKEN_KEY = "astaps-console-token";
   const session = {
     get() { try { return sessionStorage.getItem(TOKEN_KEY); } catch (e) { return null; } },
     set(v) { try { v ? sessionStorage.setItem(TOKEN_KEY, v) : sessionStorage.removeItem(TOKEN_KEY); } catch (e) {} },
   };
   let token = session.get();
   const pages = {}, started = new Set();
+  let current = null;
 
   function el(tag, attrs = {}, ...children) {
     const node = document.createElement(tag);
@@ -347,62 +631,127 @@ const Admin = (() => {
     for (const c of children.flat()) if (c !== null && c !== undefined && c !== false) node.append(c instanceof Node ? c : String(c));
     return node;
   }
+
+  /* ---- 提示、确认框、加载和空状态：全站统一一套 ---- */
   function toast(text, kind = "ok") {
-    const box = el("div", { class: kind }, text);
+    const box = el("div", { class: kind, role: kind === "bad" ? "alert" : "status" }, el("b", {}, kind === "bad" ? "出错了" : "完成"), el("span", {}, text));
     $("toast").append(box);
     setTimeout(() => box.remove(), kind === "bad" ? 9000 : 4000);
   }
-  /** 调后台接口：data 有值时 POST；出错抛 Error（中文原因）。 */
-  async function call(path, data) {
+  /** 统一确认框，代替浏览器自带的 confirm。返回 Promise<boolean>。 */
+  function confirm({ title = "确认操作", body = "", ok = "确定", danger = false } = {}) {
+    return new Promise((resolve) => {
+      const close = (value) => { overlay.remove(); document.removeEventListener("keydown", onKey); resolve(value); };
+      const onKey = (e) => { if (e.key === "Escape") close(false); };
+      const okButton = el("button", { type: "button", class: "btn " + (danger ? "danger-fill" : "primary"), onclick: () => close(true) }, ok);
+      const overlay = el("div", { class: "modal-mask", onclick: (e) => { if (e.target === overlay) close(false); } },
+        el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": title },
+          el("h2", {}, title), body ? el("p", {}, body) : null,
+          el("div", { class: "row", style: "justify-content:flex-end" }, el("button", { type: "button", class: "btn", onclick: () => close(false) }, "取消"), okButton)));
+      document.body.append(overlay);
+      document.addEventListener("keydown", onKey);
+      okButton.focus();
+    });
+  }
+  const loadingRow = (text = "加载中…") => el("div", { class: "loading-row" }, el("span", { class: "spinner" }), text);
+  function loading(node, text) { node.replaceChildren(loadingRow(text)); }
+  const empty = (text) => el("p", { class: "empty" }, text);
+  /** 区块内的错误：显示原因和「重试」 */
+  const errorBox = (message, retry) => el("div", { class: "error-box", role: "alert" }, el("span", {}, message), retry ? el("button", { type: "button", class: "btn sm", onclick: retry }, "重试") : null);
+
+  /* ---- 请求：/console/api/* 全部从这里走，自动带登录令牌 ---- */
+  async function request(path, data) {
     const headers = { "Content-Type": "application/json" };
     if (token) headers["X-Console-Token"] = token;
     const options = data === undefined ? { headers, cache: "no-store" } : { method: "POST", headers, body: JSON.stringify(data) };
     let response;
-    try { response = await fetch("/console/api/admin/" + path, options); } catch (e) { throw new Error("无法连接服务器"); }
+    try { response = await fetch(path, options); } catch (e) { throw new Error("无法连接服务器"); }
     if (response.status === 401) { showLogin("登录已过期，请重新登录"); throw new Error("未登录"); }
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.error || "HTTP " + response.status);
     return body;
   }
-  /** 按钮点击：执行期间禁用，出错弹红色提示。 */
+  /** 管理页接口（/console/api/admin/...） */
+  const call = (path, data) => request("/console/api/admin/" + path, data);
+  /** 控制台原有接口（/console/api/players、logs、command、quest/...） */
+  const api = (path, data) => request("/console/api/" + path, data);
+
+  /** 按钮点击：执行期间禁用并转圈，出错弹红色提示。 */
   function action(fn) {
     return async (event) => {
       const button = event && event.currentTarget instanceof HTMLButtonElement ? event.currentTarget : null;
-      if (button) button.disabled = true;
+      if (button) { button.disabled = true; button.classList.add("busy"); }
       try { await fn(event); } catch (e) { if (e.message !== "未登录") toast(e.message, "bad"); }
-      finally { if (button) button.disabled = false; }
+      finally { if (button) { button.disabled = false; button.classList.remove("busy"); } }
     };
   }
-  const page = (name, init) => { pages[name] = init; };
+
+  /* ---- 页面切换：#页面 或 #页面/参数（参数一般是 UID） ---- */
+  const page = (name, hooks) => { pages[name] = typeof hooks === "function" ? { init: hooks } : hooks; };
   function show() {
-    const name = (location.hash || "#schedule").slice(1);
-    const known = document.querySelector(`#pages > section[data-page="${name}"]`) ? name : "schedule";
-    document.querySelectorAll("nav a[data-page]").forEach((a) => (a.dataset.page === known ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
-    document.querySelectorAll("#pages > section[data-page]").forEach((s) => s.classList.toggle("hidden", s.dataset.page !== known));
-    if (pages[known] && !started.has(known)) { started.add(known); Promise.resolve(pages[known]()).catch((e) => toast(e.message, "bad")); }
+    const [raw, param] = (location.hash || "#home").slice(1).split("/");
+    const name = document.querySelector(`#pages > section[data-page="${raw}"]`) ? raw : "home";
+    document.querySelectorAll("nav a[data-page]").forEach((a) => (a.dataset.page === name ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+    document.querySelectorAll("#pages > section[data-page]").forEach((s) => s.classList.toggle("hidden", s.dataset.page !== name));
+    document.body.classList.remove("nav-open");
+    const title = document.querySelector(`#pages > section[data-page="${name}"] h1`);
+    document.title = (title ? title.textContent + " · " : "") + "Orpheus 后台";
+    if (current && current !== name && pages[current] && pages[current].hide) pages[current].hide();
+    current = name;
+    const hooks = pages[name];
+    if (!hooks) return;
+    const run = async () => {
+      if (!started.has(name)) { started.add(name); if (hooks.init) await hooks.init(); }
+      if (hooks.show) await hooks.show(param);
+    };
+    run().catch((e) => { if (e.message !== "未登录") toast(e.message, "bad"); });
   }
+  /** 跳到某页并带上参数，比如在线玩家列表里点「账户编辑」 */
+  const go = (name, param) => { location.hash = param ? `${name}/${param}` : name; };
+
   function showLogin(message) {
     token = null; session.set(null);
+    if (current && pages[current] && pages[current].hide) pages[current].hide();
     $("app").classList.add("hidden"); $("login").classList.remove("hidden");
     $("login-error").textContent = message || ""; $("password").focus();
   }
-  function showApp() { $("login").classList.add("hidden"); $("app").classList.remove("hidden"); show(); loadPlayers().catch(() => {}); }
+  function showApp() {
+    $("login").classList.add("hidden"); $("app").classList.remove("hidden");
+    show(); loadPlayers().catch(() => {}); health();
+  }
   $("login-form").addEventListener("submit", async (event) => {
     event.preventDefault();
+    const button = event.submitter; if (button) { button.disabled = true; button.classList.add("busy"); }
     try {
       const response = await fetch("/console/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: $("password").value }) });
       const body = await response.json().catch(() => ({}));
       if (response.ok && body.token) { token = body.token; session.set(token); $("password").value = ""; showApp(); }
       else $("login-error").textContent = response.status === 429 ? "密码错误次数过多，请 10 分钟后再试" : "密码错误";
     } catch (e) { $("login-error").textContent = "无法连接服务器"; }
+    finally { if (button) { button.disabled = false; button.classList.remove("busy"); } }
   });
   $("logout").addEventListener("click", async () => {
     try { await fetch("/console/api/logout", { method: "POST", headers: { "X-Console-Token": token || "" } }); } catch (e) {}
     showLogin();
   });
-  window.addEventListener("hashchange", show);
+  $("nav-toggle").addEventListener("click", () => document.body.classList.toggle("nav-open"));
+  window.addEventListener("hashchange", () => { if (token) show(); });
 
-  /* 玩家：全部玩家（在线在前），同时填 UID 输入框的候选 */
+  /* ---- 导航底部的服务器状态（公开的 /api/status，15 秒一次） ---- */
+  const HEALTH = { NORMAL: "正常", BUSY: "繁忙", WARNING: "注意", DANGER: "危险" };
+  let lastStatus = null;
+  async function health() {
+    try {
+      lastStatus = await (await fetch("/api/status", { cache: "no-store" })).json();
+      const g = lastStatus.game || {};
+      $("nav-health").className = "health " + (lastStatus.health || "");
+      $("nav-health-text").textContent = `${HEALTH[lastStatus.health] || "未知"} · 在线 ${g.players ?? "-"}${g.uptime ? " · 已运行 " + g.uptime : ""}`;
+      document.dispatchEvent(new CustomEvent("status", { detail: lastStatus }));
+    } catch (e) { $("nav-health").className = "health DANGER"; $("nav-health-text").textContent = "连不上服务器"; }
+  }
+  setInterval(() => { if (token && !document.hidden) health(); }, 15000);
+
+  /* ---- 玩家：全部玩家（在线在前），同时填 UID 输入框的候选 ---- */
   let players = [];
   async function loadPlayers() {
     players = (await call("players")).players;
@@ -411,7 +760,6 @@ const Admin = (() => {
     return players;
   }
   const findPlayer = (uid) => players.find((p) => String(p.uid) === String(uid).trim());
-  /** UID 旁边的状态小标签 */
   function playerBadge(uid) {
     if (!String(uid).trim()) return el("span");
     const p = findPlayer(uid);
@@ -419,20 +767,16 @@ const Admin = (() => {
     return el("span", { class: "badge " + (p.online ? "ok" : "") }, `${p.nickname || "(无昵称)"} · ${p.online ? "在线 AR" + p.level : "离线"}`);
   }
 
-  /* 星级配色（模板）：色带、文字、底色 */
+  /* ---- 物品卡片（发物品、邮件附件共用） ---- */
   const TONE = { 5: ["#B8742A", "#9A5B12", "#FBF1E4"], 4: ["#7E57C2", "#5E3A9E", "#F1ECFA"], 3: ["#3A73C2", "#2A5A9C", "#E8F0FA"],
     2: ["#4F9A63", "#2F6B40", "#E8F4EC"], 1: ["#8A939E", "#4E5661", "#EEF0F2"] };
   const tone = (rank) => TONE[rank] || TONE[1];
   const itemName = (it) => it.name || `#${it.id}`;
   const CAT_ORDER = ["货币", "祈愿道具", "角色突破", "天赋", "周本", "BOSS 掉落", "武器突破", "经验书", "特产", "普通怪掉落", "矿石", "木材", "食物", "烹饪原料", "武器", "圣遗物", "任务道具"];
 
-  /**
-   * 物品清单：分类栏 + 搜索 + 星级卡片。把分类栏和卡片区插进 host（在它最前面）。
-   * onAdd(item) 在点「加入」时调用。
-   */
   function itemBrowser(host, onAdd, addLabel = "加入发放篮") {
-    const cats = el("section", { class: "card cats", "aria-label": "分类" });
-    const search = el("input", { class: "input", type: "search", placeholder: "搜索名称或 ID，例如 原石、223", style: "flex:1 1 260px" });
+    const cats = el("section", { class: "card cats", "aria-label": "分类" }, loadingRow());
+    const search = el("input", { class: "input", type: "search", placeholder: "搜索名称或 ID，例如 原石、223", style: "flex:1 1 260px", "aria-label": "搜索物品" });
     const info = el("span", { class: "muted", style: "font-size:13px" });
     const subs = el("div", { class: "chips" });
     const grid = el("div", { class: "grid" });
@@ -452,17 +796,19 @@ const Admin = (() => {
           el("button", { type: "button", class: "btn outline", onclick: () => onAdd(it) }, addLabel)));
     }
     async function load(append) {
-      if (!append) offset = 0;
+      if (!append) { offset = 0; grid.replaceChildren(el("div", { style: "grid-column:1/-1" }, loadingRow())); }
       const q = new URLSearchParams({ category, sub, q: search.value.trim(), offset, limit: 60 });
-      const data = await call("items/search?" + q);
+      let data;
+      try { data = await call("items/search?" + q); }
+      catch (e) { if (!append) grid.replaceChildren(el("div", { style: "grid-column:1/-1" }, errorBox(e.message, () => load(false)))); throw e; }
       if (!append) grid.replaceChildren();
       grid.append(...data.items.map(card));
       offset += data.items.length;
       info.textContent = `当前分类 ${category || "全部"}${sub ? " / " + sub : ""} · ${data.total} 项`;
       more.classList.toggle("hidden", offset >= data.total);
-      if (!data.total) grid.append(el("p", { class: "empty", style: "grid-column:1/-1" }, "没有找到"));
+      if (!data.total) grid.append(el("div", { style: "grid-column:1/-1" }, empty("没有找到，换个关键词或分类试试")));
     }
-    const reloadSafe = () => load(false).catch((e) => toast(e.message, "bad"));
+    const reloadSafe = () => load(false).catch(() => {});
     function renderSubs() {
       const c = tree.find((t) => t.name === category);
       subs.replaceChildren();
@@ -480,22 +826,130 @@ const Admin = (() => {
     more.onclick = action(() => load(true));
     return {
       async reload() {
-        tree = (await call("items/categories")).categories;
+        try { tree = (await call("items/categories")).categories; }
+        catch (e) { cats.replaceChildren(errorBox(e.message, () => this.reload())); throw e; }
         tree.sort((a, b) => ((CAT_ORDER.indexOf(a.name) + 1 || 999) - (CAT_ORDER.indexOf(b.name) + 1 || 999)) || b.count - a.count);
         renderCats(); renderSubs(); await load(false);
       },
     };
   }
 
-  /* 时间：datetime-local ↔ Unix 秒（浏览器本地时区） */
+  /* ---- 时间：datetime-local ↔ Unix 秒（浏览器本地时区） ---- */
   const toUnix = (value) => (value ? Math.floor(new Date(value).getTime() / 1000) : 0);
   const fromUnix = (sec) => { if (!sec) return ""; const d = new Date(sec * 1000); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
   const fmtTime = (sec) => (sec ? new Date(sec * 1000).toLocaleString("zh-CN", { hour12: false, month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-");
   const fmtNum = (n) => Number(n).toLocaleString("zh-CN");
 
   setTimeout(() => (token ? showApp() : showLogin()), 0);
-  return { $, el, call, action, toast, page, loadPlayers, findPlayer, playerBadge, get players() { return players; },
+  return { $, el, call, api, action, toast, confirm, loading, loadingRow, empty, errorBox, page, go, loadPlayers, findPlayer, playerBadge,
+    get players() { return players; }, get status() { return lastStatus; },
     itemBrowser, tone, itemName, toUnix, fromUnix, fmtTime, fmtNum };
+})();
+</script>
+
+<script>
+/* 首页和快速搜索：按「我想做什么」找到页面。第一次用的人从这里进。 */
+(() => {
+  const { $, el, empty, loadingRow } = Admin;
+  /* 每条：做什么、去哪页、一句说明、搜索关键词 */
+  const TASKS = [
+    { group: "给玩家东西", icon: "gift", title: "发物品", page: "give", desc: "按分类挑原石、材料、武器，直接进背包或走邮件", keys: "物品 道具 原石 摩拉 材料 武器 圣遗物 经验书 突破 天赋 背包 给 加 送" },
+    { group: "给玩家东西", icon: "mail", title: "发邮件", page: "mail", desc: "单人或全服，可带附件、定时发送，玩家在邮箱里领", keys: "邮件 补偿 全服 附件 定时 奖励 信" },
+    { group: "改玩家数据", icon: "user", title: "账户编辑", page: "account", desc: "改等级、货币、角色、武器、圣遗物、背包数量（玩家要在线）", keys: "等级 冒险 世界等级 角色 命座 天赋 好感 武器 精炼 圣遗物 货币 昵称 签名 改 账号" },
+    { group: "改玩家数据", icon: "flag", title: "任务进度", page: "quest", desc: "推进或撤销剧情任务，先生成只读计划再执行", keys: "任务 剧情 主线 章节 推进 跳过 回退 撤销 备份 解锁 神像" },
+    { group: "通知和排期", icon: "bell", title: "公告与活动", page: "schedule", desc: "发弹窗或顶部公告；打开、关闭活动或改起止时间", keys: "公告 通知 停服 维护 弹窗 活动 开关 时间 排期" },
+    { group: "通知和排期", icon: "star", title: "卡池排期", page: "gacha", desc: "规划中，暂时直接改 Banners.json", keys: "卡池 祈愿 抽卡 up 池子" },
+    { group: "看服务器", icon: "users", title: "在线玩家", page: "players", desc: "谁在线、在哪个场景，服务器负载和内存", keys: "在线 玩家 状态 cpu 内存 负载 场景 谁" },
+    { group: "看服务器", icon: "list", title: "服务器日志", page: "logs", desc: "实时日志，按级别和关键词筛选，查报错用", keys: "日志 报错 错误 error warn 异常 log" },
+    { group: "看服务器", icon: "terminal", title: "控制台命令", page: "command", desc: "页面还没覆盖的事，用 GM 命令做", keys: "命令 gm 控制台 指令 command" },
+  ];
+  const ICONS = {
+    gift: "M20 12v9H4v-9M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7z",
+    mail: "M4 4h16v16H4zM4 6l8 7 8-7", user: "M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z",
+    flag: "M4 22V4M4 4h13l-2 4 2 4H4", bell: "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0",
+    star: "M12 2l3 7 7 .5-5.5 4.5 2 7.5L12 17l-6.5 4.5 2-7.5L2 9.5 9 9z", users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8",
+    list: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01", terminal: "M4 17l6-6-6-6M12 19h8",
+  };
+  const icon = (name) => { const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("aria-hidden", "true"); svg.innerHTML = `<path d="${ICONS[name]}"/>`; return svg; };
+  window.AdminIcon = icon;
+  document.querySelectorAll("nav [data-icon]").forEach((a) => a.prepend(icon(a.dataset.icon)));
+
+  const score = (task, term) => {
+    if (!term) return 1;
+    const hay = `${task.title} ${task.desc} ${task.keys}`.toLowerCase();
+    return term.split(/\s+/).every((w) => hay.includes(w)) ? (task.title.includes(term) ? 3 : task.keys.includes(term) ? 2 : 1) : 0;
+  };
+  const find = (term) => TASKS.map((t) => [score(t, term.trim().toLowerCase()), t]).filter(([s]) => s > 0).sort((a, b) => b[0] - a[0]).map(([, t]) => t);
+
+  /* ---- 首页 ---- */
+  function taskCard(t) {
+    return el("a", { class: "task-card", href: "#" + t.page }, el("span", { class: "task-icon" }, icon(t.icon)), el("span", {}, el("b", {}, t.title), el("small", {}, t.desc)));
+  }
+  function renderTasks() {
+    const term = $("h-search").value;
+    const list = find(term);
+    if (term.trim()) {
+      $("h-tasks").replaceChildren(list.length ? el("div", { class: "task-grid" }, list.map(taskCard)) : empty("没找到。试试「原石」「改等级」「剧情」「公告」「报错」"));
+      return;
+    }
+    const groups = [...new Set(TASKS.map((t) => t.group))];
+    $("h-tasks").replaceChildren(...groups.map((g) => el("div", { class: "task-group" }, el("h3", {}, g), el("div", { class: "task-grid" }, TASKS.filter((t) => t.group === g).map(taskCard)))));
+  }
+  $("h-search").oninput = renderTasks;
+  $("h-search").onkeydown = (e) => { if (e.key === "Enter") { const first = find($("h-search").value)[0]; if (first) Admin.go(first.page); } };
+
+  function renderOnline() {
+    const online = Admin.players.filter((p) => p.online);
+    $("h-online").replaceChildren(...online.slice(0, 6).map((p) => el("div", { class: "list-line" },
+      el("span", {}, el("b", {}, p.nickname || "(无昵称)"), el("span", { class: "muted small" }, ` ${p.uid} · AR${p.level}`)),
+      el("span", { class: "row", style: "gap:6px;flex:none" },
+        el("button", { type: "button", class: "btn sm", onclick: () => Admin.go("account", p.uid) }, "改数据"),
+        el("button", { type: "button", class: "btn sm", onclick: () => Admin.go("give", p.uid) }, "发东西")))));
+    if (!online.length) $("h-online").append(empty("现在没有在线账号；离线账号也能发邮件"));
+    $("h-online-count").textContent = `在线 ${online.length} / 共 ${Admin.players.length} 个账号`;
+  }
+  document.addEventListener("players", renderOnline);
+  const HEALTH = { NORMAL: ["运行正常", "ok"], BUSY: ["有点忙", "warn"], WARNING: ["需要注意", "warn"], DANGER: ["有危险", "bad"] };
+  document.addEventListener("status", (e) => {
+    const s = e.detail, g = s.game || {}, [text, kind] = HEALTH[s.health] || ["未知", ""];
+    $("h-health").replaceChildren(el("span", { class: "badge " + kind }, text), el("span", { class: "muted small" }, `已运行 ${g.uptime || "-"} · 版本 ${g.gameVersion || "-"}`));
+  });
+  Admin.page("home", { init: () => { renderTasks(); Admin.loading($("h-online")); }, show: () => { renderOnline(); $("h-search").focus(); } });
+
+  /* ---- 快速搜索（Ctrl+K 或导航顶上的搜索框） ---- */
+  let palette = null, active = 0;
+  function openPalette() {
+    if (palette) return;
+    const input = el("input", { class: "input", type: "search", placeholder: "我想……（比如：发原石、改角色等级、推进剧情、停服公告）", "aria-label": "快速搜索" });
+    const list = el("div", { class: "palette-list", role: "listbox" });
+    const close = () => { if (!palette) return; palette.remove(); palette = null; window.removeEventListener("hashchange", close); };
+    window.addEventListener("hashchange", close);
+    const render = () => {
+      const found = find(input.value);
+      active = Math.min(active, Math.max(found.length - 1, 0));
+      list.replaceChildren(...found.map((t, i) => el("button", { type: "button", role: "option", class: i === active ? "on" : "", "aria-selected": String(i === active),
+        onclick: () => { close(); Admin.go(t.page); } }, el("span", { class: "task-icon" }, icon(t.icon)), el("span", {}, el("b", {}, t.title), el("small", {}, t.desc)))));
+      if (!found.length) list.append(empty("没找到，换个说法试试"));
+      return found;
+    };
+    input.oninput = () => { active = 0; render(); };
+    input.onkeydown = (e) => {
+      const found = find(input.value);
+      if (e.key === "ArrowDown") { active = Math.min(active + 1, found.length - 1); render(); e.preventDefault(); }
+      else if (e.key === "ArrowUp") { active = Math.max(active - 1, 0); render(); e.preventDefault(); }
+      else if (e.key === "Enter" && found[active]) { close(); Admin.go(found[active].page); }
+      else if (e.key === "Escape") close();
+    };
+    palette = el("div", { class: "modal-mask", onclick: (e) => { if (e.target === palette) close(); } },
+      el("div", { class: "modal palette", role: "dialog", "aria-modal": "true", "aria-label": "快速搜索" }, input, list,
+        el("p", { class: "note" }, "↑↓ 选择，回车打开，Esc 关闭")));
+    document.body.append(palette);
+    render(); input.focus();
+  }
+  $("nav-search").onclick = openPalette;
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k" && !$("app").classList.contains("hidden")) { e.preventDefault(); openPalette(); }
+  });
 })();
 </script>
 
@@ -511,6 +965,7 @@ const Admin = (() => {
   const KIND = { popup: "弹窗", banner: "顶部" };
 
   async function notices() {
+    if (!$("n-queue").childElementCount) Admin.loading($("n-queue"));
     const { notices } = await call("notice/list");
     const queued = notices.filter((n) => n.status === "scheduled"), done = notices.filter((n) => n.status !== "scheduled").slice(0, 6);
     $("n-queue").replaceChildren(...queued.map((n) => el("div", { class: "list-line" },
@@ -564,10 +1019,12 @@ const Admin = (() => {
     const shown = rows.filter((a) => (filter === "all" || (filter === "handler" ? a.handler : a.inDefault || a.override || a.running))
       && (!term || `${a.id} ${a.name || ""} ${a.type || ""}`.toLowerCase().includes(term)));
     $("v-list").replaceChildren(...shown.map(make));
+    if (!shown.length) $("v-list").append(el("tr", {}, el("td", { colspan: 6 }, Admin.empty("没有符合条件的活动"))));
     const on = rows.filter((a) => state(a).enabled).length;
     $("v-count").textContent = `开启 ${on} / 已配置 ${rows.filter((a) => a.inDefault || a.override).length} · 显示 ${shown.length} 个`;
   }
   async function activities() {
+    if (!rows.length) $("v-list").replaceChildren(el("tr", {}, el("td", { colspan: 6 }, Admin.loadingRow())));
     const data = await call("activity/list");
     rows = data.activities.sort((x, y) => (y.running - x.running) || (y.inDefault - x.inDefault) || (x.id - y.id));
     dirty.clear(); $("v-dirty").textContent = "";
@@ -590,7 +1047,7 @@ const Admin = (() => {
   $("v-reset").onclick = action(async () => {
     const changed = rows.filter((a) => a.override);
     if (!changed.length && !dirty.size) { toast("没有需要恢复的"); return; }
-    if (changed.length && !confirm(`把 ${changed.length} 个后台改过的活动恢复成默认配置？`)) return;
+    if (changed.length && !await Admin.confirm({ title: "恢复默认排期", body: `把 ${changed.length} 个后台改过的活动恢复成默认配置？重启服务端后生效。`, ok: "恢复默认", danger: true })) return;
     for (const a of changed) await call("activity/reset", { activityId: a.id });
     toast(changed.length ? "已恢复默认，重启服务端后生效" : "已放弃未保存的改动");
     await activities();
@@ -685,14 +1142,15 @@ const Admin = (() => {
     if (!$("m-title").value.trim()) throw new Error("请填写标题");
     const later = $("m-when").value === "later";
     if (later && !$("m-at").value) throw new Error("请选择定时发送的时间");
-    if (target === "all" && !confirm(`确认给全服 ${Admin.players.length} 个账号（含离线）发送「${$("m-title").value}」？附件 ${atts.size} 种。`)) return;
+    if (target === "all" && !await Admin.confirm({ title: "发给全服", body: `确认给全服 ${Admin.players.length} 个账号（含离线）发送「${$("m-title").value}」？附件 ${atts.size} 种，发出后不能撤回。`, ok: "发给全服", danger: true })) return;
     const r = await call("mail/send", { target, title: $("m-title").value, content: $("m-content").value, sender: $("m-sender").value,
       expireDays: Number($("m-days").value), star: $("m-star").checked, sendAt: later ? Admin.toUnix($("m-at").value) : 0,
       items: [...atts.values()].map((x) => ({ id: x.item.id, count: x.count })) });
     toast(r.scheduled ? `已排队，${fmtTime(r.sendAt)} 发送` : `已发送：${r.recipients} 人（在线 ${r.online}），共 ${r.mails} 封` + (r.failed.length ? `；找不到 ${r.failed.join(",")}` : ""));
     await history();
   });
-  Admin.page("mail", async () => { renderTpl(); renderAtts(); await history(); });
+  Admin.page("mail", { init: async () => { renderTpl(); renderAtts(); await history(); },
+    show: (uid) => { if (uid) { document.querySelector("[data-to=one]").click(); $("m-uid").value = uid; uidState(); } } });
 })();
 </script>
 
@@ -700,6 +1158,7 @@ const Admin = (() => {
 /* 账户编辑：改动先进待保存列表，「保存」时一次提交（account/batch） */
 (() => {
   const { $, el, call, action, toast, fmtNum, tone } = Admin;
+  const HINT = "选一个在线玩家。离线玩家改不了：玩家在线时内存存档才是最新的，直接改库会被下一次存档盖掉。";
   const TABS = ["基本信息", "角色", "武器", "圣遗物", "背包", "货币"];
   const PROP = { FIGHT_PROP_HP: "生命值", FIGHT_PROP_HP_PERCENT: "生命值%", FIGHT_PROP_ATTACK: "攻击力", FIGHT_PROP_ATTACK_PERCENT: "攻击力%",
     FIGHT_PROP_DEFENSE: "防御力", FIGHT_PROP_DEFENSE_PERCENT: "防御力%", FIGHT_PROP_CRITICAL: "暴击率", FIGHT_PROP_CRITICAL_HURT: "暴击伤害",
@@ -858,8 +1317,10 @@ const Admin = (() => {
   async function load() {
     uid = Number($("a-player").value);
     pending.clear(); renderPending();
-    if (!uid) { data = null; $("a-body").classList.add("hidden"); $("a-hint").classList.remove("hidden"); return; }
-    data = await call("account/view?uid=" + uid);
+    if (!uid) { data = null; $("a-body").classList.add("hidden"); $("a-hint").classList.remove("hidden"); $("a-hint").textContent = HINT; return; }
+    $("a-hint").classList.remove("hidden"); $("a-hint").replaceChildren(Admin.loadingRow("正在读取玩家存档…")); $("a-body").classList.add("hidden");
+    try { data = await call("account/view?uid=" + uid); }
+    catch (e) { $("a-hint").replaceChildren(Admin.errorBox(e.message, () => load().catch(() => {}))); throw e; }
     addable = (await call("account/addable-avatars?uid=" + uid)).avatars;
     $("a-hint").classList.add("hidden"); $("a-body").classList.remove("hidden");
     $("a-initial").textContent = (data.nickname || "旅").slice(0, 1);
@@ -874,10 +1335,10 @@ const Admin = (() => {
   }
   document.addEventListener("players", fillPlayers);
   $("a-player").onchange = action(async () => {
-    if (pending.size && !confirm("有未保存的改动，换玩家会丢掉，继续？")) return;
+    if (pending.size && !await Admin.confirm({ title: "换玩家", body: `还有 ${pending.size} 项改动没保存，换玩家会丢掉。`, ok: "丢掉并切换", danger: true })) { $("a-player").value = String(uid || ""); return; }
     await load();
   });
-  $("a-reload").onclick = action(async () => { await Admin.loadPlayers(); if (uid) { if (pending.size && !confirm("刷新会丢掉未保存的改动，继续？")) return; await load(); } });
+  $("a-reload").onclick = action(async () => { await Admin.loadPlayers(); if (uid) { if (pending.size && !await Admin.confirm({ title: "刷新", body: `还有 ${pending.size} 项改动没保存，刷新会丢掉。`, ok: "丢掉并刷新", danger: true })) return; await load(); } });
   $("a-discard").onclick = () => { pending.clear(); renderPending(); renderPanel(); };
   $("a-save").onclick = action(async () => {
     if (!pending.size) { toast("没有改动"); return; }
@@ -887,7 +1348,8 @@ const Admin = (() => {
     if (r.error) toast(r.error, "bad"); else toast(`已保存 ${r.applied} 项，游戏里已同步`);
     await load();
   });
-  Admin.page("account", async () => { await Admin.loadPlayers(); fillPlayers(); renderPending(); });
+  Admin.page("account", { init: async () => { await Admin.loadPlayers(); fillPlayers(); renderPending(); },
+    show: async (param) => { if (param && String(uid) !== param) { fillPlayers(); $("a-player").value = param; if ($("a-player").value === param) await load(); } } });
 })();
 </script>
 
@@ -930,8 +1392,341 @@ const Admin = (() => {
     basket.clear(); render();
   });
   const browser = Admin.itemBrowser($("g-wrap"), (it) => add(it));
-  Admin.page("give", async () => { render(); await browser.reload(); });
+  Admin.page("give", { init: async () => { render(); await browser.reload(); }, show: (uid) => { if (uid) { $("g-uid").value = uid; uidState(); } } });
 })();
 </script>
+
+<script>
+/* 任务进度：原 /console 的任务调整面板，接口仍是 /console/api/quest/* */
+(() => {
+  const { $, el, api, action, toast, empty, loadingRow, errorBox } = Admin;
+  let plan = null, jobId = null, revision = 0, poll = null, mode = "form";
+  let rows = [], chapterRows = [];
+  const parents = new Set(), chapters = new Set();
+  const chipSets = {}; // 字段 → Set（地区、类别、扩展区域、排除）
+
+  const uidOf = () => { const uid = Number($("q-uid").value || $("q-player").value); if (!Number.isSafeInteger(uid) || uid <= 0) throw new Error("请先选择账号或填写 UID"); return uid; };
+  const report = (value) => { $("q-report").textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2); };
+  function invalidate() { revision++; plan = null; $("q-apply").disabled = true; }
+
+  /* ---- 目标 ---- */
+  function formGoal() {
+    const selector = {};
+    for (const key of ["regions", "categories", "expansions"]) if (chipSets[key] && chipSets[key].size) selector[key] = [...chipSets[key]];
+    if (chapters.size) selector.chapters = [...chapters].map(Number);
+    if (parents.size) selector.parents = [...parents].map(Number);
+    const goal = { version: 2, source: { description: "后台选择性推进目标" } };
+    if (Object.keys(selector).length) goal.include = [selector];
+    goal.exclude = [];
+    if (chipSets.exclude && chipSets.exclude.size) goal.exclude.push({ categories: [...chipSets.exclude] });
+    if (chipSets.excludeExpansions && chipSets.excludeExpansions.size) goal.exclude.push({ expansions: [...chipSets.excludeExpansions] });
+    const kind = $("q-stop-kind").value, value = $("q-stop").value.trim();
+    if (kind) {
+      if (!value) throw new Error("请填写停止点");
+      const ref = /^\d+$/.test(value) ? Number(value) : value;
+      if (kind === "sub" && typeof ref !== "number") throw new Error("子任务停止点必须是 ID");
+      goal.stopBefore = { [kind]: ref };
+    }
+    return goal;
+  }
+  function sync() {
+    invalidate();
+    if (mode !== "form") return;
+    try { $("q-goal").value = JSON.stringify(formGoal(), null, 2); } catch (e) { $("q-selected").textContent = e.message; }
+  }
+  function setMode(next) {
+    mode = next;
+    document.querySelectorAll("[data-qmode]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.qmode === next)));
+    $("q-form").classList.toggle("hidden", next !== "form");
+    if (next === "json") $("q-json-box").open = true;
+    sync();
+  }
+  document.querySelectorAll("[data-qmode]").forEach((b) => b.onclick = () => setMode(b.dataset.qmode));
+
+  function chips(id, key, values) {
+    const set = chipSets[key] || (chipSets[key] = new Set());
+    $(id).replaceChildren(...values.map((v) => el("button", { type: "button", class: set.has(v) ? "on" : "", "aria-pressed": String(set.has(v)),
+      onclick: (e) => { set.has(v) ? set.delete(v) : set.add(v); e.currentTarget.classList.toggle("on"); e.currentTarget.setAttribute("aria-pressed", String(set.has(v))); sync(); } }, v)));
+    if (!values.length) $(id).append(el("span", { class: "muted small" }, "无"));
+  }
+  function renderChoices() {
+    const term = $("q-search").value.trim().toLowerCase();
+    for (const [id, list, selected] of [["q-parents", rows, parents], ["q-chapters", chapterRows, chapters]]) {
+      const matched = list.filter((r) => `${r.id} ${r.titleZh} ${r.chapterTitleZh || ""}`.toLowerCase().includes(term) || selected.has(String(r.id)));
+      $(id).replaceChildren(...matched.slice(0, 600).map((r) => {
+        const box = el("input", { type: "checkbox" }); box.checked = selected.has(String(r.id));
+        box.onchange = () => { box.checked ? selected.add(String(r.id)) : selected.delete(String(r.id)); renderCounts(); sync(); };
+        return el("label", {}, box, el("span", { class: "mono muted" }, r.id), el("span", {}, r.titleZh || "中文名缺失"));
+      }));
+      if (!matched.length) $(id).append(empty(list.length ? "没有匹配的" : "目录还没加载"));
+      $(id + "-count").textContent = `显示 ${Math.min(matched.length, 600)} / ${list.length}`;
+    }
+    renderCounts();
+  }
+  const renderCounts = () => { $("q-selected").textContent = `已选章节 ${chapters.size}，主任务 ${parents.size}；搜索不会清掉已选的`; };
+  $("q-search").oninput = renderChoices;
+  $("q-clear").onclick = () => { parents.clear(); chapters.clear(); renderChoices(); sync(); };
+  $("q-stop-kind").onchange = sync; $("q-stop").oninput = sync;
+  $("q-goal").oninput = () => { if (mode !== "json") setMode("json"); invalidate(); };
+  $("q-upload").onchange = action(async () => {
+    const file = $("q-upload").files[0]; if (!file) return;
+    if (file.size > 1048576) throw new Error("目标文件不能超过 1 MiB");
+    const value = JSON.parse(await file.text());
+    setMode("json"); $("q-goal").value = JSON.stringify(value, null, 2); invalidate();
+    toast("已载入目标文件 " + file.name);
+  });
+
+  async function loadOptions() {
+    $("q-options-state").replaceChildren(loadingRow("正在加载任务目录（第一次可能要几秒）…"));
+    let data;
+    try { data = await api("quest/options"); }
+    catch (e) { $("q-options-state").replaceChildren(errorBox("任务目录加载失败：" + e.message, () => loadOptions().catch(() => {}))); throw e; }
+    $("q-options-state").replaceChildren();
+    rows = data.parents.filter((r) => !r.categories.includes("每日委托"));
+    chapterRows = [...new Map(rows.filter((r) => r.chapterId).map((r) => [r.chapterId, { id: r.chapterId, titleZh: r.chapterTitleZh }])).values()];
+    chips("q-regions", "regions", [...new Set(rows.map((r) => r.regionZh).filter(Boolean))].sort());
+    chips("q-categories", "categories", data.rules.categories);
+    chips("q-exclude", "exclude", data.rules.categories);
+    chips("q-expansions", "expansions", data.rules.expansions.map((e) => e.name));
+    chips("q-exclude-expansions", "excludeExpansions", data.rules.expansions.map((e) => e.name));
+    renderChoices(); sync();
+  }
+
+  /* ---- 账号 ---- */
+  async function fillPlayers() {
+    const { players } = await api("players");
+    const keep = $("q-player").value;
+    $("q-player").replaceChildren(el("option", { value: "" }, players.length ? "请选择在线账号" : "现在没有在线账号"),
+      ...players.map((p) => el("option", { value: p.uid }, `${p.uid} · ${p.nickname} · 场景 ${p.sceneId}${p.sceneId === 3 ? "（大世界）" : "（不在大世界）"}`)));
+    if ([...$("q-player").options].some((o) => o.value === keep)) $("q-player").value = keep;
+  }
+  $("q-refresh").onclick = action(fillPlayers);
+  $("q-player").onchange = () => { $("q-uid").value = $("q-player").value; invalidate(); };
+  $("q-uid").oninput = invalidate;
+
+  /* ---- 计划 ---- */
+  const tile = (label, value, kind = "") => el("div", { class: "stat " + kind }, el("span", {}, label), el("b", {}, value));
+  function renderPlan(data) {
+    const counts = {};
+    for (const issue of data.blockers) counts[issue.type] = (counts[issue.type] || 0) + 1;
+    const stop = data.stopPreview, blocked = data.blockers.length > 0;
+    $("q-plan-view").replaceChildren(
+      el("div", { class: "stats" }, tile("步骤", data.steps.length), tile("阻断", data.blockers.length, blocked ? "bad" : "ok"),
+        tile("补发邮件", data.expectedMail.length), tile("预计耗时", (data.steps.length * 1.3).toFixed(1) + " 秒")),
+      el("div", { class: "callout " + (blocked ? "danger" : data.steps.length ? "ok" : "") },
+        el("b", {}, blocked ? "有阻断，不能执行" : data.steps.length ? "可以执行" : "目标已经完成"),
+        blocked ? "先处理下面的阻断项（换目标、加停止点，或等服务端补上对应条件）。" : data.steps.length ? "确认前请核对步骤、邮件和顺带接取清单。耗时是粗估，不含备份、异步等待和重登。" : "没有需要重放的步骤。"),
+      blocked ? el("div", {}, el("h3", {}, "阻断按类型"), el("div", { class: "chips" }, Object.entries(counts).map(([t, n]) => el("span", { class: "badge bad" }, `${t} × ${n}`)))) : null,
+      el("dl", { class: "kv-list" },
+        el("dt", {}, "计划号"), el("dd", { class: "mono" }, data.planId),
+        el("dt", {}, "停止点"), el("dd", {}, stop ? `${stop.subId} · ${stop.status} · 预计状态 ${stop.projectedState}${stop.reasons.length ? " · " + stop.reasons.join("；") : ""}` : "无"),
+        el("dt", {}, "顺带接取的主任务"), el("dd", {}, data.sideAcceptMainIds.join("、") || "无"),
+        el("dt", {}, "区域不明、保守省略"), el("dd", {}, (data.progressGoal && data.progressGoal.omittedParents || []).join("、") || "无")),
+      el("p", { class: "note" }, "步骤、邮件、阻断的完整内容在页面最下方「计划 / 报告完整 JSON」。"));
+  }
+  $("q-plan").onclick = action(async () => {
+    invalidate();
+    const rev = revision, uid = uidOf();
+    let goal;
+    try { goal = mode === "form" ? formGoal() : JSON.parse($("q-goal").value); } catch (e) { throw new Error(mode === "form" ? e.message : "目标 JSON 格式不对：" + e.message); }
+    $("q-plan-view").replaceChildren(loadingRow("正在生成只读计划…"));
+    let data;
+    try { data = await api("quest/plan", { uid, goal, mode: "advance", overrides: [] }); }
+    catch (e) { $("q-plan-view").replaceChildren(errorBox(e.message)); throw e; }
+    if (rev !== revision) { $("q-plan-view").replaceChildren(errorBox("生成期间选择变了，请重新生成计划")); return; }
+    plan = data; report(data); renderPlan(data);
+    $("q-apply").disabled = !data.executionAvailable || data.blockers.length > 0 || data.steps.length === 0;
+  });
+
+  /* ---- 执行、进度、撤销 ---- */
+  const STATUS = { queued: ["排队中", ""], running: ["执行中", "warn"], completed: ["已完成", "ok"], failed: ["失败", "bad"], conflict: ["有冲突", "bad"] };
+  function renderJob(job) {
+    const [label, kind] = STATUS[job.status] || [job.status || "已读取", ""];
+    $("q-job").replaceChildren(el("div", { class: "row" }, el("span", { class: "badge " + kind }, label), ["queued", "running"].includes(job.status) ? el("span", { class: "spinner" }) : null),
+      el("dl", { class: "kv-list" },
+        el("dt", {}, "任务号"), el("dd", { class: "mono" }, job.id || "-"),
+        el("dt", {}, "已完成步骤"), el("dd", {}, job.report && job.report.completed !== undefined ? job.report.completed : "—"),
+        el("dt", {}, "备份"), el("dd", { class: "mono" }, job.backupId || job.safetyBackupId || "—"),
+        job.error ? el("dt", {}, "错误") : null, job.error ? el("dd", { style: "color:var(--bad)" }, job.error) : null));
+    report(job);
+  }
+  async function refreshJob() {
+    if (!jobId) return;
+    const job = await api("quest/job?id=" + encodeURIComponent(jobId));
+    renderJob(job);
+    if (job.backupId) $("q-undo-id").value = job.backupId;
+    if (!["queued", "running"].includes(job.status)) { clearInterval(poll); poll = null; toast("任务" + (STATUS[job.status] ? STATUS[job.status][0] : job.status), job.status === "completed" ? "ok" : "bad"); }
+  }
+  function watch(job) {
+    clearInterval(poll); jobId = job.id; $("q-undo-id").value = job.id; $("q-job-refresh").disabled = false; invalidate(); renderJob(job);
+    poll = setInterval(async () => { try { await refreshJob(); } catch (e) { clearInterval(poll); poll = null; toast(e.message, "bad"); } }, 2000);
+  }
+  $("q-apply").onclick = action(async () => {
+    const p = plan;
+    if (!p || p.uid !== uidOf() || p.blockers.length || !p.executionAvailable) throw new Error("计划不可执行，请重新生成");
+    if (!await Admin.confirm({ title: "执行任务调整", danger: true, ok: "确认执行",
+      body: `账号 ${p.uid}：${p.steps.length} 步，${p.expectedMail.length} 封邮件。账号必须在线并站在大世界，执行结束会被强制下线，需要重新登录。` })) return;
+    try { watch(await api("quest/apply", { uid: p.uid, planId: p.planId, overrides: p.overrides })); } finally { invalidate(); }
+  });
+  $("q-job-refresh").onclick = action(refreshJob);
+  async function backups() {
+    const uid = uidOf();
+    Admin.loading($("q-backup-list"));
+    const { backups } = await api("quest/backups?uid=" + uid);
+    report({ backups });
+    $("q-backup-list").replaceChildren(backups.length ? el("div", { class: "table-box", style: "max-height:320px" }, el("table", {},
+      el("thead", {}, el("tr", {}, el("th", {}, "时间"), el("th", {}, "备份 ID"), el("th"))),
+      el("tbody", {}, backups.map((b) => el("tr", {}, el("td", {}, new Date(b.createdAt).toLocaleString("zh-CN", { hour12: false })),
+        el("td", { class: "mono small", style: "white-space:normal;word-break:break-all" }, b.id),
+        el("td", {}, el("button", { type: "button", class: "btn sm", onclick: () => { $("q-undo-id").value = b.id; toast("已填入撤销 ID"); } }, "填入"))))))) : empty(`账号 ${uid} 还没有任务调整备份`));
+  }
+  $("q-backups").onclick = action(backups);
+  $("q-undo").onclick = action(async () => {
+    const uid = uidOf(), id = $("q-undo-id").value.trim();
+    if (!id) throw new Error("请填写撤销任务 ID 或备份 ID");
+    if (!await Admin.confirm({ title: "撤销任务调整", danger: true, ok: "确认撤销", body: `撤销账号 ${uid} 的调整 ${id}？请先让账号离线；不可回退项和冲突字段会保留。` })) return;
+    watch(await api("quest/undo", { uid, jobId: id }));
+  });
+
+  Admin.page("quest", {
+    init: async () => { await fillPlayers().catch(() => {}); sync(); await loadOptions(); },
+    show: (uid) => { if (uid) { $("q-uid").value = uid; if ([...$("q-player").options].some((o) => o.value === uid)) $("q-player").value = uid; invalidate(); } },
+  });
+})();
+</script>
+
+<script>
+/* 在线玩家与服务器状态、日志、命令：原 /console 的三块 */
+(() => {
+  const { $, el, api, action, toast, empty, loadingRow } = Admin;
+
+  /* ---- 在线玩家 ---- */
+  const HEALTH = { NORMAL: "正常", BUSY: "繁忙", WARNING: "注意", DANGER: "危险" };
+  const DIAG = { NONE: "没有发现瓶颈", ELEVATED_LOAD: "负载正在上升", REJECTED_TASKS: "有任务被拒绝", SLOW_TASKS: "任务平均耗时过高",
+    QUEUE_BACKLOG: "任务队列在堆积", THREADS_SATURATED: "所有线程都在忙", FAILING_TASKS: "有任务在抛出异常", CPU_LIMIT: "CPU 接近上限",
+    MEMORY_PRESSURE: "内存占用过高", GAME_TICK_STALLED: "游戏主循环已停止响应", JVM_DEADLOCK: "检测到 JVM 死锁，游戏处理可能已卡住", JVM_DEADLOCK_CHECK: "无法完成 JVM 死锁检测" };
+  const pct = (v) => (typeof v === "number" && v >= 0 ? (v * 100).toFixed(1) + "%" : "-");
+  const size = (v) => (typeof v !== "number" || v < 0 ? "-" : v >= 1073741824 ? (v / 1073741824).toFixed(1) + " GB" : (v / 1048576).toFixed(0) + " MB");
+  function meter(id, v) {
+    const ratio = typeof v === "number" && v >= 0 ? Math.min(v, 1) : 0;
+    $(id).style.width = (ratio * 100).toFixed(1) + "%";
+    $(id).className = ratio >= 0.9 ? "high" : ratio >= 0.7 ? "mid" : "";
+  }
+  function renderStatus(s) {
+    if (!s || !$("s-players")) return;
+    const g = s.game || {}, j = s.jvm || {}, sys = s.system || {};
+    $("s-players").textContent = g.maxPlayers > 0 ? `${g.players} / ${g.maxPlayers}` : `${g.players ?? "-"}`;
+    $("s-version").textContent = g.gameVersion ? "版本 " + g.gameVersion : "";
+    $("s-uptime").textContent = g.uptime || "-";
+    $("s-started").textContent = g.startedAt ? "启动于 " + g.startedAt : "";
+    $("s-health").textContent = HEALTH[s.health] || "-";
+    $("s-health").className = "health-text " + (s.health || "");
+    $("s-diagnosis").textContent = DIAG[s.diagnosisCode] || s.diagnosis || "";
+    $("s-diagnosis").title = s.suggestion || "";
+    $("s-cpu").textContent = pct(j.processCpuLoad); $("s-syscpu").textContent = "系统 " + pct(sys.systemCpuLoad); meter("m-cpu", j.processCpuLoad);
+    $("s-mem").textContent = pct(j.memoryUsage); $("s-memsub").textContent = `${size(j.usedMemoryBytes)} / ${size(j.maxMemoryBytes)}`; meter("m-mem", j.memoryUsage);
+    $("s-sysmem").textContent = pct(sys.memoryUsage);
+    $("s-sysmemsub").textContent = typeof sys.totalMemoryBytes === "number" && typeof sys.freeMemoryBytes === "number" ? `${size(sys.totalMemoryBytes - sys.freeMemoryBytes)} / ${size(sys.totalMemoryBytes)}` : "";
+    meter("m-sysmem", sys.memoryUsage);
+  }
+  document.addEventListener("status", (e) => renderStatus(e.detail));
+
+  const jump = (label, page, uid) => el("button", { type: "button", class: "btn sm", onclick: () => Admin.go(page, uid) }, label);
+  async function refreshPlayers() {
+    const { players } = await api("players");
+    $("o-list").replaceChildren(...players.map((p) => el("tr", {},
+      el("td", { class: "mono" }, p.uid), el("td", {}, p.nickname || ""), el("td", {}, p.level), el("td", {}, p.worldLevel),
+      el("td", {}, p.sceneId === 3 ? "3（大世界）" : p.sceneId),
+      el("td", {}, el("span", { class: "row", style: "gap:6px;flex-wrap:nowrap" }, jump("账户编辑", "account", p.uid), jump("发物品", "give", p.uid), jump("发邮件", "mail", p.uid), jump("任务进度", "quest", p.uid))))));
+    if (!players.length) $("o-list").append(el("tr", {}, el("td", { colspan: 6 }, empty("现在没有在线账号"))));
+    $("o-updated").textContent = "更新于 " + new Date().toLocaleTimeString("zh-CN", { hour12: false });
+  }
+  async function refreshStatus() {
+    try { renderStatus(await (await fetch("/api/status", { cache: "no-store" })).json()); } catch (e) {}
+  }
+  let playerTimer = null;
+  Admin.page("players", {
+    init: () => { $("o-list").replaceChildren(el("tr", {}, el("td", { colspan: 6 }, loadingRow()))); renderStatus(Admin.status); },
+    show: async () => {
+      clearInterval(playerTimer);
+      const tick = () => { if (!document.hidden) { refreshStatus(); refreshPlayers().catch(() => {}); } };
+      playerTimer = setInterval(tick, 5000);
+      await Promise.all([refreshStatus(), refreshPlayers()]);
+    },
+    hide: () => { clearInterval(playerTimer); playerTimer = null; },
+  });
+
+  /* ---- 日志 ---- */
+  const LOG_LINE = /^(\d\d:\d\d:\d\d) <(\w+):([^>]*)> ([\s\S]*)$/;
+  const MAX_LINES = 2000;
+  let lastSeq = 0, level = "ALL", logTimer = null;
+  const visible = (row) => (level === "ALL" || row.dataset.level === level) && (!$("l-filter").value.trim() || row.textContent.toLowerCase().includes($("l-filter").value.trim().toLowerCase()));
+  function logRow(lvl, raw) {
+    const m = LOG_LINE.exec(raw);
+    const row = el("div", { class: "log-row " + lvl, "data-level": lvl },
+      el("span", { class: "time" }, m ? m[1] : ""), el("span", { class: "lvl " + lvl }, m ? m[2] : lvl),
+      el("span", { class: "msg" }, m && m[3] ? el("span", { class: "src" }, m[3] + "  ") : null, m ? m[4] : raw));
+    if (!visible(row)) row.classList.add("hidden");
+    return row;
+  }
+  async function refreshLogs() {
+    const { lines } = await api("logs?after=" + lastSeq);
+    if (!lines || !lines.length) return;
+    const out = $("l-out");
+    if (out.querySelector(".loading-row")) out.replaceChildren();
+    for (const line of lines) { out.append(logRow(line.level, line.text)); lastSeq = Math.max(lastSeq, line.seq); }
+    while (out.childNodes.length > MAX_LINES) out.removeChild(out.firstChild);
+    if ($("l-follow").checked) out.scrollTop = out.scrollHeight;
+  }
+  const refilter = () => { for (const row of $("l-out").children) if (row.dataset.level) row.classList.toggle("hidden", !visible(row)); };
+  $("l-filter").oninput = refilter;
+  $("l-levels").onclick = (e) => {
+    const b = e.target.closest("button[data-level]"); if (!b) return;
+    level = b.dataset.level;
+    $("l-levels").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    refilter();
+  };
+  $("l-clear").onclick = () => $("l-out").replaceChildren();
+  Admin.page("logs", {
+    init: () => Admin.loading($("l-out"), "正在读取日志…"),
+    show: async () => {
+      clearInterval(logTimer);
+      logTimer = setInterval(() => { if (!document.hidden) refreshLogs().catch(() => {}); }, 2000);
+      await refreshLogs();
+      if ($("l-out").querySelector(".loading-row")) $("l-out").replaceChildren(el("div", { class: "line note" }, "暂时没有新日志"));
+    },
+    hide: () => { clearInterval(logTimer); logTimer = null; },
+  });
+
+  /* ---- 命令 ---- */
+  const history = [];
+  let index = 0;
+  const line = (cls, text) => { $("c-out").append(el("div", { class: "line " + cls }, text)); $("c-out").scrollTop = $("c-out").scrollHeight; };
+  for (const example of ["list", "help", "announce send 测试公告"]) $("c-examples").append(el("button", { type: "button", onclick: () => { $("c-input").value = example; $("c-input").focus(); } }, example));
+  $("c-input").addEventListener("keydown", (e) => {
+    if (e.key === "ArrowUp" && index > 0) { index--; $("c-input").value = history[index]; e.preventDefault(); }
+    else if (e.key === "ArrowDown" && index < history.length) { index++; $("c-input").value = history[index] ?? ""; e.preventDefault(); }
+  });
+  $("c-clear").onclick = () => $("c-out").replaceChildren();
+  $("c-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const command = $("c-input").value.trim();
+    if (!command) return;
+    if (history[history.length - 1] !== command) history.push(command);
+    index = history.length;
+    $("c-input").value = "";
+    line("cmd", command);
+    const pending = el("div", { class: "line note" }, "执行中…"); $("c-out").append(pending);
+    try {
+      const body = await api("command", { command });
+      pending.remove();
+      if (!body.output || !body.output.length) line("note", "（没有直接输出，结果请看日志页）");
+      else for (const text of body.output) line("INFO", text);
+    } catch (err) { pending.remove(); if (err.message !== "未登录") line("ERROR", "执行失败：" + err.message); }
+  });
+  Admin.page("command", { show: () => $("c-input").focus() });
+})();
+</script>
+
 </body>
 </html>
