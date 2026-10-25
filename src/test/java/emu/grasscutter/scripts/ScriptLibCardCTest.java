@@ -17,7 +17,7 @@ final class ScriptLibCardCTest {
     }
 
     @Test
-    void cameraCallDoesNotClaimSuccessWithoutA71Schema() {
-        assertEquals(-1, new ScriptLib().BeginCameraSceneLook(new LuaTable()));
+    void cameraCallKeepsScriptRunningWithoutA71Schema() {
+        assertEquals(0, new ScriptLib().BeginCameraSceneLook(new LuaTable()));
     }
 }

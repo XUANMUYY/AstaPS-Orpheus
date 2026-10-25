@@ -392,10 +392,11 @@ public class ScriptLib {
     }
 
     public int BeginCameraSceneLook(LuaTable sceneLookParams) {
-        // 7.1 protocol.desc has an opcode but no BeginCameraSceneLookNotify schema. Do not send
-        // an empty packet: it would report success while the camera remains unchanged.
-        logger.warn("[LUA] BeginCameraSceneLook cannot send: 7.1 notification schema is absent");
-        return -1;
+        // 7.1 protocol.desc 只有包号、没有 BeginCameraSceneLookNotify 的字段结构，不发猜测格式的包。
+        // 镜头只影响表现；1155 处 Lua 写成 `if 0 ~= BeginCameraSceneLook(...) then return -1`，
+        // 回失败会让后面的流程动作整段中断，所以仍回 0。
+        logger.debug("[LUA] BeginCameraSceneLook not sent: 7.1 notification schema is absent");
+        return 0;
     }
 
     public int CancelGroupTimerEvent(int groupID, String source) {
