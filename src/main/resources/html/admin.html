@@ -128,6 +128,27 @@
       <div class="row"><button id="n-send" type="button" class="primary">发送 / 加入排期</button><button id="n-refresh" type="button">刷新列表</button></div>
       <div class="scroll"><table><thead><tr><th>形式</th><th>内容</th><th>下次 / 最后发送</th><th>进度</th><th>状态</th><th></th></tr></thead><tbody id="n-list"></tbody></table></div>
     </div></section>
+    <section data-page="mail" class="hidden" style="display:grid;gap:16px">
+      <div class="panel"><h2>发邮件</h2><div class="body">
+        <p class="hint">走游戏邮件：在线玩家马上收到新邮件提示，离线玩家下次登录可见；附件在游戏里领取。附件超过 10 个会拆成多封。</p>
+        <div class="row">
+          <label>收件人<select id="m-target"></select></label><button id="m-players" type="button" class="small">刷新玩家</button>
+          <label>发件人<input id="m-sender" type="text" value="派蒙" style="width:120px"></label>
+          <label>有效期（天）<input id="m-days" type="number" min="1" max="3650" value="30" style="width:90px"></label>
+          <label class="inline"><input id="m-star" type="checkbox"> 星标（重要邮件）</label>
+        </div>
+        <label>标题（最多 60 字）<input id="m-title" type="text" maxlength="60" placeholder="例如：维护补偿"></label>
+        <label>正文（最多 2000 字）<textarea id="m-content" rows="4" maxlength="2000" placeholder="旅行者，感谢你的耐心等待……"></textarea></label>
+      </div></div>
+      <div class="cols">
+        <div class="panel"><h2>挑附件</h2><div class="body" id="m-picker"></div></div>
+        <div class="panel"><h2>附件</h2><div class="body">
+          <div class="scroll"><table><thead><tr><th>物品</th><th>数量</th><th></th></tr></thead><tbody id="m-basket"></tbody></table></div>
+          <div class="row"><button id="m-send" type="button" class="primary">发送</button><button id="m-clear" type="button">清空附件</button></div>
+        </div></div>
+      </div>
+      <div class="panel"><h2>最近发送</h2><div class="body"><div class="scroll"><table><thead><tr><th>时间</th><th>收件人</th><th>标题</th><th>附件</th><th>结果</th></tr></thead><tbody id="m-history"></tbody></table></div></div></div>
+    </section>
     <!-- PAGES -->
   </main>
 </section>
@@ -358,6 +379,36 @@ const Admin = (() => {
     await refresh();
   });
   Admin.page("notice", refresh);
+})();
+</script>
+<script>
+/* B3 发邮件 */
+(() => {
+  const { $, el, call, action, toast, fmtTime } = Admin;
+  const basket = Admin.basket($("m-basket"));
+  const picker = Admin.itemPicker($("m-picker"), (item) => basket.add(item));
+  async function history() {
+    const { history } = await call("mail/history");
+    $("m-history").replaceChildren();
+    for (const h of history) $("m-history").append(el("tr", {},
+      el("td", { class: "hint" }, fmtTime(h.time)), el("td", {}, h.target === "all" ? "全服" : h.target), el("td", {}, h.title),
+      el("td", { class: "hint" }, (h.items || []).map((i) => `#${i.id}×${i.count}`).join("、") || "无"),
+      el("td", {}, `${h.recipients} 人 / ${h.mails} 封` + ((h.failed || []).length ? `，失败 ${h.failed.length}` : ""))));
+    if (!history.length) $("m-history").append(el("tr", {}, el("td", { colspan: 5, class: "hint" }, "还没有发过")));
+  }
+  $("m-players").onclick = action(() => Admin.fillPlayers($("m-target"), { allowAll: true }));
+  $("m-clear").onclick = () => basket.clear();
+  $("m-send").onclick = action(async () => {
+    const target = $("m-target").value;
+    if (!target) throw new Error("请先选收件人");
+    if (!$("m-title").value.trim()) throw new Error("请填写标题");
+    if (target === "all" && !confirm(`确认给全服所有玩家（含离线）发送「${$("m-title").value}」？附件 ${basket.size} 种。`)) return;
+    const r = await call("mail/send", { target, title: $("m-title").value, content: $("m-content").value, sender: $("m-sender").value,
+      expireDays: Number($("m-days").value) || 30, star: $("m-star").checked, items: basket.list() });
+    toast(`已发送：${r.recipients} 人（在线 ${r.online}），共 ${r.mails} 封` + (r.failed.length ? `；找不到玩家 ${r.failed.join(",")}` : ""));
+    await history();
+  });
+  Admin.page("mail", async () => { await Admin.fillPlayers($("m-target"), { allowAll: true }); await picker.reload(); await history(); });
 })();
 </script>
 <!-- PAGE SCRIPTS -->

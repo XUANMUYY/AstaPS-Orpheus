@@ -15,5 +15,6 @@ public final class AdminApi {
         router.get("backups", r -> Map.of("backups", AdminBackup.list(r.queryInt("uid", 0))));
 
         AdminNotices.register(router);
+        AdminMail.register(router);
     }
 }
