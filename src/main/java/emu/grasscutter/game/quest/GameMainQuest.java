@@ -181,6 +181,9 @@ public class GameMainQuest {
         this.getOwner().getSession().send(new PacketCodexDataUpdateNotify(this));
 
         this.save();
+        this.getQuestManager().queueEvent(
+                QuestContent.QUEST_CONTENT_PARENT_QUEST_STATE_EQUAL,
+                this.getParentQuestId(), this.state.getValue());
         try {
             emu.grasscutter.game.player.PushTipsManager.of(this.getOwner()).onParentQuestFinished(this.getParentQuestId());
         } catch (Throwable t) {
