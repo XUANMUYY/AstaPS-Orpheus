@@ -418,6 +418,8 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
                     .getQuestManager()
                     .queueEvent(
                             QuestContent.QUEST_CONTENT_OBTAIN_ITEM, result.getItemId(), result.getCount());
+            getPlayer().getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_ITEM_NUM_EQUAL, result.getItemId());
+            getPlayer().getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_ITEM_NUM_GREATER, result.getItemId());
             if (result.getItemType() == ItemType.ITEM_RELIQUARY && result.getItemData() != null) {
                 int rank = result.getItemData().getRankLevel();
                 getPlayer().getPlayerProgress().addHandbookReliquaryHistory(rank, 1);
@@ -440,6 +442,8 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
             getPlayer()
                     .getQuestManager()
                     .queueEvent(QuestContent.QUEST_CONTENT_ITEM_LESS_THAN, item.getItemId(), item.getCount());
+            getPlayer().getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_ITEM_NUM_EQUAL, item.getItemId());
+            getPlayer().getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_ITEM_NUM_GREATER, item.getItemId());
         } catch (Exception e) {
             Grasscutter.getLogger().debug("triggerRemItemEvents failed", e);
         }

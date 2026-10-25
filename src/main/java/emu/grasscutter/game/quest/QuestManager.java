@@ -765,6 +765,8 @@ public final class QuestManager extends BasePlayerManager {
                                                 condition.getParam()[0],
                                                 item != null ? item.getCount() : 0);
                                     }
+                                    case QUEST_CONTENT_ITEM_NUM_EQUAL, QUEST_CONTENT_ITEM_NUM_GREATER ->
+                                            queueEvent(condition.getType(), condition.getParam()[0]);
                                     case QUEST_CONTENT_UNLOCK_TRANS_POINT -> {
                                         var scenePoints =
                                                 getPlayer().getUnlockedScenePoints().get(condition.getParam()[0]);
