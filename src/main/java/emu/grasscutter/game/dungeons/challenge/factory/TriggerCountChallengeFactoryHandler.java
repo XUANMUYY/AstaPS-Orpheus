@@ -14,6 +14,13 @@ public class TriggerCountChallengeFactoryHandler implements ChallengeFactoryHand
     }
 
     @Override
+    public WorldChallenge build(int challengeIndex, int challengeId, int[] params, Scene scene, SceneGroup group) {
+        // New StartChallenge also supplies five values; its final value resumes saved progress.
+        return build(challengeIndex, challengeId, params[0], params[1], params[2],
+                params.length == 3 ? 0 : params[params.length - 1], scene, group);
+    }
+
+    @Override
     public WorldChallenge build(
             int challengeIndex,
             int challengeId,

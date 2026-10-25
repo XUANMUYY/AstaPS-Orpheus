@@ -224,6 +224,21 @@ public class ScriptLib {
 
     public synchronized int ActiveChallenge(int challengeId, int challengeIndex, int timeLimitOrGroupId, int groupId, int objectiveKills, int param5) {
         logger.debug("[LUA] Call ActiveChallenge with {},{},{},{},{},{}", challengeId, challengeIndex, timeLimitOrGroupId, groupId, objectiveKills, param5);
+        return startChallenge(challengeId, challengeIndex, new int[] {timeLimitOrGroupId, groupId, objectiveKills, param5});
+    }
+
+    public synchronized int StartChallenge(int challengeId, int challengeIndex, LuaTable conditions) {
+        if (conditions == null || conditions.length() < 3 || conditions.length() > 6) return 1;
+        int[] parameters = new int[conditions.length()];
+        for (int i = 0; i < parameters.length; i++) {
+            LuaValue value = conditions.get(i + 1);
+            if (!value.isnumber() || !value.isint()) return 1;
+            parameters[i] = value.toint();
+        }
+        return startChallenge(challengeId, challengeIndex, parameters);
+    }
+
+    private int startChallenge(int challengeId, int challengeIndex, int[] parameters) {
 
         var scene = getSceneScriptManager().getScene();
         var existingChallenge = scene.getChallenge();
@@ -253,9 +268,9 @@ public class ScriptLib {
                             towerManager
                                     .getClass()
                                     .getMethod("resolveAbyssChallengeTimeLimit", int.class);
-                    int corrected = (Integer) m.invoke(towerManager, timeLimitOrGroupId);
-                    if (corrected != timeLimitOrGroupId) {
-                        timeLimitOrGroupId = corrected;
+                    int corrected = (Integer) m.invoke(towerManager, parameters[0]);
+                    if (corrected != parameters[0]) {
+                        parameters[0] = corrected;
                     }
                 } catch (ReflectiveOperationException ignored) {
                     // Method absent on older jars — keep lua timeLimit as-is.
@@ -265,23 +280,14 @@ public class ScriptLib {
                         players.isEmpty() ? -1 : players.get(0).getUid(),
                         challengeId,
                         challengeIndex,
-                        timeLimitOrGroupId,
+                        parameters[0],
                         getSceneScriptManager()
-                                .getVariables(groupId)
+                                .getVariables(parameters[1])
                                 .getOrDefault("stage", -1));
             }
         }
 
-        var challenge = ChallengeFactory.getChallenge(
-                challengeId,
-                challengeIndex,
-                timeLimitOrGroupId,
-                groupId,
-                objectiveKills,
-                param5,
-                scene,
-                getCurrentGroup().get()
-        );
+        var challenge = ChallengeFactory.getChallenge(challengeId, challengeIndex, parameters, scene, getCurrentGroup().get());
 
         if (challenge == null) {
             return 1;
@@ -289,7 +295,7 @@ public class ScriptLib {
 
         if (challenge instanceof DungeonChallenge dungeonChallenge) {
 
-            dungeonChallenge.setStage(getSceneScriptManager().getVariables(groupId).getOrDefault("stage", -1) == 0);
+            dungeonChallenge.setStage(getSceneScriptManager().getVariables(parameters[1]).getOrDefault("stage", -1) == 0);
         }
 
         scene.setChallenge(challenge);
@@ -766,6 +772,12 @@ public class ScriptLib {
         logger.warn("[LUA] Call unimplemented GetEffigyChallengeMonsterLevel");
 
         return 0;
+    }
+
+    public int GetEffigyChallengeLimitTime() {
+        // 推断：没有已选的 Effigy 限时条件时，Lua 用 -1 表示采用关卡自身的默认时限。
+        // 当前服务端尚无 Effigy 条件选择状态，不能虚构一个扣减秒数。
+        return -1;
     }
 
     public int GetEntityIdByConfigId(int configId) {
@@ -1678,8 +1690,11 @@ public class ScriptLib {
         var scene = getSceneScriptManager().getScene();
         if (LiyueCloudDungeonSupport.isTargetScene(scene) && var1 >= 100 && var1 <= 102)
             return LiyueCloudDungeonSupport.stopFireChallenge(scene, var1, var2);
-        logger.warn("[LUA] Call unimplemented StopChallenge with {} {}", var1, var2);
-
+        if (var2 != 0 && var2 != 1) return 1;
+        var challenge = scene.getChallenge();
+        if (challenge == null || !challenge.inProgress() || challenge.getChallengeIndex() != var1) return 1;
+        if (var2 == 1) challenge.done();
+        else challenge.fail();
         return 0;
     }
 

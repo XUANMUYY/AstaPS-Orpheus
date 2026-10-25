@@ -21,6 +21,7 @@ public abstract class ChallengeFactory {
         challengeFactoryHandlers.add(new TriggerCountChallengeFactoryHandler());
         challengeFactoryHandlers.add(new GuardHpChallengeFactoryHandler());
         challengeFactoryHandlers.add(new KillMonsterCountInTimeIncChallengeFactoryHandler());
+        challengeFactoryHandlers.add(new Trigger2AvoidTrigger1ChallengeFactoryHandler());
     }
 
     public static WorldChallenge getChallenge(
@@ -32,15 +33,26 @@ public abstract class ChallengeFactory {
             int param6,
             Scene scene,
             SceneGroup group) {
+        return getChallenge(localChallengeId, challengeDataId,
+                new int[] {param3, param4, param5, param6}, scene, group);
+    }
+
+    public static WorldChallenge getChallenge(
+            int localChallengeId,
+            int challengeDataId,
+            int[] params,
+            Scene scene,
+            SceneGroup group) {
+        if (params == null || params.length < 3 || params.length > 6) return null;
         val challengeData = GameData.getDungeonChallengeConfigDataMap().get(challengeDataId);
+        if (challengeData == null) return null;
         val challengeType = challengeData.getChallengeType();
 
         for (var handler : challengeFactoryHandlers) {
             if (!handler.isThisType(challengeType)) {
                 continue;
             }
-            return handler.build(
-                    localChallengeId, challengeDataId, param3, param4, param5, param6, scene, group);
+            return handler.build(localChallengeId, challengeDataId, params, scene, group);
         }
         return null;
     }
