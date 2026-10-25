@@ -251,6 +251,41 @@
   .check-list .mono { min-width: 64px; }
   .kv-list { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 13px; }
   .kv-list dt { color: var(--muted); } .kv-list dd { margin: 0; word-break: break-all; }
+
+  /* 任务进度：常用主线卡片、章节树、范围预览、阻断卡片 */
+  .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .preset { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: #FFFFFF; cursor: pointer; position: relative; transition: border-color .15s, background .15s, box-shadow .15s; }
+  .preset:hover { border-color: #C7D3EE; box-shadow: var(--shadow-lift); }
+  .preset b { font-size: 14px; font-weight: 500; padding-right: 64px; }
+  .preset small { font-size: 12px; color: var(--muted); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .preset .preset-state { position: absolute; top: 10px; right: 10px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--line); color: var(--muted); }
+  .preset.all { border-color: var(--accent); background: var(--accent-soft); }
+  .preset.all .preset-state { background: var(--accent); color: #FFFFFF; }
+  .preset.some .preset-state { background: var(--warn-soft); color: var(--warn); }
+  .chapter-tree { display: flex; flex-direction: column; gap: 8px; max-height: 520px; overflow: auto; }
+  .chapter-tree h3 { margin: 4px 0 0; }
+  .tree-cat { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
+  .tree-cat > summary { cursor: pointer; padding: 4px 2px; }
+  .tree-group { margin: 6px 0 4px; padding-left: 4px; border-left: 2px solid var(--line); }
+  .chapter-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .chapter-row:hover { background: #F7F8FA; }
+  .chapter-row.group { font-size: 14px; }
+  .chapter-row .grow, .preview-row .grow, .preview-group summary .grow { flex: 1 1 auto; min-width: 0; }
+  .selection-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sel-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-dark); font-size: 12px; }
+  .sel-chip button { border: 0; background: transparent; color: inherit; cursor: pointer; width: 22px; height: 22px; border-radius: 50%; }
+  .sel-chip button:hover { background: rgba(0, 0, 0, .06); }
+  .sel-chip.excluded { background: var(--bad-soft); color: var(--bad); }
+  .sel-chip.adv { background: var(--line); color: var(--muted); padding-right: 10px; }
+  .preview-total { font-size: 14px; } .preview-total b { font-size: 28px; font-weight: 700; color: var(--accent-dark); }
+  .preview-group { border-top: 1px solid var(--line); padding: 6px 0; }
+  .preview-group summary { cursor: pointer; display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 4px 0; }
+  .preview-row { display: flex; align-items: center; gap: 8px; padding: 4px 0 4px 12px; font-size: 13px; }
+  @media (min-width: 1100px) { .preview-card { position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow: auto; } }
+  .blocker { border: 1px solid var(--border); border-left: 3px solid var(--bad); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .blocker ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
+  .blocker details.tech summary { cursor: pointer; font-size: 12px; color: var(--muted); display: inline; margin-left: 8px; }
+  .blocker details.tech { display: inline; }
 </style>
 </head>
 <body>
@@ -482,70 +517,84 @@
 
     <!-- 任务进度 -->
     <section class="page hidden" data-page="quest">
-      <div class="page-head"><div><h1>任务进度</h1><p>按任务树推进或回退一个账号的剧情，补发奖励和世界状态。先生成只读计划，核对无误再执行。</p></div></div>
-      <div class="callout danger" role="note"><b>执行前必读</b>账号必须在线，站在自己的大世界（场景 3）里保持不动。执行结束会被强制下线，必须重新登录。任务道具进背包，其余奖励走邮件。计划里有阻断项时不能执行。</div>
+      <div class="page-head"><div><h1>任务进度</h1><p>把一个账号的剧情直接推进到指定位置（比如跳过蒙德主线），奖励照常补发。三步：选要跳过的剧情 → 看范围 → 生成计划并执行。</p></div></div>
+      <div class="callout danger" role="note"><b>执行前必读</b>账号要在线，站在自己的大世界（场景 3）里别动。执行完会被强制下线，重新登录就能看到结果；任务道具直接进背包，其余奖励走邮件。</div>
       <div class="wrap">
         <div style="flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:20px">
           <section class="card">
             <div class="between"><h2><span class="step">1</span>选账号</h2><button id="q-refresh" type="button" class="btn sm">刷新在线账号</button></div>
             <div class="row" style="align-items:flex-end">
               <label class="field" style="flex:1 1 280px">在线账号<select id="q-player" class="input"></select></label>
-              <label class="field" style="flex:0 1 200px">UID（离线撤销时填写）<input id="q-uid" class="input" type="number" min="1" list="player-list"></label>
+              <label class="field" style="flex:0 1 200px">UID（只在离线撤销时手填）<input id="q-uid" class="input" type="number" min="1" list="player-list"></label>
             </div>
           </section>
 
           <section class="card">
-            <div class="between"><h2><span class="step">2</span>选目标</h2>
-              <div role="tablist" aria-label="目标来源" class="seg"><button type="button" role="tab" data-qmode="form" aria-selected="true">勾选 / 搜索</button><button type="button" role="tab" data-qmode="json" aria-selected="false">目标文件 / JSON</button></div></div>
-            <div id="q-form" style="display:flex;flex-direction:column;gap:14px">
-              <p class="note">同一选择器内各维度取交集，同一维度多选取并集；每日委托不支持。</p>
-              <div id="q-options-state"></div>
-              <div class="chip-field"><span>地区</span><div id="q-regions" class="chips"></div></div>
-              <div class="chip-field"><span>类别</span><div id="q-categories" class="chips"></div></div>
-              <div class="chip-field"><span>扩展区域</span><div id="q-expansions" class="chips"></div></div>
-              <input id="q-search" class="input" type="search" placeholder="搜索中文任务名 / 章节名 / ID" aria-label="搜索任务">
-              <div class="pick-lists">
-                <div><div class="between"><b>章节</b><span class="muted small" id="q-chapters-count"></span></div><div id="q-chapters" class="check-list"></div></div>
-                <div><div class="between"><b>主任务</b><span class="muted small" id="q-parents-count"></span></div><div id="q-parents" class="check-list"></div></div>
-              </div>
-              <div class="row"><span class="muted small" id="q-selected">尚未选择章节 / 主任务</span><button id="q-clear" type="button" class="btn sm">清空章节 / 主任务</button></div>
-              <details class="more"><summary>更多条件：排除某些类别、设停止点</summary><div style="display:flex;flex-direction:column;gap:14px;padding-top:12px">
-              <div class="chip-field"><span>排除类别</span><div id="q-exclude" class="chips"></div></div>
-              <div class="chip-field"><span>排除扩展区域</span><div id="q-exclude-expansions" class="chips"></div></div>
-              <div class="row" style="align-items:flex-end">
-                <label class="field">停止在<select id="q-stop-kind" class="input"><option value="">无停止点</option><option value="chapter">章节之前</option><option value="parent">主任务之前</option><option value="sub">子任务之前</option></select></label>
-                <label class="field" style="flex:1 1 220px">停止点 ID 或精确中文名<input id="q-stop" class="input" placeholder="如 1101；子任务必须填 ID"></label>
-              </div>
-              </div></details>
+            <div class="between"><h2><span class="step">2</span>选要跳过的剧情</h2><button id="q-clear" type="button" class="btn sm">全部清空</button></div>
+            <div id="q-options-state"></div>
+            <div>
+              <h3 style="margin-bottom:8px">常用：主线（魔神任务）</h3>
+              <p class="note" style="margin-bottom:10px">点一下选中整段主线，再点一下取消。想跳过「蒙德主线」就点「序章」。</p>
+              <div id="q-presets" class="preset-grid"></div>
             </div>
-            <details class="more" id="q-json-box"><summary>目标 JSON（高级：上传目标文件或直接粘贴）</summary><div style="display:flex;flex-direction:column;gap:12px;padding-top:12px">
-            <div class="row"><label class="btn sm" style="display:inline-flex;align-items:center;gap:6px">上传目标 JSON<input id="q-upload" type="file" accept=".json,application/json" class="visually-hidden"></label><span class="muted small">不超过 1 MiB，上传后切到 JSON 模式</span></div>
-            <label class="field">目标 JSON（勾选时自动生成；也可以直接粘贴修改）<textarea id="q-goal" class="input mono" rows="8" placeholder='{"version":2,"stopBefore":{"chapter":{"id":1101}}}'></textarea></label>
-            </div></details>
+            <div>
+              <h3 style="margin-bottom:8px">按地区一次选完</h3>
+              <div id="q-region-presets" class="chips"></div>
+            </div>
+            <details class="more" id="q-browse"><summary>逐章挑选（全部章节，按游戏顺序）</summary>
+              <div style="display:flex;flex-direction:column;gap:10px;padding-top:12px">
+                <input id="q-search" class="input" type="search" placeholder="搜章节名、主任务名或编号，例如 捕风、风与自由、1101" aria-label="搜索章节">
+                <div id="q-tree" class="chapter-tree"></div>
+              </div>
+            </details>
+            <details class="more" id="q-advanced"><summary>高级筛选（按地区 × 类别组合、停止点、目标文件）</summary>
+              <div style="display:flex;flex-direction:column;gap:14px;padding-top:12px">
+                <div class="callout">同一行里多选＝「任一个都算」；不同行一起选＝「要同时满足」。例：地区选蒙德、类别选魔神任务＝蒙德地区的全部魔神任务（会连后面版本挂在蒙德的章节一起带上，选之前看一眼下面的范围预览）。</div>
+                <div class="chip-field"><span>地区</span><div id="q-regions" class="chips"></div></div>
+                <div class="chip-field"><span>类别</span><div id="q-categories" class="chips"></div></div>
+                <div class="chip-field"><span>扩展区域</span><div id="q-expansions" class="chips"></div></div>
+                <div class="chip-field"><span>排除类别</span><div id="q-exclude" class="chips"></div></div>
+                <div class="chip-field"><span>排除扩展区域</span><div id="q-exclude-expansions" class="chips"></div></div>
+                <div class="row" style="align-items:flex-end">
+                  <label class="field">停在<select id="q-stop-kind" class="input"><option value="">不设停止点</option><option value="chapter">某章之前</option><option value="parent">某主任务之前</option><option value="sub">某子任务之前</option></select></label>
+                  <label class="field" style="flex:1 1 220px">停止点编号或完整中文名<input id="q-stop" class="input" placeholder="如 1101；子任务只能填编号"></label>
+                </div>
+                <div class="row"><label class="row" style="gap:8px;font-size:14px"><input id="q-json-mode" type="checkbox"> 直接用下面的目标 JSON（忽略上面的勾选）</label>
+                  <label class="btn sm" style="display:inline-flex;align-items:center;gap:6px">上传目标文件<input id="q-upload" type="file" accept=".json,application/json" class="visually-hidden"></label></div>
+                <label class="field">目标 JSON（勾选时自动生成）<textarea id="q-goal" class="input mono" rows="7"></textarea></label>
+              </div>
+            </details>
           </section>
 
           <section class="card">
-            <div class="between"><h2><span class="step">3</span>计划与执行</h2>
-              <div class="row"><button id="q-plan" type="button" class="btn primary">生成只读计划</button><button id="q-apply" type="button" class="btn danger-fill" disabled>确认执行</button></div></div>
-            <div id="q-plan-view"><p class="empty">还没有计划。选好账号和目标后点「生成只读计划」，不会改任何数据。</p></div>
+            <div class="between"><h2><span class="step">3</span>生成计划并执行</h2>
+              <div class="row"><button id="q-plan" type="button" class="btn primary">生成计划（只读，不改数据）</button><button id="q-apply" type="button" class="btn danger-fill" disabled>确认执行</button></div></div>
+            <div id="q-plan-view"><p class="empty">选好账号和剧情后点「生成计划」。生成计划只是试算，不会改任何数据。</p></div>
           </section>
         </div>
 
         <div style="flex:1 1 340px;max-width:100%;display:flex;flex-direction:column;gap:20px">
+          <section class="card preview-card">
+            <div class="between"><h2>范围预览</h2><span id="q-preview-state" class="muted small"></span></div>
+            <div id="q-selection" class="selection-list"></div>
+            <div id="q-preview"><p class="empty">还没选。左边点一个常用主线试试。</p></div>
+          </section>
           <section class="card">
-            <div class="between"><h2><span class="step">4</span>执行进度</h2><button id="q-job-refresh" type="button" class="btn sm" disabled>刷新</button></div>
+            <div class="between"><h2>执行进度</h2><button id="q-job-refresh" type="button" class="btn sm" disabled>刷新</button></div>
             <div id="q-job"><p class="empty">还没有执行或撤销任务</p></div>
           </section>
-          <section class="card">
-            <div class="between"><h2><span class="step">5</span>撤销与备份</h2><button id="q-backups" type="button" class="btn sm">查看备份</button></div>
-            <label class="field">撤销任务 ID / 备份 ID<input id="q-undo-id" class="input mono"></label>
-            <button id="q-undo" type="button" class="btn danger">撤销该次调整</button>
-            <p class="note">撤销前账号必须离线。已领取奖励、成就等不可回退项保留；与调整后正常进度冲突的字段保留并报告。撤销也会先备份。这里不会自动执行或自动撤销。</p>
-            <div id="q-backup-list"></div>
-          </section>
+          <details class="card"><summary>撤销与备份</summary>
+            <div style="display:flex;flex-direction:column;gap:12px;padding-top:12px">
+              <div class="between"><span class="note">每次执行前都自动备份。撤销前账号要离线。</span><button id="q-backups" type="button" class="btn sm">查看备份</button></div>
+              <label class="field">要撤销的任务号或备份号<input id="q-undo-id" class="input mono"></label>
+              <button id="q-undo" type="button" class="btn danger">撤销这次调整</button>
+              <p class="note">已领的奖励、成就这类收不回来的会保留；和之后正常进度冲突的字段也保留，并在结果里列出。</p>
+              <div id="q-backup-list"></div>
+            </div>
+          </details>
         </div>
       </div>
-      <details class="card"><summary>计划 / 报告完整 JSON</summary><pre id="q-report" class="mono" tabindex="0" style="max-height:480px;overflow:auto;white-space:pre-wrap;margin:0"></pre></details>
+      <details class="card"><summary>计划 / 报告完整 JSON（排查问题用）</summary><pre id="q-report" class="mono" tabindex="0" style="max-height:480px;overflow:auto;white-space:pre-wrap;margin:0"></pre></details>
     </section>
 
     <!-- 在线玩家与服务器状态 -->
@@ -1397,99 +1446,224 @@ const Admin = (() => {
 </script>
 
 <script>
-/* 任务进度：原 /console 的任务调整面板，接口仍是 /console/api/quest/* */
+/* 任务进度：选要跳过的剧情（常用主线 / 按地区 / 逐章 / 高级）→ 范围预览 → 生成计划并执行。接口是 /console/api/quest/* */
 (() => {
   const { $, el, api, action, toast, empty, loadingRow, errorBox } = Admin;
-  let plan = null, jobId = null, revision = 0, poll = null, mode = "form";
-  let rows = [], chapterRows = [];
-  const parents = new Set(), chapters = new Set();
-  const chipSets = {}; // 字段 → Set（地区、类别、扩展区域、排除）
+  let plan = null, jobId = null, revision = 0, poll = null, previewTimer = null, previewSeq = 0;
+  let chapters = new Map(), parentsById = new Map(), seriesByCat = [], ready = false;
+  const picked = { chapters: new Set(), parents: new Set(), excluded: new Set() };
+  const chipSets = {}; // 高级筛选：regions / categories / expansions / exclude / excludeExpansions
 
-  const uidOf = () => { const uid = Number($("q-uid").value || $("q-player").value); if (!Number.isSafeInteger(uid) || uid <= 0) throw new Error("请先选择账号或填写 UID"); return uid; };
+  /** replaceChildren 会把 null 显示成文字，这里先去掉空值 */
+  const put = (node, ...kids) => node.replaceChildren(...kids.flat().filter(Boolean));
+  const uidOf = () => { const uid = Number($("q-uid").value || $("q-player").value); if (!Number.isSafeInteger(uid) || uid <= 0) throw new Error("请先在第 1 步选账号"); return uid; };
   const report = (value) => { $("q-report").textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2); };
+  const jsonMode = () => $("q-json-mode").checked;
+  const CAT_ORDER = ["魔神任务", "传说任务", "邀约任务", "世界任务", "扩展区域世界任务", "活动任务", "限时或已下线的传说任务"];
+
+  /* ---- 把任务目录整理成「类别 → 系列（序章、第一章……）→ 章节」 ---- */
+  const majority = (values, skip) => { const n = new Map(); for (const v of values) if (v && v !== skip) n.set(v, (n.get(v) || 0) + 1); return [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]; };
+  const chapterName = (c) => [c.num, c.title].filter(Boolean).join(" · ") || `章节 ${c.id}`;
+  function buildCatalog(data) {
+    chapters = new Map(); parentsById = new Map();
+    const meta = new Map(data.chapters.map((c) => [c.id, c]));
+    for (const row of data.parents) {
+      if (row.categories.includes("每日委托")) continue;
+      parentsById.set(row.id, row);
+      if (!row.chapterId || !meta.has(row.chapterId)) continue;
+      let c = chapters.get(row.chapterId);
+      if (!c) { const m = meta.get(row.chapterId); c = { id: m.id, tag: m.tag, archon: m.archon, num: row.chapterNum || "", title: m.titleZh || row.chapterTitleZh || "", parents: [] }; chapters.set(c.id, c); }
+      c.parents.push(row);
+    }
+    for (const c of chapters.values()) {
+      c.region = majority(c.parents.map((p) => p.regionZh), "未归类") || "未归类";
+      c.category = c.archon ? "魔神任务" : majority(c.parents.flatMap((p) => p.categories)) || "其他";
+      c.series = (c.num.split(/\s+/)[0] || "").trim() || "其他";
+    }
+    const byCat = new Map();
+    for (const c of [...chapters.values()].sort((a, b) => a.tag - b.tag || a.id - b.id)) {
+      if (!byCat.has(c.category)) byCat.set(c.category, new Map());
+      const groups = byCat.get(c.category);
+      if (!groups.has(c.series)) groups.set(c.series, { name: c.series, chapters: [] });
+      groups.get(c.series).chapters.push(c);
+    }
+    seriesByCat = [...byCat.entries()].sort((a, b) => ((CAT_ORDER.indexOf(a[0]) + 1 || 99) - (CAT_ORDER.indexOf(b[0]) + 1 || 99)))
+      .map(([category, groups]) => {
+        // 按游戏顺序排系列；和别的系列穿插的（比如间章）放到最后
+        let list = [...groups.values()].map((g) => {
+          // 只有大部分章节在同一个地区时才标地区（间章横跨好几个地区，就不标）
+          const top = majority(g.chapters.map((c) => c.region), "未归类");
+          const known = g.chapters.filter((c) => c.region !== "未归类").length;
+          const share = known ? g.chapters.filter((c) => c.region === top).length / known : 0;
+          return Object.assign(g, { min: g.chapters[0].tag, max: g.chapters[g.chapters.length - 1].tag, region: top && share >= 0.75 ? top : "未归类" });
+        }).sort((a, b) => a.min - b.min);
+        // 跨度里夹着两个以上其他系列的（比如间章），说明是穿插在各章之间的，放到最后
+        const crossing = (g) => new Set(list.filter((o) => o !== g && o.chapters.some((c) => c.tag > g.min && c.tag < g.max)).map((o) => o.name)).size >= 2;
+        list = [...list.filter((g) => !crossing(g)), ...list.filter(crossing)];
+        return { category, groups: list };
+      });
+  }
+
+  /* ---- 选择 ---- */
+  function changed() { invalidate(); renderPresets(); renderTree(); renderSelection(); syncJson(); schedulePreview(); }
   function invalidate() { revision++; plan = null; $("q-apply").disabled = true; }
+  const setChapters = (ids, on) => { for (const id of ids) on ? picked.chapters.add(id) : picked.chapters.delete(id); changed(); };
+  const state = (ids) => { const n = ids.filter((id) => picked.chapters.has(id)).length; return n === 0 ? "none" : n === ids.length ? "all" : "some"; };
+
+  function renderPresets() {
+    if (!ready) return;
+    const archon = seriesByCat.find((s) => s.category === "魔神任务");
+    $("q-presets").replaceChildren(...(archon ? archon.groups : []).map((g) => {
+      const ids = g.chapters.map((c) => c.id), s = state(ids);
+      return el("button", { type: "button", class: "preset " + s, "aria-pressed": String(s === "all"), title: g.chapters.map(chapterName).join("\n"),
+        onclick: () => setChapters(ids, s !== "all") },
+        el("b", {}, g.name + (g.region !== "未归类" ? " · " + g.region : "")),
+        el("small", {}, `${g.chapters.length} 幕：` + g.chapters.map((c) => c.title || c.num).join("、")),
+        el("span", { class: "preset-state" }, s === "all" ? "已选" : s === "some" ? "部分已选" : "点选"));
+    }));
+    if (!archon) $("q-presets").append(empty("任务目录里没有魔神任务章节"));
+    // 按地区：该地区为主的全部魔神任务章节
+    const regions = new Map();
+    for (const c of chapters.values()) if (c.archon && c.region !== "未归类") { if (!regions.has(c.region)) regions.set(c.region, []); regions.get(c.region).push(c); }
+    $("q-region-presets").replaceChildren(...[...regions.entries()].sort((a, b) => a[1][0].tag - b[1][0].tag).map(([region, list]) => {
+      const ids = list.map((c) => c.id), s = state(ids);
+      return el("button", { type: "button", class: s === "all" ? "on" : "", title: list.map(chapterName).join("\n"), onclick: () => setChapters(ids, s !== "all") },
+        `${region}全部主线（${list.length} 幕）`);
+    }));
+  }
+
+  function chapterRow(c) {
+    const box = el("input", { type: "checkbox" }); box.checked = picked.chapters.has(c.id);
+    box.onchange = () => setChapters([c.id], box.checked);
+    return el("label", { class: "chapter-row" }, box, el("span", { class: "grow" }, chapterName(c)),
+      el("span", { class: "badge" }, c.region), el("span", { class: "muted small" }, `${c.parents.length} 个任务`));
+  }
+  function renderTree() {
+    if (!ready) return;
+    const term = $("q-search").value.trim().toLowerCase();
+    if (term) {
+      const hitChapters = [...chapters.values()].filter((c) => `${c.id} ${chapterName(c)}`.toLowerCase().includes(term)).sort((a, b) => a.tag - b.tag).slice(0, 80);
+      const hitParents = [...parentsById.values()].filter((p) => `${p.id} ${p.titleZh}`.toLowerCase().includes(term)).slice(0, 80);
+      $("q-tree").replaceChildren(
+        el("h3", {}, `章节（${hitChapters.length}）`), ...hitChapters.map(chapterRow),
+        el("h3", { style: "margin-top:8px" }, `单个主任务（${hitParents.length}）`),
+        ...hitParents.map((p) => {
+          const box = el("input", { type: "checkbox" }); box.checked = picked.parents.has(p.id);
+          box.onchange = () => { box.checked ? picked.parents.add(p.id) : picked.parents.delete(p.id); changed(); };
+          const c = chapters.get(p.chapterId);
+          return el("label", { class: "chapter-row" }, box, el("span", { class: "grow" }, p.titleZh || `主任务 ${p.id}`), el("span", { class: "muted small" }, c ? chapterName(c) : (p.categories[0] || "")), el("span", { class: "badge" }, p.regionZh));
+        }));
+      if (!hitChapters.length && !hitParents.length) $("q-tree").append(empty("没找到，换个关键词"));
+      return;
+    }
+    $("q-tree").replaceChildren(...seriesByCat.map(({ category, groups }) => {
+      const allIds = groups.flatMap((g) => g.chapters.map((c) => c.id));
+      const details = el("details", { class: "tree-cat" }, el("summary", {}, el("b", {}, category), el("span", { class: "muted small" }, ` ${allIds.length} 章`),
+        state(allIds) !== "none" ? el("span", { class: "badge ok", style: "margin-left:8px" }, `已选 ${allIds.filter((id) => picked.chapters.has(id)).length}`) : null));
+      details.open = openCats.has(category);
+      details.ontoggle = () => (details.open ? openCats.add(category) : openCats.delete(category));
+      for (const g of groups) {
+        const ids = g.chapters.map((c) => c.id), s = state(ids);
+        const box = el("input", { type: "checkbox", "aria-label": "整组选择 " + g.name }); box.checked = s === "all"; box.indeterminate = s === "some";
+        box.onchange = () => setChapters(ids, box.checked);
+        details.append(el("div", { class: "tree-group" }, el("label", { class: "chapter-row group" }, box, el("b", { class: "grow" }, g.name), el("span", { class: "badge" }, g.region), el("span", { class: "muted small" }, `${ids.length} 章 · 整组勾选`)),
+          ...g.chapters.map(chapterRow)));
+      }
+      return details;
+    }));
+  }
+  const openCats = new Set(["魔神任务"]);
+  $("q-search").oninput = renderTree;
+
+  /* ---- 已选内容（预览卡片顶部，可以逐个去掉） ---- */
+  function renderSelection() {
+    const chip = (text, onRemove, kind = "") => el("span", { class: "sel-chip " + kind }, text, el("button", { type: "button", "aria-label": "去掉 " + text, onclick: onRemove }, "×"));
+    const items = [
+      ...[...picked.chapters].map((id) => chapters.get(id)).filter(Boolean).sort((a, b) => a.tag - b.tag).map((c) => chip(chapterName(c), () => setChapters([c.id], false))),
+      ...[...picked.parents].map((id) => chip(parentsById.get(id)?.titleZh || "主任务 " + id, () => { picked.parents.delete(id); changed(); })),
+      ...[...picked.excluded].map((id) => chip("排除：" + (parentsById.get(id)?.titleZh || id), () => { picked.excluded.delete(id); changed(); }, "excluded")),
+    ];
+    const adv = Object.entries(chipSets).filter(([, s]) => s.size).map(([k, s]) => `${ADV_LABEL[k]}：${[...s].join("、")}`);
+    $("q-selection").replaceChildren(...items, ...adv.map((t) => el("span", { class: "sel-chip adv" }, t)));
+    if (jsonMode()) $("q-selection").replaceChildren(el("span", { class: "sel-chip adv" }, "使用目标 JSON"));
+  }
+  const ADV_LABEL = { regions: "地区", categories: "类别", expansions: "扩展区域", exclude: "排除类别", excludeExpansions: "排除扩展区域" };
 
   /* ---- 目标 ---- */
   function formGoal() {
+    const goal = { version: 2, source: { description: "后台选择性推进目标" } };
+    if (picked.chapters.size) goal.completeChapters = [...picked.chapters].sort((a, b) => a - b);
+    if (picked.parents.size) goal.completeParents = [...picked.parents].sort((a, b) => a - b);
     const selector = {};
     for (const key of ["regions", "categories", "expansions"]) if (chipSets[key] && chipSets[key].size) selector[key] = [...chipSets[key]];
-    if (chapters.size) selector.chapters = [...chapters].map(Number);
-    if (parents.size) selector.parents = [...parents].map(Number);
-    const goal = { version: 2, source: { description: "后台选择性推进目标" } };
     if (Object.keys(selector).length) goal.include = [selector];
     goal.exclude = [];
+    if (picked.excluded.size) goal.exclude.push({ parents: [...picked.excluded].sort((a, b) => a - b) });
     if (chipSets.exclude && chipSets.exclude.size) goal.exclude.push({ categories: [...chipSets.exclude] });
     if (chipSets.excludeExpansions && chipSets.excludeExpansions.size) goal.exclude.push({ expansions: [...chipSets.excludeExpansions] });
     const kind = $("q-stop-kind").value, value = $("q-stop").value.trim();
-    if (kind) {
-      if (!value) throw new Error("请填写停止点");
+    if (kind && value) {
       const ref = /^\d+$/.test(value) ? Number(value) : value;
-      if (kind === "sub" && typeof ref !== "number") throw new Error("子任务停止点必须是 ID");
+      if (kind === "sub" && typeof ref !== "number") throw new Error("子任务停止点只能填编号");
       goal.stopBefore = { [kind]: ref };
     }
     return goal;
   }
-  function sync() {
-    invalidate();
-    if (mode !== "form") return;
-    try { $("q-goal").value = JSON.stringify(formGoal(), null, 2); } catch (e) { $("q-selected").textContent = e.message; }
+  const hasSelection = () => jsonMode() || picked.chapters.size || picked.parents.size || ["regions", "categories", "expansions"].some((k) => chipSets[k] && chipSets[k].size) || $("q-stop-kind").value;
+  function currentGoal() {
+    if (!jsonMode()) return formGoal();
+    try { return JSON.parse($("q-goal").value); } catch (e) { throw new Error("目标 JSON 格式不对：" + e.message); }
   }
-  function setMode(next) {
-    mode = next;
-    document.querySelectorAll("[data-qmode]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.qmode === next)));
-    $("q-form").classList.toggle("hidden", next !== "form");
-    if (next === "json") $("q-json-box").open = true;
-    sync();
-  }
-  document.querySelectorAll("[data-qmode]").forEach((b) => b.onclick = () => setMode(b.dataset.qmode));
+  function syncJson() { if (!jsonMode()) { try { $("q-goal").value = JSON.stringify(formGoal(), null, 2); } catch (e) {} } }
 
   function chips(id, key, values) {
     const set = chipSets[key] || (chipSets[key] = new Set());
     $(id).replaceChildren(...values.map((v) => el("button", { type: "button", class: set.has(v) ? "on" : "", "aria-pressed": String(set.has(v)),
-      onclick: (e) => { set.has(v) ? set.delete(v) : set.add(v); e.currentTarget.classList.toggle("on"); e.currentTarget.setAttribute("aria-pressed", String(set.has(v))); sync(); } }, v)));
-    if (!values.length) $(id).append(el("span", { class: "muted small" }, "无"));
+      onclick: () => { set.has(v) ? set.delete(v) : set.add(v); chips(id, key, values); changed(); } }, v)));
   }
-  function renderChoices() {
-    const term = $("q-search").value.trim().toLowerCase();
-    for (const [id, list, selected] of [["q-parents", rows, parents], ["q-chapters", chapterRows, chapters]]) {
-      const matched = list.filter((r) => `${r.id} ${r.titleZh} ${r.chapterTitleZh || ""}`.toLowerCase().includes(term) || selected.has(String(r.id)));
-      $(id).replaceChildren(...matched.slice(0, 600).map((r) => {
-        const box = el("input", { type: "checkbox" }); box.checked = selected.has(String(r.id));
-        box.onchange = () => { box.checked ? selected.add(String(r.id)) : selected.delete(String(r.id)); renderCounts(); sync(); };
-        return el("label", {}, box, el("span", { class: "mono muted" }, r.id), el("span", {}, r.titleZh || "中文名缺失"));
-      }));
-      if (!matched.length) $(id).append(empty(list.length ? "没有匹配的" : "目录还没加载"));
-      $(id + "-count").textContent = `显示 ${Math.min(matched.length, 600)} / ${list.length}`;
-    }
-    renderCounts();
-  }
-  const renderCounts = () => { $("q-selected").textContent = `已选章节 ${chapters.size}，主任务 ${parents.size}；搜索不会清掉已选的`; };
-  $("q-search").oninput = renderChoices;
-  $("q-clear").onclick = () => { parents.clear(); chapters.clear(); renderChoices(); sync(); };
-  $("q-stop-kind").onchange = sync; $("q-stop").oninput = sync;
-  $("q-goal").oninput = () => { if (mode !== "json") setMode("json"); invalidate(); };
+  $("q-stop-kind").onchange = changed; $("q-stop").oninput = changed;
+  $("q-json-mode").onchange = () => { if (jsonMode()) $("q-advanced").open = true; changed(); };
+  $("q-goal").oninput = () => { if (!jsonMode()) { $("q-json-mode").checked = true; } invalidate(); renderSelection(); schedulePreview(); };
   $("q-upload").onchange = action(async () => {
     const file = $("q-upload").files[0]; if (!file) return;
     if (file.size > 1048576) throw new Error("目标文件不能超过 1 MiB");
     const value = JSON.parse(await file.text());
-    setMode("json"); $("q-goal").value = JSON.stringify(value, null, 2); invalidate();
+    $("q-json-mode").checked = true; $("q-goal").value = JSON.stringify(value, null, 2); changed();
     toast("已载入目标文件 " + file.name);
   });
+  $("q-clear").onclick = () => {
+    picked.chapters.clear(); picked.parents.clear(); picked.excluded.clear();
+    for (const s of Object.values(chipSets)) s.clear();
+    $("q-stop-kind").value = ""; $("q-stop").value = ""; $("q-json-mode").checked = false;
+    renderAdvanced(); changed();
+  };
 
-  async function loadOptions() {
-    $("q-options-state").replaceChildren(loadingRow("正在加载任务目录（第一次可能要几秒）…"));
+  /* ---- 范围预览：每次改动后 0.35 秒自动刷新 ---- */
+  function schedulePreview() { clearTimeout(previewTimer); previewTimer = setTimeout(() => preview().catch(() => {}), 350); }
+  async function preview() {
+    const seq = ++previewSeq;
+    if (!hasSelection()) { $("q-preview").replaceChildren(empty("还没选。左边点一个常用主线试试。")); $("q-preview-state").textContent = ""; return; }
+    let goal;
+    try { goal = currentGoal(); } catch (e) { $("q-preview").replaceChildren(errorBox(e.message)); return; }
+    $("q-preview-state").replaceChildren(el("span", { class: "spinner" }));
     let data;
-    try { data = await api("quest/options"); }
-    catch (e) { $("q-options-state").replaceChildren(errorBox("任务目录加载失败：" + e.message, () => loadOptions().catch(() => {}))); throw e; }
-    $("q-options-state").replaceChildren();
-    rows = data.parents.filter((r) => !r.categories.includes("每日委托"));
-    chapterRows = [...new Map(rows.filter((r) => r.chapterId).map((r) => [r.chapterId, { id: r.chapterId, titleZh: r.chapterTitleZh }])).values()];
-    chips("q-regions", "regions", [...new Set(rows.map((r) => r.regionZh).filter(Boolean))].sort());
-    chips("q-categories", "categories", data.rules.categories);
-    chips("q-exclude", "exclude", data.rules.categories);
-    chips("q-expansions", "expansions", data.rules.expansions.map((e) => e.name));
-    chips("q-exclude-expansions", "excludeExpansions", data.rules.expansions.map((e) => e.name));
-    renderChoices(); sync();
+    try { data = await api("quest/preview", { goal }); }
+    catch (e) { if (seq === previewSeq) { $("q-preview").replaceChildren(errorBox(e.message.replace("进度目标为空：", "范围是空的："))); $("q-preview-state").textContent = ""; } return; }
+    if (seq !== previewSeq) return;
+    $("q-preview-state").textContent = "已更新";
+    const groups = new Map();
+    for (const p of data.parents) { const key = p.chapterId || 0; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(p); }
+    const ordered = [...groups.entries()].sort((a, b) => (chapters.get(a[0])?.tag ?? 1e9) - (chapters.get(b[0])?.tag ?? 1e9));
+    put($("q-preview"),
+      el("div", { class: "preview-total" }, el("b", {}, data.parents.length), el("span", {}, ` 个主任务，分布在 ${ordered.length} 个章节`)),
+      data.excluded ? el("p", { class: "note" }, `已排除 ${data.excluded} 个主任务（含每日委托和你手动排除的）。`) : null,
+      ...(data.issues || []).map((i) => el("div", { class: "error-box" }, `「${parentsById.get(i.subId)?.titleZh || i.subId}」结尾不唯一，系统没法自动判断怎样算完成，生成计划时会作为阻断列出。`)),
+      ...ordered.map(([chapterId, list]) => {
+        const c = chapters.get(chapterId);
+        return el("details", { class: "preview-group" }, el("summary", {}, el("span", { class: "grow" }, c ? chapterName(c) : "不属于任何章节"), el("span", { class: "muted small" }, `${list.length} 个`)),
+          ...list.map((p) => el("div", { class: "preview-row" }, el("span", { class: "grow" }, p.titleZh || `主任务 ${p.id}`),
+            el("button", { type: "button", class: "btn sm", title: "不处理这个主任务", onclick: () => { picked.excluded.add(p.id); changed(); } }, "排除"))));
+      }));
   }
 
   /* ---- 账号 ---- */
@@ -1497,52 +1671,96 @@ const Admin = (() => {
     const { players } = await api("players");
     const keep = $("q-player").value;
     $("q-player").replaceChildren(el("option", { value: "" }, players.length ? "请选择在线账号" : "现在没有在线账号"),
-      ...players.map((p) => el("option", { value: p.uid }, `${p.uid} · ${p.nickname} · 场景 ${p.sceneId}${p.sceneId === 3 ? "（大世界）" : "（不在大世界）"}`)));
+      ...players.map((p) => el("option", { value: p.uid }, `${p.uid} · ${p.nickname} · ${p.sceneId === 3 ? "在大世界，可以执行" : "场景 " + p.sceneId + "，要先回大世界"}`)));
     if ([...$("q-player").options].some((o) => o.value === keep)) $("q-player").value = keep;
   }
   $("q-refresh").onclick = action(fillPlayers);
   $("q-player").onchange = () => { $("q-uid").value = $("q-player").value; invalidate(); };
   $("q-uid").oninput = invalidate;
 
-  /* ---- 计划 ---- */
-  const tile = (label, value, kind = "") => el("div", { class: "stat " + kind }, el("span", {}, label), el("b", {}, value));
-  function renderPlan(data) {
-    const counts = {};
-    for (const issue of data.blockers) counts[issue.type] = (counts[issue.type] || 0) + 1;
-    const stop = data.stopPreview, blocked = data.blockers.length > 0;
-    $("q-plan-view").replaceChildren(
-      el("div", { class: "stats" }, tile("步骤", data.steps.length), tile("阻断", data.blockers.length, blocked ? "bad" : "ok"),
-        tile("补发邮件", data.expectedMail.length), tile("预计耗时", (data.steps.length * 1.3).toFixed(1) + " 秒")),
-      el("div", { class: "callout " + (blocked ? "danger" : data.steps.length ? "ok" : "") },
-        el("b", {}, blocked ? "有阻断，不能执行" : data.steps.length ? "可以执行" : "目标已经完成"),
-        blocked ? "先处理下面的阻断项（换目标、加停止点，或等服务端补上对应条件）。" : data.steps.length ? "确认前请核对步骤、邮件和顺带接取清单。耗时是粗估，不含备份、异步等待和重登。" : "没有需要重放的步骤。"),
-      blocked ? el("div", {}, el("h3", {}, "阻断按类型"), el("div", { class: "chips" }, Object.entries(counts).map(([t, n]) => el("span", { class: "badge bad" }, `${t} × ${n}`)))) : null,
-      el("dl", { class: "kv-list" },
-        el("dt", {}, "计划号"), el("dd", { class: "mono" }, data.planId),
-        el("dt", {}, "停止点"), el("dd", {}, stop ? `${stop.subId} · ${stop.status} · 预计状态 ${stop.projectedState}${stop.reasons.length ? " · " + stop.reasons.join("；") : ""}` : "无"),
-        el("dt", {}, "顺带接取的主任务"), el("dd", {}, data.sideAcceptMainIds.join("、") || "无"),
-        el("dt", {}, "区域不明、保守省略"), el("dd", {}, (data.progressGoal && data.progressGoal.omittedParents || []).join("、") || "无")),
-      el("p", { class: "note" }, "步骤、邮件、阻断的完整内容在页面最下方「计划 / 报告完整 JSON」。"));
+  /* ---- 计划：阻断说人话，给出路 ---- */
+  function reasonText(issue) {
+    const t = issue.type || "";
+    const fixed = {
+      missing_resource: "游戏资源里缺这个任务的数据", fail_branch_excluded: "只能走「任务失败」分支才能接，正常推进不走这条路",
+      failed_quest: "这个任务在存档里已经是失败状态", state_conflict: "已完成的任务和要求的状态冲突", cycle: "任务之间互相依赖成了环，排不出先后",
+      ambiguous_parent: "前置任务有好几个可能，系统不敢猜", entry_handoff_ambiguous: "上一个任务的结尾有好几种，系统不敢猜", entry_handoff_missing: "找不到唯一的上一个任务",
+      zero_reference_unresolved: "资源里的前置引用丢了，系统不敢猜", excluded_dependency: "要用到你排除了、或停止点之后的任务",
+      stop_unavailable: "停止点那一步现在接不了", stop_auto_accept: "到停止点时游戏会自动接下一个任务，停不住", stop_boundary: "要完成的任务越过了停止点",
+      goal_resolution: "这个主任务的结尾不唯一，没法自动判断怎样算完成", c1_coverage_missing: "缺少完整核对表",
+    }[t];
+    if (fixed) return fixed;
+    if (t.startsWith("QUEST_EXEC_")) return `任务完成时要执行的效果服务端还不支持（${t.replace("QUEST_EXEC_", "")}）`;
+    if (t.startsWith("QUEST_CONTENT_") || t.startsWith("QUEST_COND_")) return `任务条件服务端还不支持或满足不了（${t.replace(/^QUEST_(CONTENT|COND)_/, "")}）`;
+    if (t.startsWith("LOGIC_")) return "找不到能安全满足的接取条件组合";
+    return issue.reason || t;
   }
-  $("q-plan").onclick = action(async () => {
+  const NOT_FIXABLE_BY_EXCLUDE = new Set(["excluded_dependency", "stop_unavailable", "stop_auto_accept", "stop_boundary"]);
+  const tile = (label, value, kind = "") => el("div", { class: "stat " + kind }, el("span", {}, label), el("b", {}, value));
+
+  async function renderPlan(data) {
+    const blocked = data.blockers.length > 0;
+    const view = [el("div", { class: "stats" }, tile("要完成的子任务步骤", data.steps.length), tile("阻断", data.blockers.length, blocked ? "bad" : "ok"),
+      tile("补发邮件", data.expectedMail.length), tile("预计耗时", Math.ceil(data.steps.length * 1.3) + " 秒"))];
+    if (!blocked) {
+      view.push(el("div", { class: "callout " + (data.steps.length ? "ok" : "") }, el("b", {}, data.steps.length ? "可以执行" : "这些剧情已经完成了"),
+        data.steps.length ? `点「确认执行」后会按顺序完成 ${data.steps.length} 步，补发 ${data.expectedMail.length} 封邮件；结束时账号会被强制下线，重新登录即可看到。` : "不需要再推进。"));
+      if (data.sideAcceptMainIds.length) view.push(el("p", { class: "note" }, `顺带会接取（不完成）这些后续主任务：${data.sideAcceptMainIds.map((id) => parentsById.get(id)?.titleZh || id).join("、")}。`));
+      $("q-plan-view").replaceChildren(...view);
+      return;
+    }
+    $("q-plan-view").replaceChildren(...view, loadingRow("正在整理阻断原因…"));
+    const ids = [...new Set(data.blockers.map((b) => b.subId))];
+    let info = new Map();
+    try { info = new Map((await api("quest/describe", { ids })).items.map((r) => [r.id, r])); } catch (e) {}
+    const byMain = new Map();
+    for (const b of data.blockers) {
+      const r = info.get(b.subId) || {};
+      const key = r.mainId || 0;
+      if (!byMain.has(key)) byMain.set(key, { mainId: key, title: r.mainTitle || parentsById.get(key)?.titleZh || (key ? "主任务 " + key : "无法归到主任务"), chapter: r.chapterTitle || "", issues: [] });
+      byMain.get(key).issues.push(b);
+    }
+    const groups = [...byMain.values()];
+    const fixable = groups.filter((g) => g.mainId && g.issues.some((i) => !NOT_FIXABLE_BY_EXCLUDE.has(i.type)) && !picked.excluded.has(g.mainId));
+    const structural = groups.some((g) => g.issues.some((i) => NOT_FIXABLE_BY_EXCLUDE.has(i.type)));
+    view.push(el("div", { class: "callout danger" }, el("b", {}, `有 ${data.blockers.length} 处阻断，分布在 ${groups.length} 个主任务里，现在不能执行`),
+      fixable.length ? "最简单的办法：把这些主任务排除掉（它们之后的剧情你可以等服务端补齐再推进，或者在游戏里正常做）。" : "这些阻断不能靠排除解决，看下面每条的原因。"));
+    if (fixable.length) view.push(el("button", { type: "button", class: "btn primary", onclick: action(async () => {
+      for (const g of fixable) picked.excluded.add(g.mainId);
+      changed();
+      toast(`已排除 ${fixable.length} 个主任务，正在重新生成计划`);
+      await makePlan();
+    }) }, `排除这 ${fixable.length} 个主任务后重新生成`));
+    if (structural) view.push(el("p", { class: "note" }, "标了「排除也没用」的，是因为要做的任务依赖它们：请把依赖它们的章节也去掉，或取消停止点。"));
+    view.push(...groups.map((g) => el("div", { class: "blocker" },
+      el("div", { class: "between" }, el("b", {}, g.title), el("span", { class: "muted small" }, g.chapter)),
+      el("ul", {}, ...g.issues.map((i) => el("li", {}, reasonText(i), NOT_FIXABLE_BY_EXCLUDE.has(i.type) ? el("span", { class: "badge warn", style: "margin-left:6px" }, "排除也没用") : null,
+        el("details", { class: "tech" }, el("summary", {}, "技术细节"), el("span", { class: "mono" }, `${i.type} · 子任务 ${i.subId} · ${i.reason}`))))))));
+    $("q-plan-view").replaceChildren(...view);
+  }
+
+  async function makePlan() {
     invalidate();
     const rev = revision, uid = uidOf();
-    let goal;
-    try { goal = mode === "form" ? formGoal() : JSON.parse($("q-goal").value); } catch (e) { throw new Error(mode === "form" ? e.message : "目标 JSON 格式不对：" + e.message); }
-    $("q-plan-view").replaceChildren(loadingRow("正在生成只读计划…"));
+    if (!hasSelection()) throw new Error("先在第 2 步选要跳过的剧情");
+    const goal = currentGoal();
+    $("q-plan-view").replaceChildren(loadingRow("正在试算计划（只读）…"));
     let data;
     try { data = await api("quest/plan", { uid, goal, mode: "advance", overrides: [] }); }
     catch (e) { $("q-plan-view").replaceChildren(errorBox(e.message)); throw e; }
-    if (rev !== revision) { $("q-plan-view").replaceChildren(errorBox("生成期间选择变了，请重新生成计划")); return; }
-    plan = data; report(data); renderPlan(data);
+    if (rev !== revision) { $("q-plan-view").replaceChildren(errorBox("生成期间你改了选择，请重新生成")); return; }
+    plan = data; report(data);
+    await renderPlan(data);
     $("q-apply").disabled = !data.executionAvailable || data.blockers.length > 0 || data.steps.length === 0;
-  });
+  }
+  $("q-plan").onclick = action(makePlan);
 
   /* ---- 执行、进度、撤销 ---- */
   const STATUS = { queued: ["排队中", ""], running: ["执行中", "warn"], completed: ["已完成", "ok"], failed: ["失败", "bad"], conflict: ["有冲突", "bad"] };
   function renderJob(job) {
     const [label, kind] = STATUS[job.status] || [job.status || "已读取", ""];
-    $("q-job").replaceChildren(el("div", { class: "row" }, el("span", { class: "badge " + kind }, label), ["queued", "running"].includes(job.status) ? el("span", { class: "spinner" }) : null),
+    put($("q-job"),el("div", { class: "row" }, el("span", { class: "badge " + kind }, label), ["queued", "running"].includes(job.status) ? el("span", { class: "spinner" }) : null),
+      job.status === "completed" && !String(job.planId || "").startsWith("undo:") ? el("p", { class: "note" }, "账号已被强制下线，重新登录就能看到推进后的剧情。") : null,
       el("dl", { class: "kv-list" },
         el("dt", {}, "任务号"), el("dd", { class: "mono" }, job.id || "-"),
         el("dt", {}, "已完成步骤"), el("dd", {}, job.report && job.report.completed !== undefined ? job.report.completed : "—"),
@@ -1563,33 +1781,53 @@ const Admin = (() => {
   }
   $("q-apply").onclick = action(async () => {
     const p = plan;
-    if (!p || p.uid !== uidOf() || p.blockers.length || !p.executionAvailable) throw new Error("计划不可执行，请重新生成");
-    if (!await Admin.confirm({ title: "执行任务调整", danger: true, ok: "确认执行",
-      body: `账号 ${p.uid}：${p.steps.length} 步，${p.expectedMail.length} 封邮件。账号必须在线并站在大世界，执行结束会被强制下线，需要重新登录。` })) return;
+    if (!p || p.uid !== uidOf() || p.blockers.length || !p.executionAvailable) throw new Error("计划已失效，请重新生成");
+    if (!await Admin.confirm({ title: "执行任务推进", danger: true, ok: "确认执行",
+      body: `账号 ${p.uid}：完成 ${p.steps.length} 步，补发 ${p.expectedMail.length} 封邮件。\n账号要在线并站在大世界里别动；执行结束会被强制下线，重新登录即可看到。执行前会自动备份。` })) return;
     try { watch(await api("quest/apply", { uid: p.uid, planId: p.planId, overrides: p.overrides })); } finally { invalidate(); }
   });
   $("q-job-refresh").onclick = action(refreshJob);
-  async function backups() {
+  $("q-backups").onclick = action(async () => {
     const uid = uidOf();
     Admin.loading($("q-backup-list"));
     const { backups } = await api("quest/backups?uid=" + uid);
     report({ backups });
     $("q-backup-list").replaceChildren(backups.length ? el("div", { class: "table-box", style: "max-height:320px" }, el("table", {},
-      el("thead", {}, el("tr", {}, el("th", {}, "时间"), el("th", {}, "备份 ID"), el("th"))),
+      el("thead", {}, el("tr", {}, el("th", {}, "时间"), el("th", {}, "备份号"), el("th"))),
       el("tbody", {}, backups.map((b) => el("tr", {}, el("td", {}, new Date(b.createdAt).toLocaleString("zh-CN", { hour12: false })),
         el("td", { class: "mono small", style: "white-space:normal;word-break:break-all" }, b.id),
-        el("td", {}, el("button", { type: "button", class: "btn sm", onclick: () => { $("q-undo-id").value = b.id; toast("已填入撤销 ID"); } }, "填入"))))))) : empty(`账号 ${uid} 还没有任务调整备份`));
-  }
-  $("q-backups").onclick = action(backups);
+        el("td", {}, el("button", { type: "button", class: "btn sm", onclick: () => { $("q-undo-id").value = b.id; toast("已填入撤销框"); } }, "填入"))))))) : empty(`账号 ${uid} 还没有任务推进的备份`));
+  });
   $("q-undo").onclick = action(async () => {
     const uid = uidOf(), id = $("q-undo-id").value.trim();
-    if (!id) throw new Error("请填写撤销任务 ID 或备份 ID");
-    if (!await Admin.confirm({ title: "撤销任务调整", danger: true, ok: "确认撤销", body: `撤销账号 ${uid} 的调整 ${id}？请先让账号离线；不可回退项和冲突字段会保留。` })) return;
+    if (!id) throw new Error("请填写要撤销的任务号或备份号");
+    if (!await Admin.confirm({ title: "撤销任务推进", danger: true, ok: "确认撤销", body: `撤销账号 ${uid} 的调整 ${id}？\n请先让账号离线。已领的奖励、成就等收不回来的会保留。撤销前也会备份。` })) return;
     watch(await api("quest/undo", { uid, jobId: id }));
   });
 
+  /* ---- 初始化 ---- */
+  function renderAdvanced() {
+    if (!ready) return;
+    const rows = [...parentsById.values()];
+    chips("q-regions", "regions", [...new Set(rows.map((r) => r.regionZh).filter(Boolean))].sort());
+    chips("q-categories", "categories", lastRules.categories);
+    chips("q-exclude", "exclude", lastRules.categories);
+    chips("q-expansions", "expansions", lastRules.expansions.map((e) => e.name));
+    chips("q-exclude-expansions", "excludeExpansions", lastRules.expansions.map((e) => e.name));
+  }
+  let lastRules = { categories: [], expansions: [] };
+  async function loadOptions() {
+    $("q-options-state").replaceChildren(loadingRow("正在加载任务目录（第一次要几秒）…"));
+    let data;
+    try { data = await api("quest/options"); }
+    catch (e) { $("q-options-state").replaceChildren(errorBox("任务目录加载失败：" + e.message, () => loadOptions().catch(() => {}))); throw e; }
+    $("q-options-state").replaceChildren();
+    lastRules = data.rules; buildCatalog(data); ready = true;
+    renderAdvanced(); changed();
+  }
+
   Admin.page("quest", {
-    init: async () => { await fillPlayers().catch(() => {}); sync(); await loadOptions(); },
+    init: async () => { await fillPlayers().catch(() => {}); await loadOptions(); },
     show: (uid) => { if (uid) { $("q-uid").value = uid; if ([...$("q-player").options].some((o) => o.value === uid)) $("q-player").value = uid; invalidate(); } },
   });
 })();

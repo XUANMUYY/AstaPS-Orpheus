@@ -72,7 +72,7 @@ final class QuestSelection {
     boolean daily(int id) { return rows.containsKey(id) && rows.get(id).getAsJsonArray("categories").contains(new JsonPrimitive("每日委托")); }
     Object options() {
         return Map.of("rules", rules, "parents", rows.values().stream().filter(r -> !r.get("testExcluded").getAsBoolean()).map(r -> {
-            var o = new JsonObject(); for (var k : List.of("id", "titleZh", "chapterId", "chapterTitleZh", "regionZh", "categories", "expansions")) o.add(k, r.get(k)); return o;
+            var o = new JsonObject(); for (var k : List.of("id", "titleZh", "kind", "chapterId", "chapterNum", "chapterTitleZh", "regionZh", "categories", "expansions")) o.add(k, r.get(k)); return o;
         }).toList());
     }
 }
