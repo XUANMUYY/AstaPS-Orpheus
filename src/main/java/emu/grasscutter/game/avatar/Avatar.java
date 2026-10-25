@@ -877,6 +877,15 @@ public class Avatar {
                             });
         }
 
+        // 命座表里直接给的属性（7.1 只有风主二命 talentId 72：充能效率 +16%）
+        this.getTalentIdList()
+                .intStream()
+                .mapToObj(GameData.getAvatarTalentDataMap()::get)
+                .filter(t -> t != null && t.getAddProps() != null)
+                .flatMap(t -> Arrays.stream(t.getAddProps()))
+                .filter(prop -> prop != null && prop.getProp() != null && prop.getValue() != 0f)
+                .forEach(prop -> this.addFightProperty(prop.getProp(), prop.getValue()));
+
         // Constellations
         this.getTalentIdList()
                 .intStream()

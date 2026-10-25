@@ -43,11 +43,15 @@ public class HandlerSceneTransToPointReq extends PacketHandler {
                 return;
             } else if (player
                     .getWorld()
-                    .transferPlayerToScene(
+                    .transferPlayerToPoint(
                             player,
                             req.getSceneId(),
                             TeleportType.WAYPOINT,
-                            scenePointEntry.getPointData().getTranPos().clone())) {
+                            scenePointEntry.getPointData().getTranPos().clone(),
+                            // 落地朝向用点位资源里的 tranRot，892/957 个锚点都带
+                            scenePointEntry.getPointData().getTranRot() != null
+                                    ? scenePointEntry.getPointData().getTranRot().clone()
+                                    : null)) {
                 session.send(new PacketSceneTransToPointRsp(player, req.getPointId(), req.getSceneId()));
                 return;
             }

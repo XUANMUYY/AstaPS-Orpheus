@@ -71,10 +71,34 @@ public class PacketPlayerWorldSceneInfoListNotify extends BasePacket {
 
     /** 默认全开（沿用原行为）；任务显式锁定（状态 0）的层不下发。 */
     static java.util.List<Integer> unlockedMapLayers(java.util.Collection<Integer> allLayers, Map<Integer, Integer> states) {
-        return allLayers.stream().filter(id -> states.getOrDefault(id, 1) != 0).sorted().toList();
+        return unlockedMapLayers(allLayers, states, Map.of(), quests -> true);
+    }
+
+    /**
+     * 有显式记录的按记录；没有记录、但受任务控制的层，要等解锁它的任务完成；其余默认全开。
+     * 以前受任务控制的层也默认全开，新角色一进世界就能看到任务后才出现的地图分层。
+     */
+    static java.util.List<Integer> unlockedMapLayers(
+            java.util.Collection<Integer> allLayers,
+            Map<Integer, Integer> states,
+            Map<Integer, java.util.List<Integer>> gates,
+            java.util.function.Predicate<java.util.List<Integer>> anyFinished) {
+        return allLayers.stream()
+                .filter(id -> {
+                    var state = states.get(id);
+                    if (state != null) return state != 0;
+                    var quests = gates.get(id);
+                    return quests == null || anyFinished.test(quests);
+                })
+                .sorted()
+                .toList();
     }
 
     private static java.util.List<Integer> unlockedMapLayers(Player player) {
-        return unlockedMapLayers(GameData.getMapLayerDataMap().keySet(), player.getMapLayerUnlockStates());
+        return unlockedMapLayers(
+                GameData.getMapLayerDataMap().keySet(),
+                player.getMapLayerUnlockStates(),
+                emu.grasscutter.game.world.MapLayerQuestGates.gates(),
+                quests -> emu.grasscutter.game.world.MapLayerQuestGates.anyFinished(player, quests));
     }
 }
