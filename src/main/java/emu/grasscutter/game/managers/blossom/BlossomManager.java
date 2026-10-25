@@ -176,6 +176,21 @@ public class BlossomManager {
                         && entry.getGadgetId() == gadgetId);
     }
 
+    /** Native Lua expects 1 for Mora and 3 for Revelation at the selected camp. */
+    public int getRefreshTypeByGroupId(int groupId) {
+        return refreshTypeForGroup(activeScriptedSpawns(), groupId);
+    }
+
+    static int refreshTypeForGroup(List<SpawnDataEntry> active, int groupId) {
+        for (var entry : active) {
+            if (entry.getGroup() == null || entry.getGroup().getGroupId() != groupId) continue;
+            var type = BlossomType.valueOf(entry.getGadgetId());
+            if (type == BlossomType.GOLD) return 1;
+            if (type == BlossomType.BLUE) return 3;
+        }
+        return 0;
+    }
+
     private List<SpawnDataEntry> authoredCandidates() {
         if (scriptedSpawnCandidates == null) {
             scriptedSpawnCandidates = scriptedCandidates(GameDepot.getSpawnLists(), scene.getId());

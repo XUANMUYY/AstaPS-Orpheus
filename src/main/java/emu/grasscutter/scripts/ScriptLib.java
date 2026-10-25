@@ -851,6 +851,15 @@ public class ScriptLib {
         return manager.getVariables(targetGroupId).getOrDefault(BLOSSOM_SCHEDULE_STATE_KEY, 0);
     }
 
+    public int GetBlossomRefreshTypeByGroupId(int groupId) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || manager.getScene() == null || targetGroupId <= 0
+                || manager.getScene().getBlossomManager() == null) return 0;
+        return manager.getScene().getBlossomManager().getRefreshTypeByGroupId(targetGroupId);
+    }
+
     public int GetGameHour() {
         logger.debug("[LUA] Call GetGameHour");
         return getSceneScriptManager().getScene().getWorld().getGameTimeHours();
