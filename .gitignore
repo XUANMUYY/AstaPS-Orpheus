@@ -137,3 +137,6 @@ __pycache__/
 
 # 后台运行时数据（定时邮件、公告等）
 /data/admin/
+
+# 资源导出数据：由 tools/resource-export/ 的脚本生成，不入库
+/data/admin-catalog/
