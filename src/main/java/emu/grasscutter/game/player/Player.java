@@ -146,6 +146,9 @@ public class Player implements PlayerHook, FieldFetch {
     /** Map area states a quest changed with QUEST_EXEC_CHANGE_MAP_AREA_STATE, by map area id. */
     private Map<Integer, Boolean> mapAreaStates;
     @Getter @Setter private Map<Integer, Set<Integer>> unlockedScenePoints;
+    /** Quest-controlled scene point visibility, separate from unlock and lock state. */
+    private Map<Integer, Set<Integer>> hiddenScenePoints;
+    private Map<Integer, Set<Integer>> unhiddenScenePoints;
     /** Separate first-entry reward receipts; handbook unlocks do not establish discovery. */
     private Map<Integer, Set<Integer>> rewardedDungeonEntries;
     /** First activations whose independent LootCSS reward has not been settled. */
@@ -319,6 +322,8 @@ public class Player implements PlayerHook, FieldFetch {
         this.sceneTags = new HashMap<>();
         this.unlockedSceneAreas = new HashMap<>();
         this.unlockedScenePoints = new HashMap<>();
+        this.hiddenScenePoints = new HashMap<>();
+        this.unhiddenScenePoints = new HashMap<>();
         this.rewardedDungeonEntries = new HashMap<>();
         this.pendingTransPointRewards = new HashMap<>();
         this.transPointRewardSnapshots = new HashMap<>();
@@ -638,6 +643,26 @@ public class Player implements PlayerHook, FieldFetch {
 
     public Set<Integer> getUnlockedScenePoints(int sceneId) {
         return this.unlockedScenePoints.computeIfAbsent(sceneId, i -> new CopyOnWriteArraySet<>());
+    }
+
+    public Map<Integer, Set<Integer>> getHiddenScenePoints() {
+        if (this.hiddenScenePoints == null) this.hiddenScenePoints = new HashMap<>();
+        return this.hiddenScenePoints;
+    }
+
+    public Map<Integer, Set<Integer>> getUnhiddenScenePoints() {
+        if (this.unhiddenScenePoints == null) this.unhiddenScenePoints = new HashMap<>();
+        return this.unhiddenScenePoints;
+    }
+
+    public Set<Integer> getHiddenScenePoints(int sceneId) {
+        if (this.hiddenScenePoints == null) this.hiddenScenePoints = new HashMap<>();
+        return this.hiddenScenePoints.computeIfAbsent(sceneId, i -> new CopyOnWriteArraySet<>());
+    }
+
+    public Set<Integer> getUnhiddenScenePoints(int sceneId) {
+        if (this.unhiddenScenePoints == null) this.unhiddenScenePoints = new HashMap<>();
+        return this.unhiddenScenePoints.computeIfAbsent(sceneId, i -> new CopyOnWriteArraySet<>());
     }
 
     public Map<Integer, Set<Integer>> getPendingTransPointRewards() {

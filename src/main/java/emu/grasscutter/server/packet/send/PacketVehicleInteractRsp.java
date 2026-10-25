@@ -68,7 +68,11 @@ public class PacketVehicleInteractRsp extends BasePacket {
                     proto.setVehicleRot(player.getRotation().toProto());
                 }
                 case VehicleInteractType_VEHICLE_INTERACT_OUT -> {
-                    ((EntityVehicle) vehicle).getVehicleMembers().remove(vehicleMember);
+                    EntityVehicle mount = (EntityVehicle) vehicle;
+                    if (mount.getVehicleMembers().removeIf(member -> member.getUid() == player.getUid())) {
+                        player.getQuestManager().queueEvent(
+                                QuestContent.QUEST_CONTENT_LEAVE_VEHICLE, mount.getGadgetId());
+                    }
                 }
                 default -> {}
             }
