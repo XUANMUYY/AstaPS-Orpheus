@@ -88,7 +88,8 @@ public final class ReplayContext implements AutoCloseable {
             context.journal.accept(Map.of("action", "quarantined_exec", "subId", quest.getSubQuestId(), "type", param.getType().name()));
             return true;
         }
-        var type = param.getType().name(); var check = context.policy.check(type, quest.getSubQuestId(), registered, context.overrides);
+        var type = param.getType().name(); var check = context.policy.check(type, quest.getSubQuestId(),
+                param.getParam() == null ? List.of() : List.of(param.getParam()), registered, context.overrides);
         if (check.action() != ExecPolicy.Decision.handled) {
             context.journal.accept(Map.of("action", "skipped_exec", "subId", quest.getSubQuestId(), "policy", check));
             if (check.action() == ExecPolicy.Decision.block) context.failures.add("阻断 exec " + type + " @" + quest.getSubQuestId());

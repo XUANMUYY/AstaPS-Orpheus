@@ -54,12 +54,19 @@ public final class ExecPolicy {
         return check(type, 0, registered, overrides);
     }
     public Check check(String type, int subId, boolean registered, Set<String> overrides) {
+        return check(type, subId, List.of(), registered, overrides);
+    }
+    public Check check(String type, int subId, List<String> params, boolean registered, Set<String> overrides) {
         // 试用身份属于剧情当下，所有变体都跳过，不能被旧配置误放行。
         if (isTrial(type)) return new Check(type, Decision.skip, "剧情跳过不保留试用角色或临时锁队；收尾清理残留", false);
         var exception = exceptions.get(new ExceptionKey(type, subId));
         var rule = exception != null ? exception : rules.get(type);
         if (exception != null && exception.action() == Decision.block)
             return new Check(type, Decision.block, exception.note(), false);
+        // 通知副本场景的组：副本每次进入重建，跳过时该组未加载，也没有要保留的组状态。
+        if (type.equals("QUEST_EXEC_NOTIFY_GROUP_LUA") && !params.isEmpty() && params.get(0).matches("\\d+")
+                && InstancedScenes.get().isInstanced(Integer.parseInt(params.get(0))))
+            return new Check(type, Decision.skip, "通知副本场景" + params.get(0) + "的组；副本每次进入重建，跳过不丢持久世界状态", false);
         if (auditedSubIds.containsKey(type) && !auditedSubIds.get(type).contains(subId))
             return new Check(type, Decision.block, "该类型只放行已审计子任务；当前 Lua 通知尚未审计", false);
         if (overrides.contains(type)) {
@@ -77,6 +84,6 @@ public final class ExecPolicy {
     }
     public String fingerprint() {
         var sorted = new TreeMap<String, List<Integer>>(); auditedSubIds.forEach((type, ids) -> sorted.put(type, ids.stream().sorted().toList()));
-        return AdjustJson.hash(List.of(fingerprint, sorted));
+        return AdjustJson.hash(List.of(fingerprint, sorted, InstancedScenes.get().hash()));
     }
 }

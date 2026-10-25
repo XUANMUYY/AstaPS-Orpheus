@@ -236,7 +236,7 @@ public final class QuestPlanner {
                 for (var exec : q.execs()) {
                     if (exec.phase().equals("failExec") || (!complete && exec.phase().equals("finishExec"))
                             || ((state.state(id) == 2 || began.contains(id)) && exec.phase().equals("beginExec"))) continue;
-                    var check = policy.check(exec.type(), id, registered.test(exec.type()), overrides);
+                    var check = policy.check(exec.type(), id, exec.param(), registered.test(exec.type()), overrides);
                     ops.add(new Operation(exec.phase(), exec.type(), exec.param(), check));
                     if (check.action() == ExecPolicy.Decision.block) blockers.add(new Issue(id, exec.type(), check.note()));
                     effects.add(new Effect(exec.type(), exec.param(), check.action() == ExecPolicy.Decision.handled ? disposition(state, exec.type(), exec.param()) : check.action().name()));
@@ -271,7 +271,7 @@ public final class QuestPlanner {
             for (var sub : SideAcceptPreview.collect(catalog, state, steps)) {
                 sideAccept.add(sub.mainId());
                 for (var exec : sub.execs()) if (exec.phase().equals("beginExec")) {
-                    var check = policy.check(exec.type(), sub.id(), registered.test(exec.type()), overrides);
+                    var check = policy.check(exec.type(), sub.id(), exec.param(), registered.test(exec.type()), overrides);
                     if (check.action() == ExecPolicy.Decision.block) blockers.add(new Issue(sub.id(), exec.type(), "顺带接取的 beginExec：" + check.note()));
                 }
             }

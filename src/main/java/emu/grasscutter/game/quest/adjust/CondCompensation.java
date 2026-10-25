@@ -30,6 +30,11 @@ public final class CondCompensation {
         // 机关状态归所属 group 的 Lua 与后续 REFRESH_GROUP_SUITE 等 exec 管理；条件本身只是「观察到变化」。
         // 跳过时不强改机关状态，避免把套件里随后要重置的机关卡在中间态（推断，见 docs/服务端任务缺口.md）。
         else if (type.equals("QUEST_CONTENT_GADGET_STATE_CHANGE")) action = "gadget_state_event_skipped; group_state_left_to_lua_and_suite_execs";
+        // 计数是玩家身上的持久进度，后续条件还会读取；补到目标值，与实际触发后的存档一致。
+        else if (type.equals("QUEST_CONTENT_ADD_QUEST_PROGRESS")) action = "satisfy_quest_progress";
+        // 事件来源全在副本场景：副本每次进入重建，不需要保留组状态；Lua 通知同时写的进度计数照样补齐。
+        else if (InstancedScenes.get().condInstanced(c)) action = type.equals("QUEST_CONTENT_LUA_NOTIFY")
+                ? "instanced_scene_event_skipped; satisfy_quest_progress" : "instanced_scene_event_skipped";
         else if (TRANSIENT.contains(type)) action = "transient_event_skipped; lifecycle_execs_still_required";
         else action = "cond_unhandled; world_effect_requires_audit";
         return new QuestPlanner.Effect(type, p, action);
@@ -52,6 +57,9 @@ public final class CondCompensation {
                 player.getProgressManager().unlockSceneArea(c.p(0), c.p(1));
             } else if (type.equals("QUEST_CONTENT_COMPLETE_TALK") || type.equals("QUEST_CONTENT_FINISH_PLOT")) {
                 quest.getMainQuest().getTalks().putIfAbsent(c.p(0), new TalkData(c.p(0), "TALK_HERO_MAIN"));
+            } else if (type.equals("QUEST_CONTENT_ADD_QUEST_PROGRESS")
+                    || (type.equals("QUEST_CONTENT_LUA_NOTIFY") && InstancedScenes.get().condInstanced(c))) {
+                satisfyProgress(quest, c);
             } else if (type.contains("QUEST_VAR_") || type.contains("GLOBAL_VAR_")) {
                 boolean global = type.contains("GLOBAL_VAR_");
                 int old = global ? player.getQuestGlobalVariables().getOrDefault(c.p(0), 0) : quest.getMainQuest().getQuestVar(c.p(0));
@@ -64,6 +72,20 @@ public final class CondCompensation {
             journal.accept(Map.of("action", "condition", "subId", quest.getSubQuestId(), "condition", c,
                     "disposition", preview(c, PlayerState.capture(player)).disposition()));
         }
+    }
+    /** 与 ContentAddQuestProgress / ContentLuaNotify 同口径：计数达到条件 count（0 视为 1）。 */
+    private static void satisfyProgress(GameQuest quest, QuestCatalog.Condition c) {
+        var lua = c.type().equals("QUEST_CONTENT_LUA_NOTIFY");
+        var key = lua ? c.paramStr() : String.valueOf(c.p(0));
+        var live = quest.getQuestData().getFinishCond().stream()
+                .filter(x -> x.getType() != null && x.getType().name().equals(c.type()))
+                .filter(x -> lua ? key.equals(x.getParamStr()) : x.getParam().length > 0 && x.getParam()[0] == c.p(0))
+                .findFirst().orElseThrow(() -> new IllegalStateException("运行时缺少完成条件 " + c));
+        int target = live.getCount() == 0 ? 1 : live.getCount();
+        var progress = quest.getOwner().getPlayerProgress(); int current = progress.getCurrentProgress(key);
+        if (current >= target) return;
+        if (lua) progress.addToCurrentProgress(key, target - Math.max(current, 0));
+        else quest.getOwner().getProgressManager().addQuestProgress(c.p(0), target - Math.max(current, 0));
     }
     static int satisfyingValue(String type, int old, int target) {
         if (type.endsWith("NOT_EQUAL")) return old != target ? old : target == Integer.MAX_VALUE ? target - 1 : target + 1;
