@@ -226,6 +226,10 @@ public final class GameData {
             new Int2ObjectOpenHashMap<>();
 
     @Getter
+    private static final Int2ObjectMap<CodexBookData> codexBookDataMap =
+            new Int2ObjectOpenHashMap<>();
+
+    @Getter
     private static final Int2ObjectMap<CodexQuestData> codexQuestDataIdMap =
             new Int2ObjectOpenHashMap<>();
 
@@ -239,6 +243,10 @@ public final class GameData {
 
     @Getter
     private static final Int2ObjectMap<CombineData> combineDataMap = new Int2ObjectOpenHashMap<>();
+
+    @Getter
+    private static final Int2ObjectMap<ReliquaryDecomposeData> reliquaryDecomposeDataMap =
+            new Int2ObjectOpenHashMap<>();
 
     @Getter
     private static final Int2ObjectMap<CookBonusData> cookBonusDataMap =
@@ -573,7 +581,11 @@ public final class GameData {
     private static final Int2ObjectMap<FetterData> fetterDataMap = new Int2ObjectOpenHashMap<>();
     private static final Int2ObjectMap<ReliquaryLevelData> reliquaryLevelDataMap =
             new Int2ObjectOpenHashMap<>();
-    private static final Int2ObjectMap<ShopGoodsData> shopGoodsDataMap =
+    @Getter private static final Int2ObjectMap<ShopGoodsData> shopGoodsDataMap =
+            new Int2ObjectOpenHashMap<>();
+    @Getter private static final Int2ObjectMap<HomeWorldLimitShopData> homeWorldLimitShopDataMap =
+            new Int2ObjectOpenHashMap<>();
+    @Getter private static final Int2ObjectMap<HomeWorldLeastShopData> homeWorldLeastShopDataMap =
             new Int2ObjectOpenHashMap<>();
 
     // The following are accessed via getMapByResourceDef, and will show as unused

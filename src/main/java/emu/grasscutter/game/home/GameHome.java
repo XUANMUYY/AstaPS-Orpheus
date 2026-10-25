@@ -56,6 +56,7 @@ public class GameHome {
     int storedCoin;
     int storedFetterExp;
     List<FurnitureMakeSlotItem> furnitureMakeSlotItemList;
+    Set<Integer> craftedFurnitureMakeIds;
     ConcurrentHashMap<Integer, HomeSceneItem> sceneMap;
     ConcurrentHashMap<Integer, HomeSceneItem> mainHouseMap;
     Set<Integer> unlockedHomeBgmList;
@@ -84,6 +85,7 @@ public class GameHome {
         return GameHome.of()
                 .ownerUid(uid)
                 .level(1)
+                .craftedFurnitureMakeIds(new HashSet<>())
                 .sceneMap(new ConcurrentHashMap<>())
                 .mainHouseMap(new ConcurrentHashMap<>())
                 .unlockedHomeBgmList(new HashSet<>())
@@ -511,7 +513,8 @@ public class GameHome {
         // Calculate comfort value for each home
         for (int moduleId : player.getRealmList()) {
             var homeScene = player.getHome().getHomeSceneItem(moduleId + 2000);
-            allHomesComfort.add(homeScene.calComfort());
+            allHomesComfort.add(totalComfort(
+                    homeScene, player.getHome().getMainHouseItem(moduleId + 2000)));
         }
 
         // Get highest comfort value
@@ -537,6 +540,17 @@ public class GameHome {
         } else if (highestComfort >= 2000) {
             return List.of(8, 2);
         } else return List.of(4, 2);
+    }
+
+    public static int totalComfort(HomeSceneItem outdoor, HomeSceneItem room) {
+        return outdoor.calComfort() + room.calComfort();
+    }
+
+    public boolean markFurnitureMadeFirstTime(int makeId) {
+        if (craftedFurnitureMakeIds == null) {
+            craftedFurnitureMakeIds = new HashSet<>();
+        }
+        return craftedFurnitureMakeIds.add(makeId);
     }
 
     private int getExpRequired(int level) {

@@ -562,6 +562,9 @@ public class InventorySystem extends BaseGameSystem {
         if (weapon.getLevel() != currentPromoteData.getUnlockMaxLevel()) {
             return;
         }
+        if (!meetsWeaponPromotePlayerLevel(player.getLevel(), nextPromoteData)) {
+            return;
+        }
 
         // Pay materials and mora if possible
         ItemParamData[] costs = nextPromoteData.getCostItems(); // Can this be null?
@@ -589,6 +592,10 @@ public class InventorySystem extends BaseGameSystem {
         // Packets
         player.sendPacket(new PacketStoreItemChangeNotify(weapon));
         player.sendPacket(new PacketWeaponPromoteRsp(weapon, oldPromoteLevel));
+    }
+
+    static boolean meetsWeaponPromotePlayerLevel(int playerLevel, WeaponPromoteData next) {
+        return next != null && playerLevel >= next.getRequiredPlayerLevel();
     }
 
     public void promoteAvatar(Player player, long guid) {
@@ -985,6 +992,12 @@ public class InventorySystem extends BaseGameSystem {
         var actions = itemData.getItemUseActions();
         Grasscutter.getLogger().trace("Using - actions - {}", actions);
         if (actions == null) return true; // Maybe returning false would be more appropriate?
+        // 混合操作也必须先检查前提，避免部分效果已发放却留下未实现的状态。
+        if (itemData.hasUnsupportedItemUseAction()) return false;
+        for (var action : actions) {
+            if (action instanceof emu.grasscutter.game.props.ItemUseAction.ItemUseCheckFormalAvatar check
+                    && !check.isSatisfied(params)) return false;
+        }
         return actions.stream()
                 .map(use -> use.useItem(params))
                 .reduce(false, (a, b) -> a || b); // Don't short-circuit!!!

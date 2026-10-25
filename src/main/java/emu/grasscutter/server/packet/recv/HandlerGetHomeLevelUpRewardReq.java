@@ -19,6 +19,11 @@ public class HandlerGetHomeLevelUpRewardReq extends PacketHandler {
         synchronized (pl) {
             GetHomeLevelUpRewardReq req = GetHomeLevelUpRewardReq.parseFrom(payload);
             int level = req.getLevel();
+            if (!isClaimableLevel(level, pl.getHome().getLevel())
+                    || GameData.getHomeWorldLevelDataMap().get(level) == null) {
+                session.send(new PacketGetHomeLevelUpRewardRsp(level, 0));
+                return;
+            }
             Set<Integer> homeRewardedLevels = session.getPlayer().getHomeRewardedLevels();
             if (!homeRewardedLevels.contains(level)) { // No duplicated reward
                 int rewardId = GameData.getHomeWorldLevelDataMap().get(level).getRewardId();
@@ -34,5 +39,9 @@ public class HandlerGetHomeLevelUpRewardReq extends PacketHandler {
                 }
             }
         }
+    }
+
+    public static boolean isClaimableLevel(int requested, int current) {
+        return requested > 0 && requested <= current;
     }
 }
