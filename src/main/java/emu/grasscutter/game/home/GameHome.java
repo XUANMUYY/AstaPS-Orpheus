@@ -56,6 +56,7 @@ public class GameHome {
     int storedCoin;
     int storedFetterExp;
     List<FurnitureMakeSlotItem> furnitureMakeSlotItemList;
+    Set<Integer> craftedFurnitureIds;
     ConcurrentHashMap<Integer, HomeSceneItem> sceneMap;
     ConcurrentHashMap<Integer, HomeSceneItem> mainHouseMap;
     Set<Integer> unlockedHomeBgmList;
@@ -261,6 +262,20 @@ public class GameHome {
 
     public HomeWorldLevelData getLevelData() {
         return GameData.getHomeWorldLevelDataMap().get(level);
+    }
+
+    public List<FurnitureMakeSlotItem> getFurnitureMakeSlotItemList() {
+        if (furnitureMakeSlotItemList == null) {
+            furnitureMakeSlotItemList = new ArrayList<>();
+        }
+        return furnitureMakeSlotItemList;
+    }
+
+    public boolean markFurnitureCrafted(int furnitureId) {
+        if (craftedFurnitureIds == null) {
+            craftedFurnitureIds = new HashSet<>();
+        }
+        return craftedFurnitureIds.add(furnitureId);
     }
 
     public Set<Integer> onTalkedWithAvatar(int avatarId, int talkId) {

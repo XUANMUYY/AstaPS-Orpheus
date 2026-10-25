@@ -138,7 +138,7 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter private Map<Integer, Integer> questGlobalVariables;
     @Getter private Map<Integer, Integer> openStates;
     // 任务 QUEST_EXEC_SET_MAP_LAYER_UNLOCK_STATE 写入的地图分层状态（层 ID -> 1 解锁 / 0 锁定）。
-    // 没有记录的层保持原先的默认全开；旧存档读出来是 null，用 getMapLayerUnlockStates() 取。
+    // 无记录的任务解锁层默认锁定；其他层默认开放。旧存档的 null 用 getter 处理。
     private Map<Integer, Integer> mapLayerUnlockStates;
     private Map<Integer, Map<Integer, Integer>> aranaraCollectionStates;
     private Map<Integer, Map<Integer, Boolean>> questActivityConditionStates;
@@ -928,7 +928,8 @@ public class Player implements PlayerHook, FieldFetch {
 
         exp += gain;
 
-        while (exp >= reqExp && reqExp > 0) {
+        int levelCap = PlayerLevelLocks.maxLevel(this::isAdventureAscensionQuestFinished);
+        while (exp >= reqExp && reqExp > 0 && level < levelCap) {
             exp -= reqExp;
             level += 1;
             reqExp = getExpRequired(level);
@@ -939,23 +940,23 @@ public class Player implements PlayerHook, FieldFetch {
         this.setProperty(PlayerProperty.PROP_PLAYER_EXP, exp);
     }
 
+    private boolean isAdventureAscensionQuestFinished(int mainQuestId) {
+        var quest = this.getQuestManager().getMainQuestById(mainQuestId);
+        return (quest != null && quest.isFinished())
+                || this.getForcedFinishedQuests().contains(mainQuestId);
+    }
+
+    public void refreshAdventureLevelLocks() {
+        this.addExpDirectly(0);
+        this.updateWorldLevel();
+    }
+
     private void updateWorldLevel() {
         int currentWorldLevel = this.getWorldLevel();
-        int currentLevel = this.getLevel();
+        int newWorldLevel = PlayerLevelLocks.worldLevel(
+                this.getLevel(), this::isAdventureAscensionQuestFinished);
 
-        int newWorldLevel =
-            (currentLevel >= 58) ? 9 :
-                (currentLevel >= 55) ? 8 :
-                    (currentLevel >= 50) ? 7 :
-                        (currentLevel >= 45) ? 6 :
-                            (currentLevel >= 40) ? 5 :
-                                (currentLevel >= 35) ? 4 :
-                                    (currentLevel >= 30) ? 3 :
-                                        (currentLevel >= 25) ? 2 :
-                                            (currentLevel >= 20) ? 1 :
-                                                0;
-
-        if (newWorldLevel != currentWorldLevel) {
+        if (newWorldLevel >= 0 && newWorldLevel != currentWorldLevel) {
             this.setWorldLevel(newWorldLevel);
         }
     }

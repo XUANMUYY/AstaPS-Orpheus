@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 final class SceneTimeAxisPauseTest {
     @Test
     void resumeKeepsTheRemainingDelay() throws Exception {
-        var axis = new SceneTimeAxis(null, 1, "oven", 1, false);
+        var axis = new SceneTimeAxis(null, 1, "oven", new int[] {1}, false);
         try {
             assertTrue(axis.pause());
             long deadline = System.currentTimeMillis() + 180;
@@ -27,7 +27,7 @@ final class SceneTimeAxisPauseTest {
 
     @Test
     void stopWakesAPausedTaskWithoutFiringIt() throws Exception {
-        var axis = new SceneTimeAxis(null, 1, "oven", 1, false);
+        var axis = new SceneTimeAxis(null, 1, "oven", new int[] {1}, false);
         assertTrue(axis.pause());
         var result = CompletableFuture.supplyAsync(
                 () -> axis.awaitUnpaused(System.currentTimeMillis(), 0));

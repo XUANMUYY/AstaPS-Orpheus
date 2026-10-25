@@ -188,9 +188,9 @@ public final class TeamManager extends BasePlayerDataManager {
     }
 
     public int getTeamId(TeamInfo team) {
-        for (int i = 1; i <= this.teams.size(); i++) {
-            if (this.teams.get(i).equals(team)) {
-                return i;
+        for (var entry : this.teams.entrySet()) {
+            if (entry.getValue() == team) {
+                return entry.getKey();
             }
         }
         return -1;
@@ -974,7 +974,7 @@ public final class TeamManager extends BasePlayerDataManager {
 
         if (dieType == PlayerDieType.PlayerDieType_PLAYER_DIE_DRAWN) {
 
-            this.getPlayer().sendPacket(new PacketWorldPlayerDieNotify(dieType, killedBy));
+            sendTeamDeathNotify(dieType, killedBy);
         } else {
 
             int replaceIndex = getDeadAvatarReplacement();
@@ -1002,7 +1002,7 @@ public final class TeamManager extends BasePlayerDataManager {
                 reAlertMonstersAfterDeathSwap(next);
             } else {
 
-                this.getPlayer().sendPacket(new PacketWorldPlayerDieNotify(dieType, killedBy));
+                sendTeamDeathNotify(dieType, killedBy);
 
                 PlayerTeamDeathEvent event =
                     new PlayerTeamDeathEvent(
@@ -1012,6 +1012,21 @@ public final class TeamManager extends BasePlayerDataManager {
         }
 
         this.getPlayer().sendPacket(new PacketAvatarDieAnimationEndRsp(deadAvatar.getId(), 0));
+    }
+
+    private void sendTeamDeathNotify(PlayerDieType dieType, int killerId) {
+        var scene = this.getPlayer().getScene();
+        var dungeon = scene != null ? scene.getDungeonManager() : null;
+        if (dungeon != null && !getActiveTeam().isEmpty()
+                && getActiveTeam().stream().allMatch(entity -> entity != null && entity.isDead())) {
+            // 推断：reviveCount 是当前副本运行中该玩家剩余的复活次数。
+            this.getPlayer().sendPacket(new PacketDungeonPlayerDieNotify(
+                    dieType, killerId, dungeon.getDungeonData().getId(), 0,
+                    dungeon.getRemainingRevives(this.getPlayer().getUid()),
+                    scene.getEntityById(killerId) instanceof EntityGadget));
+        } else {
+            this.getPlayer().sendPacket(new PacketWorldPlayerDieNotify(dieType, killerId));
+        }
     }
 
     /**

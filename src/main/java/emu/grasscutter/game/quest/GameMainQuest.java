@@ -199,6 +199,9 @@ public class GameMainQuest {
         this.getOwner().getSession().send(new PacketCodexDataUpdateNotify(this));
 
         this.save();
+        this.getQuestManager().queueEvent(
+                QuestContent.QUEST_CONTENT_PARENT_QUEST_STATE_EQUAL,
+                this.getParentQuestId(), this.state.getValue());
         try {
             emu.grasscutter.game.achievement.ServerAchievementTriggers.onParentQuestFinished(
                     this.getOwner(), this.getParentQuestId());
@@ -235,6 +238,7 @@ public class GameMainQuest {
         }
 
         this.tryStartFollowingQuests();
+        this.getOwner().refreshAdventureLevelLocks();
     }
 
     /** Retries only successor startup after this parent has already been persisted as finished. */

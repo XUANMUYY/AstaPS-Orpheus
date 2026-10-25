@@ -36,6 +36,7 @@ public final class DungeonManager {
     @Getter private final int[] finishedConditions;
     private final IntSet rewardedPlayers = new IntOpenHashSet();
     private final DomainClaimRunIdentity claimRunIdentity = new DomainClaimRunIdentity();
+    private final DungeonReviveCounter reviveCounter;
 
     synchronized String getClaimOperationId() {
         return claimRunIdentity.operationId(dungeonData.getId());
@@ -67,6 +68,7 @@ public final class DungeonManager {
     public DungeonManager(@NonNull Scene scene, @NonNull DungeonData dungeonData) {
         this.scene = scene;
         this.dungeonData = dungeonData;
+        this.reviveCounter = new DungeonReviveCounter(dungeonData.getReviveMaxCount());
         if (dungeonData.getPassCond() == 0) {
             this.passConfigData = new DungeonPassConfigData();
             this.passConfigData.setConds(new ArrayList<>());
@@ -139,6 +141,27 @@ public final class DungeonManager {
 
     public boolean isWayPointActive(int pointId) {
         return activeDungeonWayPoints.contains(pointId);
+    }
+
+    public synchronized int getRemainingRevives(int uid) {
+        return reviveCounter.remaining(uid);
+    }
+
+    public synchronized boolean tryRevivePlayer(Player player) {
+        if (player == null || player.getScene() != scene || scene.getDungeonManager() != this
+                || !scene.getPlayers().contains(player) || reviveCounter.remaining(player.getUid()) == 0) {
+            return false;
+        }
+        var team = player.getTeamManager().getActiveTeam();
+        if (team.isEmpty() || team.stream().anyMatch(entity -> entity != null && entity.isAlive())) {
+            return false;
+        }
+        if (!scene.respawnPlayer(player)) return false;
+        if (player.getTeamManager().getActiveTeam().isEmpty()) return false;
+        player.getTeamManager().checkCurrentAvatarIsAlive(null);
+        var current = player.getTeamManager().getCurrentAvatarEntity();
+        if (current == null || !current.isAlive()) return false;
+        return reviveCounter.record(player.getUid());
     }
 
     public boolean activateRespawnPoint(int pointId) {
@@ -423,6 +446,7 @@ public final class DungeonManager {
         Arrays.fill(finishedConditions, 0);
         this.ended = false;
         this.activeDungeonWayPoints.clear();
+        this.reviveCounter.reset();
     }
 
     public void cleanUpScene() {

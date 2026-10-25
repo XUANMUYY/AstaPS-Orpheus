@@ -52,4 +52,12 @@ final class ProfileUnlocksTest {
         assertEquals(List.of(100000), ProfileUnlocks.frames(frames, items, id -> false));
         assertEquals(List.of(100000, 100012), ProfileUnlocks.frames(frames, items, id -> id == 216002));
     }
+
+    @Test
+    void currentFrameTableClassifiesNewFramesAsFrames() {
+        for (int id = 100015; id <= 100021; id++) {
+            assertTrue(ProfileUnlocks.isFrameId(id), "frame " + id);
+        }
+        assertFalse(ProfileUnlocks.isFrameId(900003));
+    }
 }

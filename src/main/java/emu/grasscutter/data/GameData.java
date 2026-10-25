@@ -425,6 +425,10 @@ public final class GameData {
             new Int2ObjectOpenHashMap<>();
 
     @Getter
+    private static final Int2ObjectMap<PlayerLevelLockData> playerLevelLockDataMap =
+            new Int2ObjectOpenHashMap<>();
+
+    @Getter
     private static final Int2ObjectMap<ProudSkillData> proudSkillDataMap =
             new Int2ObjectOpenHashMap<>();
 

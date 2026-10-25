@@ -17,11 +17,14 @@ import emu.grasscutter.server.event.player.PlayerTeleportEvent.TeleportType;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
+import org.luaj.vm2.lib.jse.CoerceJavaToLua;
 
 @ExtendWith(ServerResourceFixture.class)
 final class SceneScriptLifecycleTest {
@@ -93,9 +96,42 @@ final class SceneScriptLifecycleTest {
         tick(1);
         assertEquals(1, events.size());
         assertEquals("wave", events.get(0).getEventSource());
+        assertEquals("wave", events.get(0).source_name);
         assertEquals(7, events.get(0).getGroupId());
         tick(3 * ticks);
         assertEquals(1, events.size(), "a group timer is one-shot");
+    }
+
+    @Test
+    void timeAxisEmitsEveryTimePointWithOneBasedIndex() throws Exception {
+        var events = Collections.synchronizedList(new ArrayList<ScriptArgs>());
+        var fired = new CountDownLatch(2);
+        var manager = new SceneScriptManager(scene) {
+            @Override
+            public Future<?> callEvent(ScriptArgs args) {
+                events.add(args);
+                fired.countDown();
+                return CompletableFuture.completedFuture(null);
+            }
+        };
+        var axis = new SceneTimeAxis(manager, 7, "road", new int[] {0, 0}, false);
+        try {
+            axis.start();
+            assertTrue(fired.await(2, TimeUnit.SECONDS));
+            assertEquals(List.of(1, 2), events.stream().map(a -> a.param1).toList());
+            assertTrue(events.stream().allMatch(a -> "road".equals(a.source_name)));
+        } finally {
+            axis.stop();
+        }
+    }
+
+    @Test
+    void variableEventExposesVariableNameToLua() {
+        var args = new ScriptArgs(7, EventType.EVENT_VARIABLE_CHANGE, 2, 1)
+                .setEventSource("moveState");
+        assertEquals("moveState", args.source_name);
+        assertEquals("moveState", args.getEventSource());
+        assertEquals("moveState", CoerceJavaToLua.coerce(args).get("source_name").tojstring());
     }
 
     @Test

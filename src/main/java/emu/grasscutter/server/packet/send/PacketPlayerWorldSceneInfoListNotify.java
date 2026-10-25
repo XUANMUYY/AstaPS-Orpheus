@@ -1,12 +1,17 @@
 package emu.grasscutter.server.packet.send;
 
 import emu.grasscutter.data.GameData;
+import emu.grasscutter.data.excels.quest.QuestData;
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.quest.GameQuest;
+import emu.grasscutter.game.quest.enums.QuestExec;
+import emu.grasscutter.game.quest.enums.QuestState;
+import emu.grasscutter.game.quest.exec.ExecSetMapLayerUnlockState;
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.MapLayerInfo;
 import emu.grasscutter.net.proto.PlayerWorldSceneInfoListNotifyOuterClass.PlayerWorldSceneInfoListNotify;
 import emu.grasscutter.net.proto.PlayerWorldSceneInfoOuterClass.PlayerWorldSceneInfo;
-import java.util.Map;
+import java.util.*;
 
 public class PacketPlayerWorldSceneInfoListNotify extends BasePacket {
 
@@ -69,12 +74,69 @@ public class PacketPlayerWorldSceneInfoListNotify extends BasePacket {
         this.setData(proto);
     }
 
-    /** 默认全开（沿用原行为）；任务显式锁定（状态 0）的层不下发。 */
-    static java.util.List<Integer> unlockedMapLayers(java.util.Collection<Integer> allLayers, Map<Integer, Integer> states) {
-        return allLayers.stream().filter(id -> states.getOrDefault(id, 1) != 0).sorted().toList();
+    static Set<Integer> questGatedLayers(Collection<QuestData> quests) {
+        var gated = new HashSet<Integer>();
+        for (var quest : quests) {
+            if (quest == null) continue;
+            for (var execs : Arrays.asList(quest.getBeginExec(), quest.getFinishExec(), quest.getFailExec())) {
+                addQuestUnlocks(gated, execs);
+            }
+        }
+        return gated;
+    }
+
+    private static void addQuestUnlocks(Set<Integer> unlocked, List<QuestData.QuestExecParam> execs) {
+        if (execs == null) return;
+        for (var exec : execs) {
+            if (exec == null || exec.getType() != QuestExec.QUEST_EXEC_SET_MAP_LAYER_UNLOCK_STATE)
+                continue;
+            var states = ExecSetMapLayerUnlockState.parse(exec.getParam());
+            if (states != null) states.forEach((id, state) -> { if (state == 1) unlocked.add(id); });
+        }
+    }
+
+    /** 推断：旧存档没有分层状态时，已开始或完成的任务应保留它授予的层。 */
+    static Set<Integer> legacyQuestUnlocks(Collection<GameQuest> quests) {
+        var unlocked = new HashSet<Integer>();
+        for (var quest : quests) {
+            if (quest == null || quest.getState() == null) continue;
+            var data = quest.getQuestData();
+            if (data == null) data = GameData.getQuestDataMap().get(quest.getSubQuestId());
+            if (data == null) continue;
+            var state = quest.getState();
+            if (state == QuestState.QUEST_STATE_UNFINISHED
+                    || state == QuestState.QUEST_STATE_FINISHED
+                    || state == QuestState.QUEST_STATE_FAILED) {
+                addQuestUnlocks(unlocked, data.getBeginExec());
+            }
+            if (state == QuestState.QUEST_STATE_FINISHED)
+                addQuestUnlocks(unlocked, data.getFinishExec());
+            if (state == QuestState.QUEST_STATE_FAILED)
+                addQuestUnlocks(unlocked, data.getFailExec());
+        }
+        return unlocked;
+    }
+
+    /** Quest-unlocked layers start locked; explicit player states override that default. */
+    static List<Integer> unlockedMapLayers(Collection<Integer> allLayers, Map<Integer, Integer> states,
+                                           Collection<QuestData> quests) {
+        var gated = questGatedLayers(quests);
+        return allLayers.stream()
+                .filter(id -> states.getOrDefault(id, gated.contains(id) ? 0 : 1) != 0)
+                .sorted().toList();
+    }
+
+    static List<Integer> unlockedMapLayers(Collection<Integer> allLayers, Map<Integer, Integer> states) {
+        return unlockedMapLayers(allLayers, states, GameData.getQuestDataMap().values());
     }
 
     private static java.util.List<Integer> unlockedMapLayers(Player player) {
-        return unlockedMapLayers(GameData.getMapLayerDataMap().keySet(), player.getMapLayerUnlockStates());
+        var states = new HashMap<>(player.getMapLayerUnlockStates());
+        if (player.getQuestManager() != null) {
+            var quests = new ArrayList<GameQuest>();
+            player.getQuestManager().forEachQuest(quests::add);
+            legacyQuestUnlocks(quests).forEach(id -> states.putIfAbsent(id, 1));
+        }
+        return unlockedMapLayers(GameData.getMapLayerDataMap().keySet(), states);
     }
 }

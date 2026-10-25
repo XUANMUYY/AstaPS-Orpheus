@@ -11,11 +11,8 @@ import java.util.List;
 /**
  * Claims the bonus for finishing the day's four commissions.
  *
- * <p>DailyTaskManager already grants this on its own the moment the fourth commission is finished,
- * so by the time the player presses the button it has usually been paid. That makes {@code
- * claimScoreReward()} return false - "already taken" - which must NOT be reported as a failure, or
- * the button errors on a reward the player has. What the client is owed here is confirmation and the
- * item list, so success is decided by whether the four commissions are done, not by who paid.
+ * <p>Confirm an already claimed reward without paying twice. Otherwise success requires the grant
+ * to succeed; a failed grant stays available for a later request.
  */
 @Opcodes(PacketOpcodes.TakeDailyTaskScoreRewardReq)
 public class HandlerTakeDailyTaskScoreRewardReq extends PacketHandler {
@@ -39,8 +36,13 @@ public class HandlerTakeDailyTaskScoreRewardReq extends PacketHandler {
             return;
         }
 
-        // No-op when the automatic grant already ran; it still saves and resyncs.
-        manager.claimScoreReward();
+        if (!manager.isScoreRewardTaken()
+                && !manager.claimScoreReward()
+                && !manager.isScoreRewardTaken()) {
+            session.send(
+                    new PacketTakeDailyTaskScoreRewardRsp(Retcode.RET_FAIL_VALUE, fromAttendance));
+            return;
+        }
 
         List<emu.grasscutter.data.common.ItemParamData> items = manager.getScoreRewardItems();
         session.send(

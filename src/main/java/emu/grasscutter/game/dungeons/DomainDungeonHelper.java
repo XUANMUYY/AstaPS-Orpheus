@@ -41,6 +41,7 @@ import emu.grasscutter.game.dungeons.DomainSceneResetHelper;
 import emu.grasscutter.game.dungeons.DungeonManager;
 import emu.grasscutter.game.dungeons.enums.DungeonSubType;
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.quest.enums.QuestState;
 import emu.grasscutter.game.props.ClimateType;
 import emu.grasscutter.game.props.SceneType;
 import emu.grasscutter.game.world.Position;
@@ -435,6 +436,9 @@ public final class DomainDungeonHelper {
             Grasscutter.getLogger().warn("Blocked dungeon enter uid={} point {} does not offer dungeon {}", new Object[]{player.getUid(), n, n2});
             return false;
         }
+        if (!isEntrySatisfiedAtPoint(player, scene.getId(), n)) {
+            return false;
+        }
         if (!DomainDungeonHelper.isNearEntryPoint(player.getPosition(), pointData)) {
             Position position = DomainDungeonHelper.resolveEntryAnchor(pointData);
             Position position2 = player.getPosition();
@@ -442,6 +446,28 @@ public final class DomainDungeonHelper {
             return false;
         }
         return !player.isScenePointForceLocked(scene.getId(), n);
+    }
+
+    public static boolean isEntrySatisfied(Player player, DungeonEntryData entry) {
+        return entry.isSatisfied(player.getLevel(), questId -> isEntryQuestFinished(player, questId));
+    }
+
+    public static boolean isEntryQuestFinished(Player player, int questId) {
+        var quest = player.getQuestManager().getQuestById(questId);
+        if (quest != null && quest.getState() == QuestState.QUEST_STATE_FINISHED) return true;
+        var questData = GameData.getQuestDataMap().get(questId);
+        return questData != null && player.getForcedFinishedQuests().contains(questData.getMainId());
+    }
+
+    private static boolean isEntrySatisfiedAtPoint(Player player, int sceneId, int pointId) {
+        boolean found = false;
+        for (var entry : GameData.getDungeonEntryDataMap().values()) {
+            if (entry.getSceneId() != sceneId || entry.getDungeonEntryId() != pointId) continue;
+            found = true;
+            if (isEntrySatisfied(player, entry)) return true;
+        }
+        // Some activity and quest entrances have no DungeonEntryExcelConfigData row.
+        return !found;
     }
 
     public static void handleQuickOpen(Player player, int n) {
@@ -473,6 +499,7 @@ public final class DomainDungeonHelper {
         if (!DomainDungeonHelper.canEnterDungeonFromOpenWorld(player, n2, n3)) {
             return;
         }
+        if (!isEntrySatisfied(player, dungeonEntryData)) return;
         Grasscutter.getLogger().info("Dungeon quick-open uid={} entryConfig={} point={} dungeon={}", new Object[]{player.getUid(), n, n2, n3});
         Scene scene = player.getScene();
         DungeonManager dungeonManager2 = dungeonManager = scene != null ? scene.getDungeonManager() : null;

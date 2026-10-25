@@ -11,6 +11,7 @@ public class ScriptArgs {
     public int target_eid;
     public int group_id;
     public String source; // source string, used for timers
+    public String source_name; // Lua conditions read the same event source under this name
     public int type; // lua event type, used by scripts and the ScriptManager
 
     public ScriptArgs(int groupId, int eventType) {
@@ -79,12 +80,12 @@ public class ScriptArgs {
 
     public ScriptArgs setEventSource(String source) {
         this.source = source;
+        this.source_name = source;
         return this;
     }
 
     public ScriptArgs setEventSource(int source) {
-        this.source = Integer.toString(source);
-        return this;
+        return setEventSource(Integer.toString(source));
     }
 
     public int getGroupId() {

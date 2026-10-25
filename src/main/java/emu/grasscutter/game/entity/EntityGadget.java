@@ -371,8 +371,12 @@ public class EntityGadget extends EntityBaseGadget {
         // Lua event
         getScene()
                 .getScriptManager()
-                .callEvent(
-                        new ScriptArgs(this.getGroupId(), EventType.EVENT_GADGET_CREATE, this.getConfigId()));
+                .callEvent(gadgetCreateEventArgs(this.getGroupId(), this.getConfigId(), this.getGadgetId()));
+    }
+
+    static ScriptArgs gadgetCreateEventArgs(int groupId, int configId, int gadgetId) {
+        return new ScriptArgs(groupId, EventType.EVENT_GADGET_CREATE, configId, gadgetId)
+                .setEventSource(configId);
     }
 
     @Override

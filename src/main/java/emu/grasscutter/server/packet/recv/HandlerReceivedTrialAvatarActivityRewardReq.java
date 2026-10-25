@@ -28,7 +28,7 @@ public class HandlerReceivedTrialAvatarActivityRewardReq extends PacketHandler {
                 .getPlayer()
                 .sendPacket(
                         new PacketReceivedTrialAvatarActivityRewardRsp(
-                                5002, // trial activity id
+                                handler.map(x -> x.getActivityConfigItem().getActivityId()).orElse(5002),
                                 req.getTrialAvatarIndexId(),
                                 result));
     }

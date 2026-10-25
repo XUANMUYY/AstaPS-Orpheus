@@ -43,6 +43,7 @@ import static emu.grasscutter.scripts.constants.GroupKillPolicy.*;
 @SuppressWarnings("unused")
 public class ScriptLib {
     public static final Logger logger = Grasscutter.getLogger();
+    private static final String BLOSSOM_SCHEDULE_STATE_KEY = "__blossomScheduleState";
     private final FastThreadLocal<SceneScriptManager> sceneScriptManager;
     private final FastThreadLocal<SceneGroup> currentGroup;
     private final FastThreadLocal<ScriptArgs> callParams;
@@ -229,8 +230,7 @@ public class ScriptLib {
         var existingChallenge = scene.getChallenge();
         if (existingChallenge != null && existingChallenge.inProgress()) {
             logger.warn("ActiveChallenge: tried to create challenge while one is already in progress");
-            return emu.grasscutter.game.quest.AmberFlightExamSupport.isFlightChallenge(
-                    scene, getCurrentGroup().get(), challengeId, challengeIndex) ? 1 : 0;
+            return 1;
         }
 
         var players = scene.getPlayers();
@@ -240,7 +240,7 @@ public class ScriptLib {
                     "ActiveChallenge blocked (awaiting tower team reconfigure) id={} index={}",
                     challengeId,
                     challengeIndex);
-            return 0;
+            return 1;
         }
         // Tower lower-half lua passes TPL_TIME = remaining seconds as the 3rd ActiveChallenge arg.
         // Do NOT subtract from currentTimeLimit (old Grasscutter carry-over): that treated remaining
@@ -555,7 +555,7 @@ public class ScriptLib {
 
         if (configId == 0) {
             Grasscutter.getLogger().warn("Tried to CreateGadget with config_id 0: {}", printTable(table));
-            return 0;
+            return 1;
         }
 
         var group = getCurrentGroup();
@@ -563,9 +563,7 @@ public class ScriptLib {
         if (group.isEmpty()) {
             return 1;
         }
-        createGadget(configId, group.get());
-
-        return 0;
+        return createGadget(configId, group.get()) == null ? 1 : 0;
     }
 
     public int CreateGroupTimerEvent(int groupID, String source, double time) {
@@ -801,6 +799,14 @@ public class ScriptLib {
         return ((EntityGadget) gadget).getState();
     }
 
+    public int GetBlossomScheduleStateByGroupId(int groupId) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || targetGroupId <= 0) return -1;
+        return manager.getVariables(targetGroupId).getOrDefault(BLOSSOM_SCHEDULE_STATE_KEY, 0);
+    }
+
     public int GetGameHour() {
         logger.debug("[LUA] Call GetGameHour");
         return getSceneScriptManager().getScene().getWorld().getGameTimeHours();
@@ -982,7 +988,7 @@ public class ScriptLib {
 
         var timeAxis = new SceneTimeAxis(
                 scriptManager, group.id,
-                identifier, delays[0], shouldLoop
+                identifier, delays.clone(), shouldLoop
         );
         scriptManager.initTimeAxis(timeAxis);
         timeAxis.start();
@@ -1277,9 +1283,13 @@ public class ScriptLib {
         return 0;
     }
 
-    public int SetBlossomScheduleStateByGroupId(int groupId, int scene) {
-        logger.warn("[LUA] Call unimplemented SetBlossomScheduleStateByGroupId with {} {}", groupId, scene);
-
+    public int SetBlossomScheduleStateByGroupId(int groupId, int state) {
+        var manager = sceneScriptManager.getIfExists();
+        var group = currentGroup.getIfExists();
+        int targetGroupId = groupId == 0 && group != null ? group.id : groupId;
+        if (manager == null || targetGroupId <= 0 || state < 0 || state > 3) return 1;
+        // 推断：原生 Blossom schedule 的组状态由 Lua 设置；沿用已有可持久化的组变量缓存。
+        manager.getVariables(targetGroupId).put(BLOSSOM_SCHEDULE_STATE_KEY, state);
         return 0;
     }
 
@@ -1470,7 +1480,7 @@ public class ScriptLib {
             val configRoute = (PointArrayRoute) routeConfig;
 
             if (configRoute.getPointArrayId() == pointArrayId) {
-                return -1;
+                return 0;
             }
 
             configRoute.setPointArrayId(pointArrayId);
@@ -1478,7 +1488,7 @@ public class ScriptLib {
 
         sceneScriptManager.get().getScene().broadcastPacket(new PacketPlatformChangeRouteNotify(entityGadget));
 
-        return -1;
+        return 0;
     }
 
     public int SetPlatformRouteId(int entityConfigId, int routeId) {
