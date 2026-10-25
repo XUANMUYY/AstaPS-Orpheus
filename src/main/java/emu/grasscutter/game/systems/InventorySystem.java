@@ -922,6 +922,11 @@ public class InventorySystem extends BaseGameSystem {
         params.usedItemId = item.getItemId();
         if (useItemDirect(itemData, params)) {
             player.getInventory().removeItem(item, count);
+            try {
+                emu.grasscutter.game.player.PushTipsManager.of(player).onItemUsed(params.usedItemId);
+            } catch (Throwable t) {
+                Grasscutter.getLogger().warn("[PushTips] use item hook failed: {}", t.toString());
+            }
             var actions = itemData.getItemUseActions();
             if (actions != null) actions.forEach(use -> use.postUseItem(params));
             Grasscutter.getLogger().debug("Item use succeeded!");
