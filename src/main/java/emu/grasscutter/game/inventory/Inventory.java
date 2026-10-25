@@ -168,7 +168,7 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
         if (itemData == null) {
             return false;
         }
-        if (itemData.isUseOnGain()) {
+        if (itemData.isUseOnGain() && !itemData.hasUnsupportedItemUseAction()) {
             return true;
         }
         int id = item.getItemId();
@@ -474,7 +474,8 @@ public class Inventory extends BasePlayerManager implements Iterable<GameItem> {
         if (data == null || data.getItemType() == null || data.getId() != item.getItemId()) {
             return InsertResult.refused(InventoryAddResult.Status.INVALID_ITEM);
         }
-        if (data.isUseOnGain()) {
+        // 未实现的自动使用操作先作为实物保存，避免领取时无效果却丢失奖励。
+        if (data.isUseOnGain() && !data.hasUnsupportedItemUseAction()) {
             // 7.1 weapon skin grants use an operation unknown to ItemUseOp.
             // Preserve the upstream unlock route rather than rejecting the item.
             var skinIds = WeaponSkinData.skinIdsForItem(item.getItemId());

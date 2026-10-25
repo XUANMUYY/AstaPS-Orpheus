@@ -2,6 +2,7 @@ package emu.grasscutter.server.packet.recv;
 
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.common.ItemParamData;
+import emu.grasscutter.data.excels.ItemData;
 import emu.grasscutter.data.excels.avatar.AvatarCostumeData;
 import emu.grasscutter.game.inventory.*;
 import emu.grasscutter.game.props.ActionReason;
@@ -139,6 +140,28 @@ public class HandlerBuyGoodsReq extends PacketHandler {
             // the payment keeps a full bag from swallowing the mora and handing back nothing.
             var relics = player.getInventory().getInventoryTab(ItemType.ITEM_RELIQUARY);
             if (buyCount > relics.getMaxCapacity() - relics.getSize()) {
+                session.send(new PacketBuyGoodsRsp(Retcode.RET_PACK_EXCEED_MAX_WEIGHT));
+                return;
+            }
+        }
+
+        ItemData grantedData = GameData.getItemDataMap().get(itemId);
+        if (grantedData != null
+                && grantedData.isUseOnGain()
+                && grantedData.hasUnsupportedItemUseAction()) {
+            int grantCount;
+            try {
+                grantCount = Math.multiplyExact(buyCount, sg.getGoodsItem().getCount());
+            } catch (ArithmeticException overflow) {
+                session.send(new PacketBuyGoodsRsp(Retcode.RET_SVR_ERROR));
+                return;
+            }
+            var tab = player.getInventory().getInventoryTab(grantedData.getItemType());
+            var owned = player.getInventory().getItemById(itemId);
+            if (grantCount <= 0 || tab == null
+                    || (long) (owned == null ? 0 : owned.getCount()) + grantCount
+                            > grantedData.getStackLimit()
+                    || (owned == null && tab.getSize() >= tab.getMaxCapacity())) {
                 session.send(new PacketBuyGoodsRsp(Retcode.RET_PACK_EXCEED_MAX_WEIGHT));
                 return;
             }

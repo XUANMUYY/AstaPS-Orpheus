@@ -226,6 +226,10 @@ public final class GameData {
             new Int2ObjectOpenHashMap<>();
 
     @Getter
+    private static final Int2ObjectMap<CodexBookData> codexBookDataMap =
+            new Int2ObjectOpenHashMap<>();
+
+    @Getter
     private static final Int2ObjectMap<CodexQuestData> codexQuestDataIdMap =
             new Int2ObjectOpenHashMap<>();
 
