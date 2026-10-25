@@ -18,7 +18,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The browser console at /console: live log, online players and console commands. Requires
+ * The browser console at /console/admin (/console redirects there): live log, online players,
+ * console commands and the admin pages. Requires
  * explicit opt-in and a non-blank {@code server.http.webConsole.password}.
  *
  * <p>Server metrics come from the existing public /api/status endpoint; everything here needs a
@@ -45,7 +46,8 @@ public final class WebConsoleHandler implements Router {
 
         WebConsoleLog.install();
 
-        javalin.get("/console", ctx -> page(ctx, "/html/console.html"));
+        // 后台统一在 /console/admin，旧入口直接跳过去；/console/api/* 接口路径保持不变
+        javalin.get("/console", ctx -> ctx.redirect("/console/admin"));
         javalin.get("/console/admin", ctx -> page(ctx, "/html/admin.html"));
         javalin.post("/console/api/login", this::login);
         javalin.post("/console/api/logout", this::logout);
