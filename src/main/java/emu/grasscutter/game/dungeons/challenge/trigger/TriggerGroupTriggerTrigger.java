@@ -3,27 +3,50 @@ package emu.grasscutter.game.dungeons.challenge.trigger;
 import emu.grasscutter.game.dungeons.challenge.WorldChallenge;
 import emu.grasscutter.scripts.data.SceneTrigger;
 import emu.grasscutter.server.packet.send.PacketChallengeDataNotify;
-import lombok.AllArgsConstructor;
 
-@AllArgsConstructor
 public class TriggerGroupTriggerTrigger extends ChallengeTrigger {
-    String triggerTag;
+    private final int eventType;
+    private final String triggerTag;
+    private final int progressParamIndex;
+
+    public TriggerGroupTriggerTrigger(String triggerTag) {
+        this(0, triggerTag);
+    }
+
+    public TriggerGroupTriggerTrigger(int eventType, String triggerTag) {
+        this(eventType, triggerTag, 2);
+    }
+
+    public TriggerGroupTriggerTrigger(int eventType, String triggerTag, int progressParamIndex) {
+        this.eventType = eventType;
+        this.triggerTag = triggerTag;
+        this.progressParamIndex = progressParamIndex;
+    }
+
+    public boolean matches(SceneTrigger trigger) {
+        return (eventType == 0 || trigger.getEvent() == eventType)
+                && triggerTag.equals(trigger.getTag());
+    }
 
     @Override
     public void onBegin(WorldChallenge challenge) {
-        challenge
-                .getScene()
-                .broadcastPacket(new PacketChallengeDataNotify(challenge, 2, challenge.getScore().get()));
+        if (progressParamIndex > 0) {
+            challenge
+                    .getScene()
+                    .broadcastPacket(new PacketChallengeDataNotify(challenge, progressParamIndex, challenge.getScore().get()));
+        }
     }
 
     @Override
     public void onGroupTrigger(WorldChallenge challenge, SceneTrigger trigger) {
-        if (!triggerTag.equals(trigger.getTag())) {
+        if (!matches(trigger)) {
             return;
         }
 
         var newScore = challenge.increaseScore();
-        challenge.getScene().broadcastPacket(new PacketChallengeDataNotify(challenge, 2, newScore));
+        if (progressParamIndex > 0) {
+            challenge.getScene().broadcastPacket(new PacketChallengeDataNotify(challenge, progressParamIndex, newScore));
+        }
         if (newScore >= challenge.getGoal()) {
             challenge.done();
         }
