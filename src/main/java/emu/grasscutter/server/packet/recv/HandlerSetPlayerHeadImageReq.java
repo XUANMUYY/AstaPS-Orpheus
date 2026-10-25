@@ -1,6 +1,7 @@
 package emu.grasscutter.server.packet.recv;
 
 import com.google.protobuf.CodedInputStream;
+import emu.grasscutter.game.player.ProfileUnlocks;
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.PacketSetPlayerHeadImageRsp;
@@ -11,7 +12,11 @@ public class HandlerSetPlayerHeadImageReq extends PacketHandler {
     public void handle(GameSession session, byte[] header, byte[] payload) throws Exception {
         // 7.1 SetPlayerHeadImageReq (CmdId 6969) carries the profile picture id on field 8.
         int id = readProfilePictureId(payload);
-        session.getPlayer().setHeadImage(id);
+        if (ProfileUnlocks.isFrameId(id)) {
+            session.getPlayer().setProfileFrameId(id);
+        } else {
+            session.getPlayer().setHeadImage(id);
+        }
         session.send(new PacketSetPlayerHeadImageRsp(session.getPlayer()));
     }
 

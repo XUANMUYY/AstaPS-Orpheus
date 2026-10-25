@@ -1,6 +1,7 @@
 package emu.grasscutter.server.packet.recv;
 
 import emu.grasscutter.Grasscutter;
+import emu.grasscutter.game.player.ProfileUnlocks;
 import emu.grasscutter.net.packet.Opcodes;
 import emu.grasscutter.net.packet.PacketHandler;
 import emu.grasscutter.net.proto.PacketHeadOuterClass.PacketHead;
@@ -17,8 +18,6 @@ import emu.grasscutter.server.game.GameSession;
  */
 @Opcodes(6969)
 public class HandlerMiao6969 extends PacketHandler {
-
-    private static final int[] FRAME_IDS = {100000, 100011, 100012, 100013, 100014};
 
     private static byte[] head(int seq) {
         return PacketHead.newBuilder()
@@ -73,8 +72,7 @@ public class HandlerMiao6969 extends PacketHandler {
         try {
             var pl = session.getPlayer();
             if (v > 0) {
-                boolean isFrame = false;
-                for (int fid : FRAME_IDS) if (fid == v) isFrame = true;
+                boolean isFrame = ProfileUnlocks.isFrameId(v);
                 Grasscutter.getLogger().debug("MIAO 6969 value={} isFrame={} oldHead={} seq={}", v, isFrame, pl.getHeadImage(), seq);
                 if (isFrame) { pl.setProfileFrameId(v); pl.save(); } else { pl.setHeadImage(v); pl.save(); }
             }
