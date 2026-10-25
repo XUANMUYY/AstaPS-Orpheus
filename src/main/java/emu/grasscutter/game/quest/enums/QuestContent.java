@@ -82,6 +82,10 @@ public enum QuestContent implements QuestTrigger {
     QUEST_CONTENT_GADGET_STATE_CHANGE(155),
     // Names from the 7.1 quest data; the values are internal only.
     QUEST_CONTENT_PRESENT_AT_SPECIFIC_SCENE(1001),
+    QUEST_CONTENT_QUEST_GLOBAL_VAR_EQUAL(1002),
+    QUEST_CONTENT_QUEST_GLOBAL_VAR_GREATER(1003),
+    QUEST_CONTENT_QUEST_GLOBAL_VAR_LESS(1004),
+    QUEST_CONTENT_QUEST_GLOBAL_VAR_NOT_EQUAL(1005),
     QUEST_CONTENT_UNKNOWN(9999);
 
     private final int value;

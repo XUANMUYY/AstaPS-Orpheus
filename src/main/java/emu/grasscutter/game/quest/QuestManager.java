@@ -503,6 +503,7 @@ public final class QuestManager extends BasePlayerManager {
         this.queueEvent(QuestCond.QUEST_COND_QUEST_GLOBAL_VAR_EQUAL, variable, value);
         this.queueEvent(QuestCond.QUEST_COND_QUEST_GLOBAL_VAR_GREATER, variable, value);
         this.queueEvent(QuestCond.QUEST_COND_QUEST_GLOBAL_VAR_LESS, variable, value);
+        for (var type : GLOBAL_VAR_CONTENTS) this.queueEvent(type, variable, value);
         this.getPlayer().sendPacket(new PacketQuestGlobalVarNotify(getPlayer()));
     }
 
@@ -788,8 +789,26 @@ public final class QuestManager extends BasePlayerManager {
                             if (hasContent(quest, QuestContent.QUEST_CONTENT_PRESENT_AT_SPECIFIC_SCENE)) {
                                 queueEvent(QuestContent.QUEST_CONTENT_PRESENT_AT_SPECIFIC_SCENE, getPlayer().getSceneId());
                             }
+                            // 全局变量比较：开始时变量已满足的完成条件直接记上；失败条件只在变量变化时判，
+                            // 不在接取瞬间判失败（推断，避免前面剧情的变量差一点就立即失败回滚）。
+                            for (var condition : quest.getQuestData().getFinishCond()) {
+                                var type = condition.getType();
+                                if (Arrays.asList(GLOBAL_VAR_CONTENTS).contains(type)
+                                        && condition.getParam() != null && condition.getParam().length > 0) {
+                                    int variable = condition.getParam()[0];
+                                    eventExecutor.submit(() -> quest.getMainQuest().tryFinishSubQuests(
+                                            type, "", variable, getQuestGlobalVarValue(variable)));
+                                }
+                            }
                         });
     }
+
+    private static final QuestContent[] GLOBAL_VAR_CONTENTS = {
+        QuestContent.QUEST_CONTENT_QUEST_GLOBAL_VAR_EQUAL,
+        QuestContent.QUEST_CONTENT_QUEST_GLOBAL_VAR_GREATER,
+        QuestContent.QUEST_CONTENT_QUEST_GLOBAL_VAR_LESS,
+        QuestContent.QUEST_CONTENT_QUEST_GLOBAL_VAR_NOT_EQUAL
+    };
 
     private static boolean hasContent(GameQuest quest, QuestContent type) {
         var data = quest.getQuestData();
