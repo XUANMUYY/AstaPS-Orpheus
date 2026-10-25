@@ -228,8 +228,7 @@ public class ScriptLib {
         var existingChallenge = scene.getChallenge();
         if (existingChallenge != null && existingChallenge.inProgress()) {
             logger.warn("ActiveChallenge: tried to create challenge while one is already in progress");
-            return emu.grasscutter.game.quest.AmberFlightExamSupport.isFlightChallenge(
-                    scene, getCurrentGroup().get(), challengeId, challengeIndex) ? 1 : 0;
+            return 1;
         }
 
         var players = scene.getPlayers();
@@ -239,7 +238,7 @@ public class ScriptLib {
                     "ActiveChallenge blocked (awaiting tower team reconfigure) id={} index={}",
                     challengeId,
                     challengeIndex);
-            return 0;
+            return 1;
         }
         // Tower lower-half lua passes TPL_TIME = remaining seconds as the 3rd ActiveChallenge arg.
         // Do NOT subtract from currentTimeLimit (old Grasscutter carry-over): that treated remaining
@@ -552,7 +551,7 @@ public class ScriptLib {
 
         if (configId == 0) {
             Grasscutter.getLogger().warn("Tried to CreateGadget with config_id 0: {}", printTable(table));
-            return 0;
+            return 1;
         }
 
         var group = getCurrentGroup();
@@ -560,9 +559,7 @@ public class ScriptLib {
         if (group.isEmpty()) {
             return 1;
         }
-        createGadget(configId, group.get());
-
-        return 0;
+        return createGadget(configId, group.get()) == null ? 1 : 0;
     }
 
     public int CreateGroupTimerEvent(int groupID, String source, double time) {
