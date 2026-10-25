@@ -62,6 +62,9 @@ public class PacketGetScenePointRsp extends BasePacket {
             if (pointId == 7) has7 = unlockedSet.contains(7);
         }
 
+        p.addAllHBKHEKLMEKN(player.getUnhiddenScenePoints(sceneId));
+        p.addAllHidePointList(player.getHiddenScenePoints(sceneId));
+
         // Scene-point and scene-area snapshots must agree about visible map regions.
         // Fog-off mode does not unlock points or persist additional area flags.
         p.addAllUnlockAreaList(SceneAreaVisibility.forPlayer(player, sceneId));

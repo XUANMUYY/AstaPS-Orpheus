@@ -42,6 +42,24 @@ public class PacketScenePointUnlockNotify extends BasePacket {
         return packet;
     }
 
+    public static PacketScenePointUnlockNotify unhide(int sceneId, Iterable<Integer> pointIds) {
+        PacketScenePointUnlockNotify packet = new PacketScenePointUnlockNotify();
+        packet.setData(
+                ScenePointUnlockNotify.newBuilder()
+                        .setSceneId(sceneId)
+                        .addAllHBKHEKLMEKN(pointIds));
+        return packet;
+    }
+
+    public static PacketScenePointUnlockNotify hide(int sceneId, Iterable<Integer> pointIds) {
+        PacketScenePointUnlockNotify packet = new PacketScenePointUnlockNotify();
+        packet.setData(
+                ScenePointUnlockNotify.newBuilder()
+                        .setSceneId(sceneId)
+                        .addAllHidePointList(pointIds));
+        return packet;
+    }
+
     private PacketScenePointUnlockNotify() {
         super(PacketOpcodes.ScenePointUnlockNotify);
     }
