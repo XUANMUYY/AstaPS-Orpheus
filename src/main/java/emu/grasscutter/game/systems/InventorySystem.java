@@ -562,9 +562,6 @@ public class InventorySystem extends BaseGameSystem {
         if (weapon.getLevel() != currentPromoteData.getUnlockMaxLevel()) {
             return;
         }
-        if (!meetsWeaponPromotePlayerLevel(player.getLevel(), nextPromoteData)) {
-            return;
-        }
 
         // Pay materials and mora if possible
         ItemParamData[] costs = nextPromoteData.getCostItems(); // Can this be null?
@@ -592,10 +589,6 @@ public class InventorySystem extends BaseGameSystem {
         // Packets
         player.sendPacket(new PacketStoreItemChangeNotify(weapon));
         player.sendPacket(new PacketWeaponPromoteRsp(weapon, oldPromoteLevel));
-    }
-
-    static boolean meetsWeaponPromotePlayerLevel(int playerLevel, WeaponPromoteData next) {
-        return next != null && playerLevel >= next.getRequiredPlayerLevel();
     }
 
     public void promoteAvatar(Player player, long guid) {

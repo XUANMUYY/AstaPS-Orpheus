@@ -56,7 +56,6 @@ public class GameHome {
     int storedCoin;
     int storedFetterExp;
     List<FurnitureMakeSlotItem> furnitureMakeSlotItemList;
-    Set<Integer> craftedFurnitureMakeIds;
     ConcurrentHashMap<Integer, HomeSceneItem> sceneMap;
     ConcurrentHashMap<Integer, HomeSceneItem> mainHouseMap;
     Set<Integer> unlockedHomeBgmList;
@@ -85,7 +84,6 @@ public class GameHome {
         return GameHome.of()
                 .ownerUid(uid)
                 .level(1)
-                .craftedFurnitureMakeIds(new HashSet<>())
                 .sceneMap(new ConcurrentHashMap<>())
                 .mainHouseMap(new ConcurrentHashMap<>())
                 .unlockedHomeBgmList(new HashSet<>())
@@ -544,13 +542,6 @@ public class GameHome {
 
     public static int totalComfort(HomeSceneItem outdoor, HomeSceneItem room) {
         return outdoor.calComfort() + room.calComfort();
-    }
-
-    public boolean markFurnitureMadeFirstTime(int makeId) {
-        if (craftedFurnitureMakeIds == null) {
-            craftedFurnitureMakeIds = new HashSet<>();
-        }
-        return craftedFurnitureMakeIds.add(makeId);
     }
 
     private int getExpRequired(int level) {

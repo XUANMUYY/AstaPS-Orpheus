@@ -33,7 +33,8 @@ public class TrialAvatarActivityHandler extends ActivityHandler {
             PlayerActivityData playerActivityData, ActivityInfo.Builder activityInfo) {
         TrialAvatarPlayerData trialAvatarPlayerData = getTrialAvatarPlayerData(playerActivityData);
 
-        activityInfo.setTrialAvatarInfo(trialAvatarPlayerData.toProto());
+        // TODO: Apply trial avatar info.
+        // activityInfo.setTrialAvatarInfo(trialAvatarPlayerData.toProto());
     }
 
     @Override
@@ -111,9 +112,6 @@ public class TrialAvatarActivityHandler extends ActivityHandler {
     }
 
     public boolean getReward(Player player, int trialAvatarIndexId) {
-        if (!player.getActivityManager().isActivityOpen(getActivityConfigItem().getActivityId())) {
-            return false;
-        }
         val playerActivityData =
                 player
                         .getActivityManager()
@@ -123,27 +121,23 @@ public class TrialAvatarActivityHandler extends ActivityHandler {
             return false;
         }
 
-        synchronized (playerActivityData.get()) {
-            TrialAvatarPlayerData trialAvatarPlayerData =
-                    getTrialAvatarPlayerData(playerActivityData.get());
-            TrialAvatarPlayerData.RewardInfoItem rewardInfo =
-                    trialAvatarPlayerData.getRewardInfo(trialAvatarIndexId);
-            if (rewardInfo == null || !rewardInfo.isPassedDungeon() || rewardInfo.isReceivedReward()) {
-                return false;
-            }
+        TrialAvatarPlayerData trialAvatarPlayerData =
+                getTrialAvatarPlayerData(playerActivityData.get());
+        TrialAvatarPlayerData.RewardInfoItem rewardInfo =
+                trialAvatarPlayerData.getRewardInfo(trialAvatarIndexId);
+        if (rewardInfo == null) return false;
 
-            RewardData rewardParam = GameData.getRewardDataMap().get(rewardInfo.getRewardId());
-            if (rewardParam == null) return false;
+        RewardData rewardParam = GameData.getRewardDataMap().get(rewardInfo.getRewardId());
+        if (rewardParam == null) return false;
 
-            player
-                    .getInventory()
-                    .addItemParamDatas(
-                            rewardParam.getRewardItemList(), ActionReason.TrialAvatarActivityFirstPassReward);
-            rewardInfo.setReceivedReward(true);
-            playerActivityData.get().setDetail(trialAvatarPlayerData);
-            playerActivityData.get().save();
-            return true;
-        }
+        player
+                .getInventory()
+                .addItemParamDatas(
+                        rewardParam.getRewardItemList(), ActionReason.TrialAvatarActivityFirstPassReward);
+        rewardInfo.setReceivedReward(true);
+        playerActivityData.get().setDetail(trialAvatarPlayerData);
+        playerActivityData.get().save();
+        return true;
     }
 
     public void setPassDungeon(PlayerActivityData playerActivityData) {

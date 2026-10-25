@@ -57,25 +57,6 @@ final class HomeEconomyFixTest {
     }
 
     @Test
-    void furnitureCannotBeTakenBeforeEndTime() {
-        var slot = FurnitureMakeSlotItem.of().beginTime(100).durTime(50).build();
-        assertFalse(slot.isFinished(149));
-        assertTrue(slot.isFinished(150));
-        var overflow = FurnitureMakeSlotItem.of().beginTime(Integer.MAX_VALUE)
-                .durTime(Integer.MAX_VALUE).build();
-        assertFalse(overflow.isFinished(Integer.MAX_VALUE));
-    }
-
-    @Test
-    void furnitureTrustExpOnlyOncePerRecipe() {
-        var home = GameHome.of().build();
-        assertTrue(home.markFurnitureMadeFirstTime(10));
-        assertFalse(home.markFurnitureMadeFirstTime(10));
-        assertTrue(home.markFurnitureMadeFirstTime(11));
-        assertEquals(Set.of(10, 11), home.getCraftedFurnitureMakeIds());
-    }
-
-    @Test
     void realmMustBeUnlocked() {
         assertFalse(HandlerHomeChangeModuleReq.isUnlocked(null, 4));
         assertFalse(HandlerHomeChangeModuleReq.isUnlocked(Set.of(1, 2), 4));

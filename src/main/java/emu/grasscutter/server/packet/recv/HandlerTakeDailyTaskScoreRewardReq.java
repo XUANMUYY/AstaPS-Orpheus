@@ -41,11 +41,6 @@ public class HandlerTakeDailyTaskScoreRewardReq extends PacketHandler {
 
         // No-op when the automatic grant already ran; it still saves and resyncs.
         manager.claimScoreReward();
-        // 自动发奖和这次补发都没成功（道具没入账）时不能回成功。
-        if (!manager.isScoreRewardTaken()) {
-            session.send(new PacketTakeDailyTaskScoreRewardRsp(Retcode.RET_FAIL_VALUE, fromAttendance));
-            return;
-        }
 
         List<emu.grasscutter.data.common.ItemParamData> items = manager.getScoreRewardItems();
         session.send(

@@ -263,14 +263,7 @@ public final class OpenWorldSpawnHelper {
             return false;
         }
         long l2 = System.currentTimeMillis() / 1000L;
-        n2 = OpenWorldSpawnHelper.readRefreshId(document, scene, n);
-        // 资源里有刷新策略的，按策略算下一次刷新时刻（每日 4:00、每周定点等）
-        RefreshPolicyExcelConfigData policy = GameData.getRefreshPolicyExcelConfigDataMap().get(n2);
-        long next = policy != null ? policy.nextRefreshAt(l, RefreshPolicyExcelConfigData.REFRESH_ZONE) : -1L;
-        if (next > 0L) {
-            return l2 >= next;
-        }
-        return l2 >= l + (long)OpenWorldSpawnHelper.intervalSeconds(scene, n2);
+        return l2 >= l + (long)OpenWorldSpawnHelper.intervalSeconds(scene, n2 = OpenWorldSpawnHelper.readRefreshId(document, scene, n));
     }
 
     public static void onGathered(EntityGadget entityGadget, int n) {
