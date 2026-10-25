@@ -116,6 +116,18 @@
     <section data-page="gacha" class="panel"><h2>卡池排期</h2><div class="body">
       <p class="hint">卡池排期由另一个开发会话负责，完成后放在这里。现在请直接改 <span class="mono">Banners.json</span>（<span class="mono">disabled</span>、<span class="mono">beginTime</span>、<span class="mono">endTime</span>）。</p>
     </div></section>
+    <section data-page="notice" class="panel hidden"><h2>全服公告</h2><div class="body">
+      <p class="hint">弹窗：客户端弹出要点「确定」的消息框。顶部：屏幕上方的系统公告，不打断操作。只发给发送时在线的玩家，不补发。</p>
+      <div class="row">
+        <label>形式<select id="n-type"><option value="banner">顶部公告</option><option value="popup">弹窗</option></select></label>
+        <label>发送时间（留空＝立即）<input id="n-at" type="datetime-local"></label>
+        <label>共发几次<input id="n-times" type="number" min="1" max="1000" value="1" style="width:90px"></label>
+        <label>间隔（分钟）<input id="n-repeat" type="number" min="0" value="0" style="width:90px"></label>
+      </div>
+      <label>内容（最多 500 字）<textarea id="n-content" rows="3" maxlength="500" placeholder="例如：服务器将于 22:00 重启维护，请提前下线。"></textarea></label>
+      <div class="row"><button id="n-send" type="button" class="primary">发送 / 加入排期</button><button id="n-refresh" type="button">刷新列表</button></div>
+      <div class="scroll"><table><thead><tr><th>形式</th><th>内容</th><th>下次 / 最后发送</th><th>进度</th><th>状态</th><th></th></tr></thead><tbody id="n-list"></tbody></table></div>
+    </div></section>
     <!-- PAGES -->
   </main>
 </section>
@@ -314,6 +326,38 @@ const Admin = (() => {
 
   setTimeout(() => (token ? showApp() : showLogin()), 0);
   return { $, el, call, action, toast, page, fillPlayers, itemPicker, basket, toUnix, fromUnix, fmtTime, itemLabel, rankClass };
+})();
+</script>
+<script>
+/* B2 全服公告 */
+(() => {
+  const { $, el, call, action, toast, toUnix, fmtTime } = Admin;
+  const TYPE = { popup: "弹窗", banner: "顶部" };
+  const STATUS = { scheduled: "待发送", done: "已发完", cancelled: "已取消" };
+  async function refresh() {
+    const { notices } = await call("notice/list");
+    $("n-list").replaceChildren();
+    for (const n of notices) {
+      $("n-list").append(el("tr", {},
+        el("td", {}, TYPE[n.type] || n.type),
+        el("td", { style: "white-space:pre-wrap;max-width:420px" }, n.content),
+        el("td", { class: "hint" }, n.status === "scheduled" ? "下次 " + fmtTime(n.sendAt) : "最后 " + fmtTime(n.lastSentAt)),
+        el("td", {}, `${n.sent}/${n.times}` + (n.sent ? `（上次 ${n.lastReach} 人在线）` : "")),
+        el("td", {}, el("span", { class: "tag" + (n.status === "scheduled" ? " ok" : "") }, STATUS[n.status] || n.status)),
+        el("td", {}, n.status === "scheduled" ? el("button", { type: "button", class: "small danger",
+          onclick: action(async () => { await call("notice/cancel", { id: n.id }); toast("已取消"); await refresh(); }) }, "取消") : "")));
+    }
+    if (!notices.length) $("n-list").append(el("tr", {}, el("td", { colspan: 6, class: "hint" }, "还没有公告")));
+  }
+  $("n-refresh").onclick = action(refresh);
+  $("n-send").onclick = action(async () => {
+    const data = { type: $("n-type").value, content: $("n-content").value, sendAt: toUnix($("n-at").value),
+      times: Number($("n-times").value) || 1, repeatMinutes: Number($("n-repeat").value) || 0 };
+    const n = await call("notice/send", data);
+    toast(n.sent ? `已发送给 ${n.lastReach} 名在线玩家` : "已加入排期，" + Admin.fmtTime(n.sendAt) + " 发送");
+    await refresh();
+  });
+  Admin.page("notice", refresh);
 })();
 </script>
 <!-- PAGE SCRIPTS -->

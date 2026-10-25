@@ -13,5 +13,7 @@ public final class AdminApi {
         router.get("items/search", r -> AdminCatalog.search(r.query("category"), r.query("sub"), r.query("q"),
                 Math.max(0, r.queryInt("offset", 0)), Math.min(500, Math.max(1, r.queryInt("limit", 100)))));
         router.get("backups", r -> Map.of("backups", AdminBackup.list(r.queryInt("uid", 0))));
+
+        AdminNotices.register(router);
     }
 }
