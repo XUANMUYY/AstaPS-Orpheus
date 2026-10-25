@@ -770,7 +770,17 @@ public final class QuestManager extends BasePlayerManager {
                                             condition.getType(), player.getLevel());
                                 }
                             }
+                            // 状态型条件：开始时就身处目标场景也算满足；finish/failCond 都要求值。
+                            if (hasContent(quest, QuestContent.QUEST_CONTENT_PRESENT_AT_SPECIFIC_SCENE)) {
+                                queueEvent(QuestContent.QUEST_CONTENT_PRESENT_AT_SPECIFIC_SCENE, getPlayer().getSceneId());
+                            }
                         });
+    }
+
+    private static boolean hasContent(GameQuest quest, QuestContent type) {
+        var data = quest.getQuestData();
+        return data.getFinishCond().stream().anyMatch(c -> c.getType() == type)
+                || data.getFailCond().stream().anyMatch(c -> c.getType() == type);
     }
 
     /**

@@ -45,6 +45,7 @@ public class HandlerPostEnterSceneReq extends PacketHandler {
             }
         }
         questManager.queueEvent(QuestContent.QUEST_CONTENT_LEAVE_SCENE, scene.getPrevScene());
+        questManager.queueEvent(QuestContent.QUEST_CONTENT_PRESENT_AT_SPECIFIC_SCENE, scene.getId());
 
         if (!freshPlayerBootstrap) session.send(new PacketPostEnterSceneRsp(player));
 
