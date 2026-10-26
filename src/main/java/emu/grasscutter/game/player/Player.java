@@ -1737,6 +1737,7 @@ public class Player implements PlayerHook, FieldFetch {
     }
 
     public void onLogin() {
+        this.getProfile().updateLastActiveTime();
         try {
             PlayerDataMigrations.run(this, PlayerDataMigrations.DATABASE_BACKUP);
         } catch (Exception e) {
@@ -1923,6 +1924,7 @@ public class Player implements PlayerHook, FieldFetch {
                 this.getWorld().removePlayer(this);
             }
 
+            this.getProfile().updateLastActiveTime();
             this.getProfile().syncWithCharacter(this);
 
             this.getCoopRequests().clear();
