@@ -99,6 +99,11 @@ public final class DropSystem extends BaseGameSystem {
         return hasUsableNativeRoot(dropId, dropTable);
     }
 
+    /** An authored chest ID must exist before the chest can be consumed. */
+    public boolean hasChestDropRoot(int dropId) {
+        return dropId > 0 && dropTable.containsKey(dropId);
+    }
+
     static boolean hasUsableNativeRoot(int dropId, Int2ObjectMap<DropTableData> table) {
         return dropId > 0 && table.containsKey(dropId)
                 && !isEmptyDropTable(table.get(dropId));
