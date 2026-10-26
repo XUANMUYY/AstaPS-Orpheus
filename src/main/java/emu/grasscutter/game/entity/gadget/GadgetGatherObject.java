@@ -29,7 +29,7 @@ import emu.grasscutter.utils.Utils;
 /**
  * 7.0 gather + 6.6 GatherInteractHelper gating. Interact uses inventory; ore break uses onMined ground drop.
  */
-public final class GadgetGatherObject extends GadgetContent {
+public final class GadgetGatherObject extends GadgetContent implements CreditsOwnInteraction {
     private int itemId;
     private boolean isForbidGuest;
     private boolean minedRewardGiven;
@@ -63,6 +63,7 @@ public final class GadgetGatherObject extends GadgetContent {
 
     @Override
     public boolean onInteract(Player player, GadgetInteractReqOuterClass.GadgetInteractReq req) {
+        if (GatherGuestGuard.reject(player, this.getGadget(), this.isForbidGuest(), req)) return false;
         if (!GatherInteractHelper.isGatherInteractAllowed(this.getGadget())) {
             GatherInteractHelper.logBlockedInteract(this.getGadget());
             return false;
@@ -85,6 +86,7 @@ public final class GadgetGatherObject extends GadgetContent {
                         new PacketGadgetInteractRsp(
                                 (EntityBaseGadget) this.getGadget(),
                                 InteractTypeOuterClass.InteractType.InteractType_INTERACT_GATHER));
+        player.onGadgetInteracted(this.getGadget().getGadgetId());
         try {
             OpenWorldSpawnHelper.onGathered(this.getGadget(), this.getItemId());
             try {
