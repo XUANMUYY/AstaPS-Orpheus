@@ -1,5 +1,6 @@
 package emu.grasscutter.server.packet.recv;
 
+import emu.grasscutter.Grasscutter;
 import emu.grasscutter.net.packet.Opcodes;
 import emu.grasscutter.net.packet.PacketHandler;
 import emu.grasscutter.net.packet.PacketOpcodes;
@@ -24,11 +25,13 @@ public class HandlerHomeUpdateArrangementInfoReq extends PacketHandler {
         var otherScene = homeScene.isRoom()
                 ? player.getHome().getHomeSceneItem(player.getCurrentRealmId() + 2000)
                 : player.getHome().getMainHouseItem(player.getCurrentRealmId() + 2000);
-        if (!HomeArrangementValidator.isValid(
+        int retcode = HomeArrangementValidator.validate(
                 homeScene, otherScene, req.getSceneArrangementInfo(),
-                player.getInventory()::getItemCountById)) {
-            session.send(new PacketHomeUpdateArrangementInfoRsp(
-                    Retcode.RET_HOME_FURNITURE_COUNT_NOT_ENOUGH_VALUE));
+                player.getInventory()::getItemCountById);
+        if (retcode != Retcode.RET_SUCC_VALUE) {
+            Grasscutter.getLogger().debug("Home arrangement rejected uid={} scene={} retcode={}",
+                    player.getUid(), homeScene.getSceneId(), retcode);
+            session.send(new PacketHomeUpdateArrangementInfoRsp(retcode));
             return;
         }
 

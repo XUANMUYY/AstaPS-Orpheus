@@ -349,6 +349,10 @@ public final class GameData {
             new Int2ObjectOpenHashMap<>();
 
     @Getter
+    private static final Int2ObjectMap<HomeWorldAreaComfortData> homeWorldAreaComfortDataMap =
+            new Int2ObjectOpenHashMap<>();
+
+    @Getter
     private static final Int2ObjectMap<HomeWorldBgmData> homeWorldBgmDataMap =
             new Int2ObjectOpenHashMap<>();
 

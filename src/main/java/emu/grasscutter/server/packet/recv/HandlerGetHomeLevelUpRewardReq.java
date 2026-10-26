@@ -1,10 +1,11 @@
 package emu.grasscutter.server.packet.recv;
 
+import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
-import emu.grasscutter.data.common.ItemParamData;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ActionReason;
 import emu.grasscutter.net.packet.*;
+import emu.grasscutter.net.proto.RetcodeOuterClass.Retcode;
 import emu.grasscutter.net.proto.GetHomeLevelUpRewardReqOuterClass.GetHomeLevelUpRewardReq;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.PacketGetHomeLevelUpRewardRsp;
@@ -21,23 +22,30 @@ public class HandlerGetHomeLevelUpRewardReq extends PacketHandler {
             int level = req.getLevel();
             if (!isClaimableLevel(level, pl.getHome().getLevel())
                     || GameData.getHomeWorldLevelDataMap().get(level) == null) {
-                session.send(new PacketGetHomeLevelUpRewardRsp(level, 0));
+                Grasscutter.getLogger().debug("Invalid home level reward request uid={} level={}", pl.getUid(), level);
+                session.send(new PacketGetHomeLevelUpRewardRsp(level, Retcode.RET_HOME_CLIENT_PARAM_INVALID_VALUE));
                 return;
             }
             Set<Integer> homeRewardedLevels = session.getPlayer().getHomeRewardedLevels();
-            if (!homeRewardedLevels.contains(level)) { // No duplicated reward
-                int rewardId = GameData.getHomeWorldLevelDataMap().get(level).getRewardId();
-                if (rewardId != 0) {
-                    List<ItemParamData> rewardItems =
-                            GameData.getRewardDataMap().get(rewardId).getRewardItemList();
-                    pl.getInventory().addItemParamDatas(rewardItems, ActionReason.GetHomeLevelupReward);
-                    homeRewardedLevels.add(level);
-                    pl.setHomeRewardedLevels(homeRewardedLevels);
-                    pl.save();
-                    pl.getHome().onClaimReward(pl);
-                    session.send(new PacketGetHomeLevelUpRewardRsp(level, rewardId));
-                }
+            if (homeRewardedLevels.contains(level)) {
+                Grasscutter.getLogger().debug("Home level reward already claimed uid={} level={}", pl.getUid(), level);
+                session.send(new PacketGetHomeLevelUpRewardRsp(level, Retcode.RET_REWARD_HAS_TAKEN_VALUE));
+                return;
             }
+            int rewardId = GameData.getHomeWorldLevelDataMap().get(level).getRewardId();
+            var reward = GameData.getRewardDataMap().get(rewardId);
+            if (rewardId == 0 || reward == null) {
+                Grasscutter.getLogger().debug("Home level reward missing uid={} level={} reward={}",
+                        pl.getUid(), level, rewardId);
+                session.send(new PacketGetHomeLevelUpRewardRsp(level, Retcode.RET_HOME_CLIENT_PARAM_INVALID_VALUE));
+                return;
+            }
+            pl.getInventory().addItemParamDatas(reward.getRewardItemList(), ActionReason.GetHomeLevelupReward);
+            homeRewardedLevels.add(level);
+            pl.setHomeRewardedLevels(homeRewardedLevels);
+            pl.save();
+            pl.getHome().onClaimReward(pl);
+            session.send(new PacketGetHomeLevelUpRewardRsp(level, Retcode.RET_SUCC_VALUE));
         }
     }
 

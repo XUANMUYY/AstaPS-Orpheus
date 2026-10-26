@@ -80,6 +80,8 @@ public class ItemData extends GameResource {
 
     // Furniture
     private int comfort;
+    private int cost;
+    private int discountCost;
     private List<Integer> furnType;
     private List<Integer> furnitureGadgetID;
     private SpecialFurnitureType specialFurnitureType = SpecialFurnitureType.NOT_SPECIAL;
