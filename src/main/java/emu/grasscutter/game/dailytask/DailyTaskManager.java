@@ -20,6 +20,8 @@ import emu.grasscutter.game.world.Scene;
 import emu.grasscutter.game.entity.EntityMonster;
 import emu.grasscutter.scripts.ScriptLoader;
 import emu.grasscutter.utils.FileUtils;
+import emu.grasscutter.utils.GameDay;
+import emu.grasscutter.utils.Utils;
 import emu.grasscutter.server.packet.send.PacketDailyTaskDataNotify;
 import emu.grasscutter.server.packet.send.PacketDailyTaskProgressNotify;
 import emu.grasscutter.server.packet.send.PacketWorldOwnerDailyTaskNotify;
@@ -37,8 +39,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import lombok.Getter;
 import org.bson.types.ObjectId;
-import java.time.LocalDate;
-import java.time.ZoneId;
 
 @Getter
 @Entity(value = "dailytasks", useDiscriminator = false)
@@ -137,7 +137,7 @@ public class DailyTaskManager {
 	 *
 	 * This is the authoritative quota marker for daily commissions.
 	 * A server restart must never generate another set while this value
-	 * still represents the current server-local calendar day.
+	 * 日期键仍属于当前游戏日时，不得在重登后再次生成。
 	 */
 	private int lastGenerationDate;
 
@@ -214,7 +214,7 @@ public class DailyTaskManager {
 	}
 
 	/**
-	 * Ensures that the player has a commission set for the current calendar day.
+	 * 确保玩家在当前游戏日有一组每日委托。
 	 *
 	 * This is the method automatic systems must use.
 	 */
@@ -1301,12 +1301,7 @@ public class DailyTaskManager {
 	}
 
 	private static int getCurrentDateKey() {
-		LocalDate today =
-				LocalDate.now(ZoneId.systemDefault());
-
-		return today.getYear() * 10000
-				+ today.getMonthValue() * 100
-				+ today.getDayOfMonth();
+		return GameDay.dateKey(Utils.getCurrentSeconds());
 	}
 
 	private int getStoredTaskCount() {

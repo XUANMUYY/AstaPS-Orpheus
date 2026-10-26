@@ -347,6 +347,15 @@ public class BattlePassManager extends BasePlayerDataManager {
     }
 
     public void resetWeeklyMissions() {
+        var resetMissions = resetWeeklyProgress();
+        this.save();
+
+        this.getPlayer().sendPacket(new PacketBattlePassMissionUpdateNotify(resetMissions));
+        this.getPlayer().sendPacket(new PacketBattlePassCurScheduleUpdateNotify(this.getPlayer()));
+    }
+
+    List<BattlePassMission> resetWeeklyProgress() {
+        this.cyclePoints = 0;
         var resetMissions = new ArrayList<BattlePassMission>();
 
         for (var mission : this.missions.values()) {
@@ -359,8 +368,7 @@ public class BattlePassManager extends BasePlayerDataManager {
             }
         }
 
-        this.getPlayer().sendPacket(new PacketBattlePassMissionUpdateNotify(resetMissions));
-        this.getPlayer().sendPacket(new PacketBattlePassCurScheduleUpdateNotify(this.getPlayer()));
+        return resetMissions;
     }
 
     //
