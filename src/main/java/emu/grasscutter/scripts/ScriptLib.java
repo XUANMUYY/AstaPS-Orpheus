@@ -1555,8 +1555,14 @@ public class ScriptLib {
     }
 
     public int SetHandballGalleryBallPosAndRot(int galleryId, LuaTable position, LuaTable rotation) {
-        logger.warn("[LUA] Call unimplemented SetHandballGalleryBallPosAndRot with {} {} {}", galleryId, printTable(position), printTable(rotation));
-
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || position == null
+                || !position.get("x").isnumber() || !position.get("y").isnumber() || !position.get("z").isnumber()
+                || !manager.getGalleryScriptState().setTargetPosition(galleryId, luaTablePosition(position))) {
+            logger.warn("[LUA] SetHandballGalleryBallPosAndRot: invalid target or inactive gallery {}", galleryId);
+            return -1;
+        }
+        // 推断：Lua 的位置是目标物距离提示的目标；7.1 通知字段未恢复前只保存服务端目标。
         return 0;
     }
 
@@ -1854,8 +1860,12 @@ public class ScriptLib {
     }
 
     public int StopGallery(int galleryId, boolean var2) {
-        logger.warn("[LUA] Call unimplemented StopGallery with {} {}", galleryId, var2);
-
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null || !manager.getGalleryScriptState().stop(galleryId)) {
+            logger.warn("[LUA] StopGallery: invalid scene or gallery id {}", galleryId);
+            return -1;
+        }
+        // 7.1 描述集缺少 GalleryStopNotify 具名消息；不能按未知字段发包。
         return 0;
     }
 
