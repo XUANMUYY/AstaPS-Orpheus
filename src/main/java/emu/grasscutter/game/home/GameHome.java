@@ -57,6 +57,7 @@ public class GameHome {
     int storedFetterExp;
     List<FurnitureMakeSlotItem> furnitureMakeSlotItemList;
     Set<Integer> craftedFurnitureIds;
+    boolean legacyCraftHistoryUnknown;
     ConcurrentHashMap<Integer, HomeSceneItem> sceneMap;
     ConcurrentHashMap<Integer, HomeSceneItem> mainHouseMap;
     Set<Integer> unlockedHomeBgmList;
@@ -85,6 +86,7 @@ public class GameHome {
         return GameHome.of()
                 .ownerUid(uid)
                 .level(1)
+                .craftedFurnitureIds(new HashSet<>())
                 .sceneMap(new ConcurrentHashMap<>())
                 .mainHouseMap(new ConcurrentHashMap<>())
                 .unlockedHomeBgmList(new HashSet<>())
@@ -274,8 +276,11 @@ public class GameHome {
     public boolean markFurnitureCrafted(int furnitureId) {
         if (craftedFurnitureIds == null) {
             craftedFurnitureIds = new HashSet<>();
+            // 旧档没有完整制作历史；已有家具可能来自制作、购买或奖励，不能据此证明首次制作。
+            // 对这一类存档保守地停止首制经验，避免旧配方重复发放；新建家园仍正常首制。
+            legacyCraftHistoryUnknown = true;
         }
-        return craftedFurnitureIds.add(furnitureId);
+        return craftedFurnitureIds.add(furnitureId) && !legacyCraftHistoryUnknown;
     }
 
     public Set<Integer> onTalkedWithAvatar(int avatarId, int talkId) {
