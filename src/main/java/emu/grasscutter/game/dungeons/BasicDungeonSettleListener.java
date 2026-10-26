@@ -11,7 +11,7 @@ public class BasicDungeonSettleListener implements DungeonSettleListener {
         var scene = dungeonManager.getScene();
         var dungeonData = dungeonManager.getDungeonData();
         var time = scene.getSceneTimeSeconds() - dungeonManager.getStartSceneTime();
-        // TODO time taken and chests handling
+        // Dungeon chest opens are not tracked separately from the player's lifetime total.
         DungeonEndStats stats = new DungeonEndStats(scene.getKilledMonsterCount(), time, 0, endReason);
 
         scene.broadcastPacket(new PacketDungeonSettleNotify(new BaseDungeonResult(dungeonData, stats)));

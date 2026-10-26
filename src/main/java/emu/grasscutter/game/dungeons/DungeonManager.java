@@ -25,8 +25,7 @@ import javax.annotation.Nullable;
 import lombok.*;
 
 /**
- * TODO handle time limits TODO handle respawn points TODO handle team wipes and respawns TODO check
- * monster level and levelConfigMap
+ * TODO handle time limits TODO handle respawn points TODO handle team wipes and respawns
  */
 public final class DungeonManager {
     @Getter private final Scene scene;
@@ -35,6 +34,7 @@ public final class DungeonManager {
 
     @Getter private final int[] finishedConditions;
     private final IntSet rewardedPlayers = new IntOpenHashSet();
+    private final IntSet firstPassPlayers = new IntOpenHashSet();
     private final DomainClaimRunIdentity claimRunIdentity = new DomainClaimRunIdentity();
     private final DungeonReviveCounter reviveCounter;
 
@@ -134,7 +134,8 @@ public final class DungeonManager {
             // Tower dungeons have their own level setting in TowerLevelData
             return scene.getPlayers().get(0).getTowerManager().getCurrentMonsterLevel();
         } else {
-            // TODO should use levelConfigMap? and how?
+            // levelConfigMap refers to level-entity effects, not monster levels. The dynamic-level
+            // formula is unverified, so retain the configured display level for now.
             return dungeonData.getShowLevel();
         }
     }
@@ -386,6 +387,10 @@ public final class DungeonManager {
                             // Trigger the fail and success event.
                             if (successfully) {
                                 var dungeonId = this.getDungeonData().getId();
+                                var completed = p.getPlayerProgress().getCompletedDungeons();
+                                if (completed == null || !completed.contains(dungeonId)) {
+                                    firstPassPlayers.add(p.getUid());
+                                }
                                 p.getPlayerProgress().markDungeonAsComplete(dungeonId);
                                 try {
                                     emu.grasscutter.game.player.InvestigationHandbookHelper.trigger(
@@ -439,9 +444,14 @@ public final class DungeonManager {
         ended = true;
     }
 
+    public boolean isFirstPassFor(int uid) {
+        return firstPassPlayers.contains(uid);
+    }
+
     public synchronized void restartDungeon() {
         this.scene.setKilledMonsterCount(0);
         this.rewardedPlayers.clear();
+        this.firstPassPlayers.clear();
         this.claimRunIdentity.restart();
         Arrays.fill(finishedConditions, 0);
         this.ended = false;
