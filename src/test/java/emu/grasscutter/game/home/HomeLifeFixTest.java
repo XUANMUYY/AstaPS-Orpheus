@@ -88,15 +88,18 @@ final class HomeLifeFixTest {
     }
 
     @Test
-    void oldHomeNeverReissuesFirstCraftTrustWhileNewHomeDoes() {
-        var old = GameHome.of().build();
+    void oldHomeSeedsCraftHistoryFromOwnedFurniture() {
+        var old = GameHome.of().sceneMap(new java.util.concurrent.ConcurrentHashMap<>()).build();
+        // 旧档：已持有的家具视为做过，不再发首制经验；从没持有过的配方仍算首制。
+        old.seedLegacyCraftHistory(java.util.Set.of(FURNITURE));
         assertFalse(old.markFurnitureCrafted(FURNITURE));
+        assertTrue(old.markFurnitureCrafted(FURNITURE + 1));
         assertFalse(old.markFurnitureCrafted(FURNITURE + 1));
-        assertTrue(old.isLegacyCraftHistoryUnknown());
+        // 已有历史的存档不会被再次补记覆盖。
         var fresh = GameHome.create(123);
+        fresh.seedLegacyCraftHistory(java.util.Set.of(FURNITURE));
         assertTrue(fresh.markFurnitureCrafted(FURNITURE));
         assertFalse(fresh.markFurnitureCrafted(FURNITURE));
-        assertFalse(fresh.isLegacyCraftHistoryUnknown());
     }
 
     @Test

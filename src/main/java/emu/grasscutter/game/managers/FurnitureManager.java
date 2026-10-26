@@ -154,6 +154,7 @@ public class FurnitureManager extends BasePlayerManager {
             return;
         }
 
+        player.getHome().seedLegacyCraftHistory(ownedFurnitureIds());
         player.getInventory().addItem(makeData.getFurnitureItemID(), makeData.getCount());
         player.getHome().getFurnitureMakeSlotItemList().remove(slotItem.get());
         if (player.getHome().markFurnitureCrafted(makeData.getFurnitureItemID())) {
@@ -175,6 +176,14 @@ public class FurnitureManager extends BasePlayerManager {
                                         .map(FurnitureMakeSlotItem::toProto)
                                         .toList()));
         player.getHome().save();
+    }
+
+    private java.util.Set<Integer> ownedFurnitureIds() {
+        var ids = new java.util.HashSet<Integer>();
+        player.getInventory().getItems().values().stream()
+                .filter(item -> item.getItemType() == emu.grasscutter.game.inventory.ItemType.ITEM_FURNITURE)
+                .forEach(item -> ids.add(item.getItemId()));
+        return ids;
     }
 
     static boolean isMakeFinished(FurnitureMakeSlotItem slot, int now) {
