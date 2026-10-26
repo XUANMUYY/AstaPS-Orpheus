@@ -13,6 +13,15 @@ final class PlayerProgressManagerOpenStateTest {
     }
 
     @Test
+    void offeringConditionUsesParamAsOfferingIdAndExportedFieldAsLevel() {
+        var state = state("{\"id\":1011,\"cond\":[{\"cond_type\":\"OPEN_STATE_OFFERING_LEVEL\",\"param\":2,\"DIEOFOGAIIN\":50}]}");
+        var condition = state.getCond().get(0);
+        assertEquals(50, condition.getOfferingLevel());
+        assertFalse(PlayerProgressManager.offeringLevelReached(condition, id -> id == 2 ? 49 : 99));
+        assertTrue(PlayerProgressManager.offeringLevelReached(condition, id -> id == 2 ? 50 : 0));
+    }
+
+    @Test
     void loginBulkUnlockIsOptInEvenWhenQuestingIsOff() {
         var defaultConfig = new ConfigContainer.GameOptions();
         assertFalse(defaultConfig.unlockAllOpenStatesOnLogin);

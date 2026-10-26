@@ -13,6 +13,12 @@ public abstract class TalkExecHandler {
      */
     public abstract void execute(Player player, TalkConfigData talkData, TalkExecParam execParam);
 
+    public boolean executeChecked(
+            Player player, TalkConfigData talkData, TalkExecParam execParam, GameEntity talkEntity) {
+        this.execute(player, talkData, execParam, talkEntity);
+        return true;
+    }
+
     /**
      * 带对话对象的版本；需要知道玩家在和哪个实体说话的执行项（例如机关对话）覆盖这个方法。
      *
