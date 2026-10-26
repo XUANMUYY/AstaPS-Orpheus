@@ -7,9 +7,11 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.excels.achievement.AchievementData;
 import emu.grasscutter.database.DatabaseHelper;
 import emu.grasscutter.game.inventory.GameItem;
+import emu.grasscutter.game.inventory.InventoryAddResult;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ActionReason;
 import emu.grasscutter.net.proto.AchievementOuterClass.Achievement.Status;
+import emu.grasscutter.net.proto.RetcodeOuterClass.Retcode;
 import emu.grasscutter.server.event.player.PlayerCompleteAchievementEvent;
 import emu.grasscutter.server.packet.send.*;
 import java.util.*;
@@ -346,17 +348,26 @@ public class Achievements {
                 return;
             }
 
-            data.getRewardItemList()
-                    .forEach(
-                            itemParamData -> {
-                                var itemData = GameData.getItemDataMap().get(itemParamData.getId());
-                                if (itemData == null) {
-                                    Grasscutter.getLogger().warn("itemData == null!");
-                                    return;
-                                }
+            for (var itemParamData : data.getRewardItemList()) {
+                var itemData = GameData.getItemDataMap().get(itemParamData.getId());
+                if (itemData == null) {
+                    Grasscutter.getLogger().warn("itemData == null!");
+                    this.player.sendPacket(new PacketTakeAchievementRewardRsp(Retcode.RET_FAIL_VALUE));
+                    return;
+                }
+                rewards.add(new GameItem(itemData, itemParamData.getCount()));
+            }
+        }
 
-                                rewards.add(new GameItem(itemData, itemParamData.getCount()));
-                            });
+        if (rewards.isEmpty()) {
+            this.player.sendPacket(new PacketTakeAchievementRewardRsp(Retcode.RET_FAIL_VALUE));
+            return;
+        }
+
+        var added = this.player.getInventory().addItems(rewards, ActionReason.AchievementReward);
+        if (!added.allAccepted()) {
+            this.player.sendPacket(new PacketTakeAchievementRewardRsp(rewardGrantRetcode(added)));
+            return;
         }
 
         var claimedAchievements = new ArrayList<Achievement>(ids.size());
@@ -368,7 +379,6 @@ public class Achievements {
         this.sendUpdatePacket(claimedAchievements);
         this.save();
 
-        this.player.getInventory().addItems(rewards, ActionReason.AchievementReward);
         this.player.sendPacket(
                 new PacketTakeAchievementRewardRsp(
                         ids, rewards.stream().map(GameItem::toItemParam).toList()));
@@ -411,12 +421,30 @@ public class Achievements {
             }
         }
 
+        if (rewards.isEmpty()) {
+            this.player.sendPacket(new PacketTakeAchievementGoalRewardRsp(Retcode.RET_FAIL_VALUE));
+            return;
+        }
+
+        var added = this.player.getInventory().addItems(rewards, ActionReason.AchievementGoalReward);
+        if (!added.allAccepted()) {
+            this.player.sendPacket(new PacketTakeAchievementGoalRewardRsp(rewardGrantRetcode(added)));
+            return;
+        }
+
         this.takenGoalRewardIdList.addAll(ids);
         this.save();
-        this.player.getInventory().addItems(rewards, ActionReason.AchievementGoalReward);
         this.player.sendPacket(
                 new PacketTakeAchievementGoalRewardRsp(
                         ids, rewards.stream().map(GameItem::toItemParam).toList()));
+    }
+
+    private static int rewardGrantRetcode(InventoryAddResult result) {
+        return result.entries().stream()
+                        .anyMatch(entry -> entry.status() == InventoryAddResult.Status.CAPACITY_FULL
+                                || entry.status() == InventoryAddResult.Status.STACK_LIMIT)
+                ? Retcode.RET_ITEM_EXCEED_LIMIT_VALUE
+                : Retcode.RET_FAIL_VALUE;
     }
 
     static boolean isGoalComplete(
