@@ -42,7 +42,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.IntPredicate;
 
 /**
  * World chests and world-boss trounce blossoms. Boss rewards must come from
@@ -309,23 +308,11 @@ public class GadgetChest extends GadgetContent {
                 || chestType == null;
     }
 
-    static boolean missingAuthoredDropRoot(SceneGadget meta, IntPredicate hasRoot) {
-        return meta != null && meta.chest_drop_id > 0 && !hasRoot.test(meta.chest_drop_id);
-    }
-
     private boolean grantOrdinaryChestLoot(Player player) {
         EntityGadget gadget = getGadget();
         SceneGadget meta = resolveChestMeta();
-        DropSystem dropSystem = player.getServer().getDropSystem();
-        if (missingAuthoredDropRoot(meta, dropSystem::hasChestDropRoot)) {
-            Grasscutter.getLogger().warn(
-                    "Chest claim refused: missing authored drop root scene={} group={} config={} drop={}",
-                    gadget.getScene().getId(), gadget.getGroupId(), gadget.getConfigId(),
-                    meta.chest_drop_id);
-            player.sendPacket(new PacketGadgetInteractRsp());
-            return false;
-        }
         if (meta != null && meta.chest_drop_id > 0) {
+            DropSystem dropSystem = player.getServer().getDropSystem();
             // Quest-created chests have no Lua group; scripted quest chests are identified by loot.
             if (usesNativeDrop(
                             gadget.getScene().getSceneType(),
@@ -339,7 +326,9 @@ public class GadgetChest extends GadgetContent {
             }
         }
         if (ChestTypeResolver.resolve(gadget) == null && !ChestTypeResolver.isNativeInteract(gadget)) {
-            // With no authored root and no supported chest rule, this interactable has no loot.
+            // 场景给了 chest_drop_id，但服务端掉落表缺这个根，外形又不是普通宝箱（如沙漠符文
+            // 70330386 指向的 1050269）：没有可发的奖励。以前在 WorldChestLootHelper 里抛异常，
+            // 开箱没有回应、脚本也不推进；现在记一条警告，照常完成开启。
             Grasscutter.getLogger().warn(
                     "Chest without loot: gadgetId={} group={} config={} chest_drop_id={}",
                     gadget.getGadgetId(), gadget.getGroupId(), gadget.getConfigId(),

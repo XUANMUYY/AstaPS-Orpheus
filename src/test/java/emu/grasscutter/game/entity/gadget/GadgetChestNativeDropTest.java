@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.gson.Gson;
 import emu.grasscutter.data.excels.DropTableData;
 import emu.grasscutter.game.props.SceneType;
-import emu.grasscutter.scripts.data.SceneGadget;
 import org.junit.jupiter.api.Test;
 
 /** 蒙德调查点 133003104/2527（SearchPoint，chest_drop_id 1010100）按 F 无反应，2026-10-25 01:09。 */
@@ -30,15 +29,5 @@ final class GadgetChestNativeDropTest {
         row.onLoad();
         assertNotNull(row.getDropVec());
         assertTrue(row.getDropVec().isEmpty());
-    }
-
-    @Test
-    void authoredDropWithoutRootMustBeRefusedBeforeClaim() {
-        var chest = new SceneGadget();
-        chest.chest_drop_id = 1050269;
-        assertTrue(GadgetChest.missingAuthoredDropRoot(chest, root -> false));
-        assertFalse(GadgetChest.missingAuthoredDropRoot(chest, root -> root == 1050269));
-        chest.chest_drop_id = 0;
-        assertFalse(GadgetChest.missingAuthoredDropRoot(chest, root -> false));
     }
 }
