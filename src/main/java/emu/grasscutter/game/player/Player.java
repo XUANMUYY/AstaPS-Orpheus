@@ -152,6 +152,10 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter private Set<Integer> traceEffectList;
     @Getter private Set<Integer> costumeList;
     @Getter private Set<Integer> weaponSkinList;
+    // Missing in older player documents; access through the lazy getters below.
+    private Map<String, Set<Integer>> gcgUnlocks;
+    private Set<Integer> photographPoses;
+    private Set<Integer> unlockedProfileFrames;
     @Getter private Set<Integer> personalLineList;
     @Getter @Setter private Set<Integer> rewardedLevels;
     @Getter @Setter private Set<Integer> homeRewardedLevels;
@@ -1290,6 +1294,40 @@ public class Player implements PlayerHook, FieldFetch {
      * unequip/resend request gets a failure retcode and shows "server error". */
     public boolean hasWeaponSkin(int weaponSkinId) {
         return weaponSkinId <= 0 || this.getWeaponSkinList().contains(weaponSkinId);
+    }
+
+    public Map<String, Set<Integer>> getGcgUnlocks() {
+        if (this.gcgUnlocks == null) this.gcgUnlocks = new HashMap<>();
+        return this.gcgUnlocks;
+    }
+
+    public boolean addGcgUnlock(String type, int id) {
+        if (type == null || type.isBlank() || id < 0) return false;
+        if (!getGcgUnlocks().computeIfAbsent(type, ignored -> new HashSet<>()).add(id)) return false;
+        this.save();
+        return true;
+    }
+
+    public Set<Integer> getPhotographPoses() {
+        if (this.photographPoses == null) this.photographPoses = new HashSet<>();
+        return this.photographPoses;
+    }
+
+    public Set<Integer> getUnlockedProfileFrames() {
+        if (this.unlockedProfileFrames == null) this.unlockedProfileFrames = new HashSet<>();
+        return this.unlockedProfileFrames;
+    }
+
+    public boolean addPhotographPose(int id) {
+        if (id <= 0 || !getPhotographPoses().add(id)) return false;
+        this.save();
+        return true;
+    }
+
+    public boolean addProfileFrame(int id) {
+        if (id <= 0 || !getUnlockedProfileFrames().add(id)) return false;
+        this.save();
+        return true;
     }
 
     /** Unlocks one or more weapon skins (from ITEM_USE_ADD_WEAPON_SKIN materials). */

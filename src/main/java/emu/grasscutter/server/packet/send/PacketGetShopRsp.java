@@ -33,6 +33,8 @@ public class PacketGetShopRsp extends BasePacket {
             int currentTs = Utils.getCurrentSeconds();
 
             for (ShopInfo info : list) {
+                // The rotating slot has no verified goods mapping or payable price yet.
+                if (info.hasUnresolvedRotation()) continue;
                 boolean refreshes =
                         info.getShopRefreshType() != ShopInfo.ShopRefreshType.NONE;
                 int nextRefreshTime = ShopSystem.getShopNextRefreshTime(info);

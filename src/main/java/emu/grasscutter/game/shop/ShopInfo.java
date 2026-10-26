@@ -24,6 +24,23 @@ public class ShopInfo {
     @Getter @Setter private int minShowLevel;
     @Getter @Setter private String precondition;
     @Getter @Setter private List<String> preconditionParamList = List.of();
+    @Getter @Setter private int rotateId;
+    @Getter @Setter private int originalPrice;
+    @Getter @Setter private float discountRate;
+
+    public boolean hasUnresolvedRotation() {
+        return rotateId > 0;
+    }
+
+    /** The exact unit costs advertised to the client and charged on purchase. */
+    public List<ItemParamData> payableCosts() {
+        List<ItemParamData> costs = new ArrayList<>();
+        if (costItemList != null) costs.addAll(costItemList);
+        if (scoin > 0) costs.add(new ItemParamData(202, scoin));
+        if (hcoin > 0) costs.add(new ItemParamData(201, hcoin));
+        if (mcoin > 0) costs.add(new ItemParamData(203, mcoin));
+        return costs;
+    }
 
     private String refreshType;
     @Setter private transient ShopRefreshType shopRefreshType;
