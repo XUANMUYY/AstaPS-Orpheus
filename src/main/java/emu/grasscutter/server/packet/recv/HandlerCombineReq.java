@@ -30,7 +30,7 @@ public class HandlerCombineReq extends PacketHandler {
                         .combineItem(
                                 session.getPlayer(),
                                 req.getCombineId(),
-                                req.getCombineCount() > 0 ? req.getCombineCount() : 1);
+                                req.getCombineCount());
 
         if (result == null) {
             return;
