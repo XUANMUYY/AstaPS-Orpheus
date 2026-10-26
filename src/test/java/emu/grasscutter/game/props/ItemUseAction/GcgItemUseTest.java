@@ -11,7 +11,7 @@ class GcgItemUseTest {
     private final Gson gson = new Gson();
 
     @Test
-    void recognizesFourGcgGrantsAndRetainsUnsupportedActions() {
+    void recognizesFourGcgGrantsAsPersistentActions() {
         var names = new String[] {"GAIN_GCG_CARD_FACE", "GAIN_GCG_CARD",
                 "GAIN_GCG_CARD_BACK", "GAIN_GCG_CARD_FIELD"};
         for (var name : names) {
@@ -23,8 +23,21 @@ class GcgItemUseTest {
             assertEquals(1, item.getItemUseActions().size(), name);
             assertEquals(ItemUseOp.valueOf("ITEM_USE_" + name),
                     item.getItemUseActions().getFirst().getItemUseOp());
-            assertTrue(item.hasUnsupportedItemUseAction(), name);
+            assertInstanceOf(ItemUseGainGcgUnlock.class, item.getItemUseActions().getFirst());
+            assertFalse(item.hasUnsupportedItemUseAction(), name);
             assertFalse(item.getItemUseActions().getFirst().useItem(null), name);
         }
+    }
+
+    @Test
+    void purchasedGoldenFaceCanEnterUseOnGainPath() {
+        var item = gson.fromJson("{\"id\":334000,\"itemType\":\"ITEM_MATERIAL\","
+                + "\"materialType\":\"MATERIAL_GCG_CARD_FACE\",\"useOnGain\":true,"
+                + "\"itemUse\":[{\"useOp\":\"ITEM_USE_GAIN_GCG_CARD_FACE\","
+                + "\"useParam\":[\"1101\",\"黄金卡面\"]}]}", ItemData.class);
+        item.onLoad();
+        assertTrue(item.isUseOnGain());
+        assertFalse(item.hasUnsupportedItemUseAction());
+        assertInstanceOf(ItemUseGainGcgUnlock.class, item.getItemUseActions().getFirst());
     }
 }
