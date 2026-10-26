@@ -155,6 +155,37 @@ public class Player implements PlayerHook, FieldFetch {
     private Map<Integer, Boolean> mapAreaStates;
     /** ScriptLib 死域开关，按场景与死域编号保存。 */
     private Map<String, Integer> deathZoneStatuses;
+    /** 当前各城市、各类型地脉营地；旧存档没有此字段时使用原有初始营地。 */
+    private Map<String, Integer> blossomCampIds;
+    /** 世界首领每周已领奖次数；北京时间周一 04:00 换周。 */
+    private Map<Integer, Integer> weeklyWorldBossClaims;
+    private int weeklyWorldBossWeek;
+
+    public int getBlossomCampId(int cityId, String type) {
+        return blossomCampIds == null ? 0 : blossomCampIds.getOrDefault(cityId + ":" + type, 0);
+    }
+
+    public void setBlossomCampId(int cityId, String type, int campId) {
+        if (blossomCampIds == null) blossomCampIds = new HashMap<>();
+        blossomCampIds.put(cityId + ":" + type, campId);
+        save();
+    }
+
+    public synchronized int getWeeklyWorldBossClaimCount(int groupId, int now) {
+        int week = emu.grasscutter.game.entity.gadget.WorldBossWeeklyClaims.weekStart(now);
+        return weeklyWorldBossWeek == week && weeklyWorldBossClaims != null
+                ? weeklyWorldBossClaims.getOrDefault(groupId, 0) : 0;
+    }
+
+    public synchronized void recordWeeklyWorldBossClaim(int groupId, int now) {
+        int week = emu.grasscutter.game.entity.gadget.WorldBossWeeklyClaims.weekStart(now);
+        if (weeklyWorldBossWeek != week || weeklyWorldBossClaims == null) {
+            weeklyWorldBossClaims = new HashMap<>();
+            weeklyWorldBossWeek = week;
+        }
+        weeklyWorldBossClaims.merge(groupId, 1, Integer::sum);
+        save();
+    }
 
     public int getDeathZoneStatus(int sceneId, int zoneId) {
         if (deathZoneStatuses == null) return 0;
