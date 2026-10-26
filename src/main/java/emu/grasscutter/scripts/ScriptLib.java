@@ -1684,22 +1684,7 @@ public class ScriptLib {
     public int SetWeatherAreaState(int weatherAreaId, int state) {
         logger.debug("[LUA] Call SetWeatherAreaState with {} {}", weatherAreaId, state);
         var scene = this.getSceneScriptManager().getScene();
-        if (scene == null) {
-            return 0;
-        }
-        if (state != 0) {
-            // Enable: apply this weather area; climate comes from WeatherExcel defaultClimate.
-            scene.getPlayers().forEach(p -> p.setWeather(weatherAreaId, ClimateType.CLIMATE_NONE));
-        } else {
-            // Disable: only clear players still holding this area, restore open-world sunny.
-            scene.getPlayers()
-                    .forEach(
-                            p -> {
-                                if (p.getWeatherId() == weatherAreaId) {
-                                    p.setWeather(1, ClimateType.CLIMATE_SUNNY);
-                                }
-                            });
-        }
+        WeatherAreaState.apply(scene, weatherAreaId, state);
         return 0;
     }
 

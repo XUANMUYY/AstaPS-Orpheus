@@ -60,8 +60,8 @@ public final class TalkSystem extends BaseGameSystem {
      * @param talkData The data associated with the talk.
      * @param execParam The talk parameter.
      */
-    public void triggerExec(Player player, TalkConfigData talkData, TalkExecParam execParam) {
-        this.triggerExec(player, talkData, execParam, null);
+    public boolean triggerExec(Player player, TalkConfigData talkData, TalkExecParam execParam) {
+        return this.triggerExec(player, talkData, execParam, null);
     }
 
     /**
@@ -69,7 +69,7 @@ public final class TalkSystem extends BaseGameSystem {
      *
      * @param talkEntity 对话对象在服务端的实体，可能为 null。
      */
-    public void triggerExec(
+    public boolean triggerExec(
             Player player, TalkConfigData talkData, TalkExecParam execParam, GameEntity talkEntity) {
         var handler = this.execHandlers.get(execParam.getType().getValue());
         if (handler == null) {
@@ -78,16 +78,17 @@ public final class TalkSystem extends BaseGameSystem {
                             "Could not execute talk handlers for {} ({}).",
                             talkData.getId(),
                             execParam.getType().getValue());
-            return;
+            return true;
         }
 
         // Execute the handler.
         try {
-            handler.execute(player, talkData, execParam, talkEntity);
+            return handler.executeChecked(player, talkData, execParam, talkEntity);
         } catch (RuntimeException e) {
-            // 单个执行项出错不影响同一对话的其他执行项。
+            // 执行失败交给 TalkManager 阻止对话完成事件。
             Grasscutter.getLogger()
                     .warn("Talk exec {} of talk {} failed.", execParam.getType(), talkData.getId(), e);
+            return false;
         }
     }
 }

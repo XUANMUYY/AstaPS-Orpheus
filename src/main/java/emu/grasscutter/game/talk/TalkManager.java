@@ -55,10 +55,11 @@ public final class TalkManager extends BasePlayerManager {
             }
 
             // Execute the talk action on associated handlers.
-            talkData
-                    .getFinishExec()
-                    .forEach(
-                            e -> player.getServer().getTalkSystem().triggerExec(player, talkData, e, entity));
+            for (var exec : talkData.getFinishExec()) {
+                if (!player.getServer().getTalkSystem().triggerExec(player, talkData, exec, entity)) {
+                    return Retcode.RET_NOT_CURRENT_TALK_VALUE;
+                }
+            }
 
             // Save the talk value to the quest's data.
             this.saveTalkToQuest(talkId, talkData.getQuestId());
