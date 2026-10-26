@@ -60,6 +60,7 @@ public final class TeamManager extends BasePlayerDataManager {
     @Transient private List<Integer> mirrorTrialAvatarIds = List.of();
     @Transient @Getter private boolean questAvatarTeamLocked;
     @Transient @Getter private int questTeamRequiredAvatarId;
+    @Transient private int questTeamRequiredTrialId;
     @Transient private List<Integer> questLockGrantedTrialIds = List.of();
 
     public void lockQuestAvatarTeam(int requiredAvatarId) {
@@ -71,6 +72,7 @@ public final class TeamManager extends BasePlayerDataManager {
         boolean alreadyGranted = getTrialAvatarGuid(trialId) != 0;
         if (!alreadyGranted) this.addTrialAvatar(trialId, mainQuestId);
         this.questAvatarTeamLocked = true;
+        this.questTeamRequiredTrialId = trialId;
         if (!alreadyGranted) {
             var ids = new ArrayList<>(this.questLockGrantedTrialIds);
             ids.add(trialId);
@@ -82,9 +84,25 @@ public final class TeamManager extends BasePlayerDataManager {
         if (!this.questAvatarTeamLocked) return;
         this.questAvatarTeamLocked = false;
         this.questTeamRequiredAvatarId = 0;
+        this.questTeamRequiredTrialId = 0;
         var granted = this.questLockGrantedTrialIds;
         this.questLockGrantedTrialIds = List.of();
         if (!granted.isEmpty()) this.removeTrialAvatar(granted);
+    }
+
+    boolean allowsQuestTeamChange(List<Integer> avatarIds) {
+        // 镜像队和任务试用队只能由对应的任务解锁执行项恢复。
+        if (!this.mirrorTrialAvatarIds.isEmpty() || this.questTeamRequiredTrialId != 0) return false;
+        return !this.questAvatarTeamLocked || this.questTeamRequiredAvatarId > 0
+                && avatarIds.contains(this.questTeamRequiredAvatarId);
+    }
+
+    private void replyLockedTeamSetup(int teamId, TeamInfo teamInfo) {
+        this.getPlayer().sendPacket(new PacketSetUpAvatarTeamRsp(
+                this.getPlayer(), teamId, teamInfo == null ? new TeamInfo() : teamInfo,
+                Retcode.RET_FAIL_VALUE));
+        this.getPlayer().sendPacket(new PacketAvatarTeamAllDataNotify(this.getPlayer()));
+        this.getPlayer().sendPacket(new PacketAvatarTeamUpdateNotify(this.getPlayer()));
     }
 
     @Transient @Getter @Setter private Map<Integer, Avatar> trialAvatars;
@@ -587,6 +605,13 @@ public final class TeamManager extends BasePlayerDataManager {
         // Must look up by teamId. An old bug used get(list.size()) / get(team.size()) and always wrote team 1.
         TeamInfo teamInfo = this.getTeams().get(teamId);
 
+        if (!this.allowsQuestTeamChange(list == null ? List.of() : list.stream()
+                .map(guid -> guid == null ? null : this.getPlayer().getAvatars().getAvatarByGuid(guid))
+                .filter(Objects::nonNull).map(Avatar::getAvatarId).toList())) {
+            this.replyLockedTeamSetup(teamId, teamInfo);
+            return;
+        }
+
         // Always unblock client UI with SetUpAvatarTeamRsp, even on failure / empty team.
         if (list == null
                 || list.isEmpty()
@@ -835,11 +860,20 @@ public final class TeamManager extends BasePlayerDataManager {
 
     public synchronized void setCurrentTeam(int teamId) {
 
+        TeamInfo teamInfo = this.getTeams().get(teamId);
+        if (!this.allowsQuestTeamChange(
+                teamInfo == null ? List.of() : teamInfo.getAvatars())) {
+            this.getPlayer().sendPacket(new PacketChooseCurAvatarTeamRsp(
+                this.getCurrentTeamId(), Retcode.RET_FAIL_VALUE));
+            this.getPlayer().sendPacket(new PacketAvatarTeamAllDataNotify(this.getPlayer()));
+            this.getPlayer().sendPacket(new PacketAvatarTeamUpdateNotify(this.getPlayer()));
+            return;
+        }
+
         if (this.getPlayer().isInMultiplayer()) {
             return;
         }
 
-        TeamInfo teamInfo = this.getTeams().get(teamId);
         if (teamInfo == null || teamInfo.getAvatars().size() == 0) {
             return;
         }

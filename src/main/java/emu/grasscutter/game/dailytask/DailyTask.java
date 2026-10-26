@@ -45,7 +45,7 @@ public class DailyTask {
         return new DailyTask(
                 rewardId,
                 dailyTaskId,
-                data.getFinishProgress(),
+                data.getQuestId() > 0 ? 1 : data.getFinishProgress(),
                 0,
                 false);
     }

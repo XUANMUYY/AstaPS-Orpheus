@@ -1604,8 +1604,8 @@ public class Player implements PlayerHook, FieldFetch {
 
         int currentTime = Utils.getCurrentSeconds();
 
-        var currentDate = LocalDate.ofInstant(Instant.ofEpochSecond(currentTime), ZoneId.systemDefault());
-        var lastResetDate = LocalDate.ofInstant(Instant.ofEpochSecond(this.getLastDailyReset()), ZoneId.systemDefault());
+        var currentDate = GameDay.date(currentTime);
+        var lastResetDate = GameDay.date(this.getLastDailyReset());
 
         if (!currentDate.isAfter(lastResetDate)) {
             return;
@@ -1615,11 +1615,10 @@ public class Player implements PlayerHook, FieldFetch {
 
         this.getBattlePassManager().resetDailyMissions();
 
-        this.getBattlePassManager().triggerMission(WatcherTriggerType.TRIGGER_LOGIN);
-
-        if (currentDate.getDayOfWeek() == DayOfWeek.MONDAY) {
+        if (GameDay.crossedWeeklyReset(this.getLastDailyReset(), currentTime)) {
             this.getBattlePassManager().resetWeeklyMissions();
         }
+        this.getBattlePassManager().triggerMission(WatcherTriggerType.TRIGGER_LOGIN);
 
         if (this.dailyTaskManager != null) {
             this.dailyTaskManager.resetDailyTasksForNewDay();
@@ -1695,18 +1694,16 @@ public class Player implements PlayerHook, FieldFetch {
 
         runner.submit(this.getFriendsList()::loadFromDatabase);
         runner.submit(this.getMailHandler()::loadFromDatabase);
-        runner.submit(this.getQuestManager()::loadFromDatabase);
+        var questsLoad = runner.submit(this.getQuestManager()::loadFromDatabase);
 
-        runner.submit(this::loadBattlePassManager);
-        runner.submit(this::loadDailyTaskManager);
+        var battlePassLoad = runner.submit(this::loadBattlePassManager);
+        var dailyTasksLoad = runner.submit(this::loadDailyTaskManager);
 
         // With asyncLogin off this runs on the one thread that handles every player's packets.
         // Waiting on the loaded flags forever meant a loader that threw - its exception swallowed
         // by the pool - or a pool full of stuck tasks froze the whole server. Fail this one login
         // instead.
-        awaitLoad("avatars", avatarsLoad);
-        awaitLoad("inventory", inventoryLoad);
-        awaitLoad("achievements", achievementsLoad);
+        awaitLoginLoads(avatarsLoad, inventoryLoad, achievementsLoad, questsLoad, battlePassLoad, dailyTasksLoad);
 
         this.getPlayerProgress().setPlayer(this);
     }
@@ -1718,6 +1715,16 @@ public class Player implements PlayerHook, FieldFetch {
     }
 
     private static final long LOAD_TIMEOUT_SECONDS = 30;
+
+    void awaitLoginLoads(Future<?> avatarsLoad, Future<?> inventoryLoad, Future<?> achievementsLoad,
+            Future<?> questsLoad, Future<?> battlePassLoad, Future<?> dailyTasksLoad) {
+        awaitLoad("avatars", avatarsLoad);
+        awaitLoad("inventory", inventoryLoad);
+        awaitLoad("achievements", achievementsLoad);
+        awaitLoad("quests", questsLoad);
+        awaitLoad("battle pass", battlePassLoad);
+        awaitLoad("daily tasks", dailyTasksLoad);
+    }
 
     private void awaitLoad(String what, java.util.concurrent.Future<?> load) {
         try {

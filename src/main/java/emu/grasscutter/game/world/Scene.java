@@ -60,6 +60,7 @@ public class Scene {
     @Getter private final World world;
     @Getter private final SceneData sceneData;
     @Getter private final List<Player> players;
+    private final Map<Integer, Integer> climateAreaStates = new ConcurrentHashMap<>();
     @Getter private final Map<Integer, GameEntity> entities;
     @Getter private final Map<Integer, GameEntity> weaponEntities;
     @Getter private final Set<SpawnDataEntry> spawnedEntities;
@@ -124,6 +125,23 @@ public class Scene {
 
     public int getId() {
         return sceneData.getId();
+    }
+
+    public int getClimateAreaState(int areaId) {
+        return climateAreaStates.getOrDefault(areaId, 0);
+    }
+
+    public void modifyClimateArea(int areaId, int climateType) {
+        climateAreaStates.put(areaId, climateType);
+        for (var player : players) {
+            if (player.getProperty(PlayerProperty.PROP_CUR_CLIMATE_AREA_ID) != areaId) continue;
+            player.setProperty(PlayerProperty.PROP_CUR_CLIMATE_AREA_CLIMATE_TYPE, climateType);
+            if (climateType == 0) {
+                player.setClimate(ClimateType.CLIMATE_SUNNY);
+            } else if (climateType <= ClimateType.CLIMATE_DESERT.getValue()) {
+                player.setClimate(ClimateType.getTypeByValue(climateType));
+            }
+        }
     }
 
     public SceneType getSceneType() {
