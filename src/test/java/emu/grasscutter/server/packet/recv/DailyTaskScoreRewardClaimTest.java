@@ -100,7 +100,8 @@ final class DailyTaskScoreRewardClaimTest {
         assertEquals(5, manager.saves);
 
         claim();
-        assertEquals(Retcode.RET_SUCC_VALUE, response().getRetcode());
+        assertEquals(Retcode.RET_REWARD_HAS_TAKEN_VALUE, response().getRetcode());
+        assertEquals(0, response().getItemListCount());
         assertEquals(1, inventory.grants.size());
         assertEquals(1, player.saves);
     }

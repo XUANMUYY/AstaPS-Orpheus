@@ -11,6 +11,7 @@ import emu.grasscutter.data.excels.DailyTaskData;
 import emu.grasscutter.data.excels.DailyTaskLevelData;
 import emu.grasscutter.data.excels.DailyTaskRewardData;
 import emu.grasscutter.data.excels.RewardPreviewData;
+import emu.grasscutter.game.quest.enums.QuestExec;
 import emu.grasscutter.database.DatabaseHelper;
 import emu.grasscutter.game.inventory.GameItem;
 import emu.grasscutter.game.player.Player;
@@ -67,8 +68,9 @@ public class DailyTaskManager {
     private static final String SUPPORTED_TASK_TYPE =
             "DAILY_TASK_SCENE";
 
-    private static final String SUPPORTED_FINISH_TYPE =
-            "DAILY_FINISH_MONSTER_NUM";
+    private static final String MONSTER_FINISH_TYPE = "DAILY_FINISH_MONSTER_NUM";
+    private static final String CHALLENGE_FINISH_TYPE = "DAILY_FINISH_CHALLENGE";
+    private static final String GADGET_FINISH_TYPE = "DAILY_FINISH_GADGET_ID_NUM";
 			
 	private static final ConcurrentMap<Integer, Boolean> GROUP_RESOURCE_SUPPORT_CACHE =
         new ConcurrentHashMap<>();
@@ -179,6 +181,7 @@ public class DailyTaskManager {
 		 * it will NEVER reroll it merely because the server restarted.
 		 */
 		this.ensureDailyTasksForToday(false);
+		this.activateQuestTasks();
 		if (this.dailyTaskVars != null) this.dailyTaskVars.keySet().forEach(this::triggerDailyTaskVarConditions);
 
 		/*
@@ -332,6 +335,7 @@ public class DailyTaskManager {
 										data.getCityId()
 												== selectedCityId)
 						.filter(DailyTaskManager::isSupportedTask)
+						.filter(this::isAvailableToPlayer)
 						.collect(
 								java.util.stream.Collectors.toCollection(
 										ArrayList::new));
@@ -382,6 +386,7 @@ public class DailyTaskManager {
 		this.generationSerial++;
 
 		this.save();
+		this.activateQuestTasks();
 
 		if (syncClient) {
 			if (this.player.isOnline()
@@ -424,7 +429,13 @@ public class DailyTaskManager {
 	private static boolean isBaseSupportedTask(DailyTaskData data) {
 		return data != null
 				&& SUPPORTED_TASK_TYPE.equals(data.getType())
-				&& SUPPORTED_FINISH_TYPE.equals(data.getFinishType())
+				&& (MONSTER_FINISH_TYPE.equals(data.getFinishType())
+						|| (CHALLENGE_FINISH_TYPE.equals(data.getFinishType())
+								&& data.getFinishProgress() == 1 && data.getFinishParam1() > 0
+								&& data.getFinishParam2() > 0 && data.getNewGroupVec() != null
+								&& data.getNewGroupVec().contains(data.getFinishParam2()))
+						|| (GADGET_FINISH_TYPE.equals(data.getFinishType())
+								&& data.getFinishParam1() > 0))
 				&& data.getFinishProgress() > 0
 				&& data.getTaskRewardId() > 0
 				&& data.getNewGroupVec() != null
@@ -536,6 +547,7 @@ public class DailyTaskManager {
 	}
 
 	private static boolean isSupportedTask(DailyTaskData data) {
+		if (isSupportedQuestTask(data)) return true;
 		if (!isBaseSupportedTask(data)) {
 			return false;
 		}
@@ -549,11 +561,56 @@ public class DailyTaskManager {
 				.allMatch(DailyTaskManager::hasUsableGroupResources);
 	}
 
+	private static boolean isSupportedQuestTask(DailyTaskData data) {
+		if (data == null || data.getQuestId() <= 0 || data.getTaskRewardId() <= 0
+				|| data.getType() != null || data.getFinishType() != null) return false;
+		var first = GameData.getQuestDataMap().get(data.getQuestId());
+		if (first == null) return false;
+		var main = GameData.getMainQuestDataMap().get(first.getMainId());
+		if (main == null || !main.isRepeatable() || main.getSubQuests() == null
+				|| main.getSubQuests().length == 0) return false;
+		var start = Arrays.stream(main.getSubQuests())
+				.filter(java.util.Objects::nonNull)
+				.min(java.util.Comparator.comparingInt(emu.grasscutter.data.binout.MainQuestData.SubQuestData::getOrder));
+		if (start.isEmpty() || start.get().getSubId() != data.getQuestId()) return false;
+		return Arrays.stream(main.getSubQuests())
+				.filter(java.util.Objects::nonNull)
+				.map(step -> GameData.getQuestDataMap().get(step.getSubId()))
+				.filter(java.util.Objects::nonNull)
+				.anyMatch(step -> step.getFinishExec() != null && step.getFinishExec().stream()
+					.anyMatch(exec -> exec.getType() == QuestExec.QUEST_EXEC_NOTIFY_DAILY_TASK
+							&& exec.getParam() != null && exec.getParam().length > 0
+							&& Integer.toString(data.getId()).equals(exec.getParam()[0])));
+	}
+
+	private void activateQuestTasks() {
+		if (this.player == null || this.player.getQuestManager() == null || this.dailyTasks == null) return;
+		var quests = this.player.getQuestManager();
+		for (DailyTask task : this.dailyTasks) {
+			if (task == null || task.isFinished()) continue;
+			var data = GameData.getDailyTaskDataMap().get(task.getTaskId());
+			if (!isSupportedQuestTask(data)) continue;
+			var first = GameData.getQuestDataMap().get(data.getQuestId());
+			var current = quests.getMainQuestById(first.getMainId());
+			if (current != null) continue;
+			quests.addQuest(data.getQuestId());
+		}
+	}
+
+	private boolean isAvailableToPlayer(DailyTaskData data) {
+		if (data.getQuestId() <= 0) return true;
+		if (this.player == null || this.player.getQuestManager() == null) return false;
+		var first = GameData.getQuestDataMap().get(data.getQuestId());
+		return first != null
+				&& this.player.getQuestManager().getMainQuestById(first.getMainId()) == null;
+	}
+
 	public List<Integer> getSupportedCityIds() {
 		return GameData.getDailyTaskDataMap()
 				.values()
 				.stream()
 				.filter(DailyTaskManager::isSupportedTask)
+				.filter(this::isAvailableToPlayer)
 				.map(DailyTaskData::getCityId)
 				.distinct()
 				.filter(this::hasEnoughSupportedTasks)
@@ -567,6 +624,7 @@ public class DailyTaskManager {
 				.stream()
 				.filter(data -> data.getCityId() == cityId)
 				.filter(DailyTaskManager::isSupportedTask)
+				.filter(this::isAvailableToPlayer)
 				.limit(DAILY_TASK_COUNT)
 				.count() >= DAILY_TASK_COUNT;
 	}
@@ -838,7 +896,8 @@ public class DailyTaskManager {
 					GameData.getDailyTaskDataMap()
 							.get(task.getTaskId());
 
-			if (!isSupportedTask(data)) {
+			if (!MONSTER_FINISH_TYPE.equals(data == null ? null : data.getFinishType())
+					|| !isSupportedTask(data)) {
 				continue;
 			}
 
@@ -892,6 +951,53 @@ public class DailyTaskManager {
 		}
 
         DailyTaskGroupLifecycle.progressChanged(this, scene, groupId);
+		this.save();
+		this.syncAll();
+	}
+
+	static boolean matchesSceneCompletion(
+			DailyTaskData data, int groupId, String finishType, int targetId) {
+		if (data == null || groupId <= 0 || targetId <= 0
+				|| !finishType.equals(data.getFinishType())
+				|| data.getFinishParam1() != targetId
+				|| data.getNewGroupVec() == null
+				|| !data.getNewGroupVec().contains(groupId)) return false;
+		return !CHALLENGE_FINISH_TYPE.equals(finishType)
+				|| data.getFinishParam2() == groupId;
+	}
+
+	public synchronized void onChallengeSuccess(Scene scene, int groupId, int challengeId) {
+		this.onSceneCompletion(scene, groupId, CHALLENGE_FINISH_TYPE, challengeId);
+	}
+
+	public synchronized void onGadgetDeath(Scene scene, int groupId, int gadgetId) {
+		this.onSceneCompletion(scene, groupId, GADGET_FINISH_TYPE, gadgetId);
+	}
+
+	private void onSceneCompletion(Scene scene, int groupId, String finishType, int targetId) {
+		if (scene == null || scene.getId() != TEYVAT_SCENE_ID
+				|| scene.getHost() != this.player) return;
+		this.recordSceneCompletion(scene, groupId, finishType, targetId);
+	}
+
+	// 场景事件只推进当天仍在列表中的同组委托，重复事件不会再次发奖。
+	void recordSceneCompletion(Scene scene, int groupId, String finishType, int targetId) {
+		if (this.dailyTasks == null) return;
+		boolean changed = false;
+		for (DailyTask task : this.dailyTasks) {
+			if (task == null || task.isFinished()) continue;
+			var data = GameData.getDailyTaskDataMap().get(task.getTaskId());
+			if (!matchesSceneCompletion(data, groupId, finishType, targetId)
+					|| !isSupportedTask(data) || !task.addProgress(1)) continue;
+			changed = true;
+			this.broadcastProgress(task);
+			if (task.isFinished()) {
+				this.grantPreviewReward(task.getRewardId(), ActionReason.DailyTaskHost);
+				this.unloadTaskGroups(scene, task);
+			}
+		}
+		if (!changed) return;
+		if (scene != null) DailyTaskGroupLifecycle.progressChanged(this, scene, groupId);
 		this.save();
 		this.syncAll();
 	}
@@ -987,7 +1093,8 @@ public class DailyTaskManager {
 				GameData.getDailyTaskDataMap()
 						.get(taskId);
 
-		if (!isSupportedTask(data)) {
+		if (!MONSTER_FINISH_TYPE.equals(data == null ? null : data.getFinishType())
+				|| !isSupportedTask(data)) {
 			return;
 		}
 
@@ -1288,6 +1395,7 @@ public class DailyTaskManager {
 				.stream()
 				.filter(data -> data.getCityId() == cityId)
 				.filter(DailyTaskManager::isBaseSupportedTask)
+				.filter(data -> MONSTER_FINISH_TYPE.equals(data.getFinishType()))
 				.count();
 	}
 

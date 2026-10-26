@@ -171,6 +171,11 @@ public class WorldChallenge {
 
         this.challengeTriggers.forEach(t -> t.onFinish(this));
         if (fatherChallenge != null) fatherChallenge.onChildFinished(this, true);
+        var host = scene.getHost();
+        if (fatherChallenge == null && host != null && host.getDailyTaskManager() != null
+                && this.group != null) {
+            host.getDailyTaskManager().onChallengeSuccess(scene, this.group.id, this.challengeId);
+        }
     }
 
     public void fail() {

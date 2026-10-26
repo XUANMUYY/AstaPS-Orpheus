@@ -76,6 +76,7 @@ public class EntityGadget extends EntityBaseGadget {
     @Getter @Setter private int ticksSinceChange;
 
     @Getter private boolean interactEnabled = true;
+    private boolean commissionDeathReported;
 
     public EntityGadget(Scene scene, int gadgetId, Position pos) {
         this(scene, gadgetId, pos, null, null);
@@ -442,6 +443,12 @@ public class EntityGadget extends EntityBaseGadget {
             groupInstance.getDeadEntities().add(metaGadget.config_id);
 
         emu.grasscutter.game.entity.gadget.MeltableIceHelper.onShattered(this);
+        var host = this.getScene().getHost();
+        if (!commissionDeathReported && host != null && host.getDailyTaskManager() != null) {
+            commissionDeathReported = true;
+            host.getDailyTaskManager()
+                    .onGadgetDeath(this.getScene(), this.getGroupId(), this.getGadgetId());
+        }
     }
 
     /**
