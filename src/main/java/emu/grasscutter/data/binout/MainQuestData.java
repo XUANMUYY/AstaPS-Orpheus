@@ -14,6 +14,7 @@ public class MainQuestData {
     private int ICLLDPJFIMA;
     private int series;
     private QuestType type;
+    private boolean repeatable;
 
     private long titleTextMapHash;
     private int[] suggestTrackMainQuestList;
@@ -35,6 +36,10 @@ public class MainQuestData {
 
     public int getSeries() {
         return series;
+    }
+
+    public boolean isRepeatable() {
+        return repeatable;
     }
 
     public QuestType getType() {

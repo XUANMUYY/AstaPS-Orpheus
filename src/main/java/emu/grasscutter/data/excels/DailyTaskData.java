@@ -17,8 +17,11 @@ public class DailyTaskData extends GameResource {
     private float enterDistance;
     private float exitDistance;
     private String type;
+    private int questId;
     private List<Integer> newGroupVec;
     private String finishType;
+    private int finishParam1;
+    private int finishParam2;
     private int finishProgress;
     private int taskRewardId;
 
