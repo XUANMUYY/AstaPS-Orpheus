@@ -14,6 +14,12 @@ public class PacketGadgetInteractRsp extends BasePacket {
 
     public PacketGadgetInteractRsp(
             EntityBaseGadget gadget, InteractType interact, InterOpType opType) {
+        this(gadget, interact, opType, null);
+    }
+
+    public PacketGadgetInteractRsp(
+            EntityBaseGadget gadget, InteractType interact, InterOpType opType,
+            RetcodeOuterClass.Retcode retcode) {
         super(PacketOpcodes.GadgetInteractRsp);
 
         var proto =
@@ -24,6 +30,9 @@ public class PacketGadgetInteractRsp extends BasePacket {
 
         if (opType != null) {
             proto.setOpType(opType);
+        }
+        if (retcode != null) {
+            proto.setRetcode(retcode.getNumber());
         }
 
         this.setData(proto.build());

@@ -40,6 +40,10 @@ public class CookingManager extends BasePlayerManager {
         return 1;
     }
 
+    static boolean canAutoCook(int proficiency, int maxProficiency) {
+        return proficiency >= maxProficiency;
+    }
+
     public boolean unlockRecipe(int id) {
         if (this.player.getUnlockedRecipies().containsKey(id)) {
             return false;
@@ -63,7 +67,10 @@ public class CookingManager extends BasePlayerManager {
         int count = firstSaneCount(req.getCookCount());
         int quality = req.getQteQuality();
         if (quality < 0 || quality > 3) {
-            quality = 0;
+            Grasscutter.getLogger().debug("Cook invalid quality uid={} recipe={} quality={}",
+                    player.getUid(), recipeId, quality);
+            this.player.sendPacket(new PacketPlayerCookRsp(Retcode.RET_FAIL));
+            return;
         }
         int avatar = req.getAssistAvatar();
         Grasscutter.getLogger()
@@ -86,6 +93,15 @@ public class CookingManager extends BasePlayerManager {
         }
 
         int proficiency = this.player.getUnlockedRecipies().getOrDefault(recipeId, 0);
+
+        // 0 是自动烹饪；未满熟练度时只能走手动 QTE。
+        if (quality == 0 && !canAutoCook(proficiency, recipeData.getMaxProficiency())) {
+            Grasscutter.getLogger().debug(
+                    "Cook auto QTE locked uid={} recipe={} proficiency={}/{}",
+                    player.getUid(), recipeId, proficiency, recipeData.getMaxProficiency());
+            this.player.sendPacket(new PacketPlayerCookRsp(Retcode.RET_RECIPE_NOT_AUTO_QTE));
+            return;
+        }
 
         boolean success =
                 player.getInventory().payItems(recipeData.getInputVec(), count, ActionReason.Cook);

@@ -11,7 +11,7 @@ import emu.grasscutter.net.proto.GatherGadgetInfoOuterClass.GatherGadgetInfo;
 import emu.grasscutter.net.proto.SceneGadgetInfoOuterClass.SceneGadgetInfo;
 
 /** Spawner for the gather objects */
-public final class GadgetGatherPoint extends GadgetContent {
+public final class GadgetGatherPoint extends GadgetContent implements CreditsOwnInteraction {
     private final GatherData gatherData;
     private final EntityGadget gatherObjectChild;
 
@@ -45,9 +45,11 @@ public final class GadgetGatherPoint extends GadgetContent {
     }
 
     public boolean onInteract(Player player, GadgetInteractReq req) {
+        if (GatherGuestGuard.reject(player, this.getGadget(), this.isForbidGuest(), req)) return false;
         GameItem item = new GameItem(getItemId(), 1);
 
         player.getInventory().addItem(item, ActionReason.Gather);
+        player.onGadgetInteracted(this.getGadget().getGadgetId());
 
         return true;
     }
