@@ -1339,9 +1339,10 @@ public class ScriptLib {
     }
 
     public int RefreshHuntingClueGroup() {
-        logger.warn("[LUA] Call unimplemented RefreshHuntingClueGroup");
-
-        return 0;
+        // HuntingGroupInfo only identifies the clue type and region. Spawning also requires
+        // the active player's HuntingData selection, which is not available here yet.
+        logger.warn("[LUA] RefreshHuntingClueGroup cannot spawn clues without HuntingData");
+        return 1;
     }
 
     public int RemoveEntityByConfigId(int groupId, int entityType, int configId) {
