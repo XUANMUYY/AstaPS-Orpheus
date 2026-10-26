@@ -9,6 +9,8 @@ import emu.grasscutter.game.props.*;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Random;
+import java.util.List;
+import java.util.function.IntFunction;
 
 public class ItemUseOpenRandomChest extends ItemUseInt {
     public ItemUseOpenRandomChest(String[] useParam) {
@@ -29,13 +31,8 @@ public class ItemUseOpenRandomChest extends ItemUseInt {
             // 默认映射不完整时，以客户端同版本的原生掉落根节点为准。
             var drops = params.player.getServer().getDropSystem();
             if (!drops.hasUsableDungeonRewardRoot(this.i)) return false;
-            try {
-                for (int n = 0; n < params.count; n++) {
-                    rewardItems.addAll(drops.handleDungeonRewardDrop(this.i, false));
-                }
-            } catch (RuntimeException invalidDrop) {
-                return false;
-            }
+            rewardItems.addAll(rollNativeRewards(this.i, params.count,
+                    dropId -> drops.handleDungeonRewardDrop(dropId, false)));
         } else {
             var reliquaryItems = new ArrayList<ItemParamData>();
             for (var itemParamData : data) {
@@ -60,5 +57,23 @@ public class ItemUseOpenRandomChest extends ItemUseInt {
 
         return !rewardItems.isEmpty()
                 && params.player.getInventory().addItems(rewardItems, ActionReason.Shop).allAccepted();
+    }
+
+    static List<GameItem> rollNativeRewards(
+            int dropId, int count, IntFunction<List<GameItem>> roll) {
+        if (dropId <= 0 || count <= 0) return List.of();
+        var rewards = new ArrayList<GameItem>();
+        for (int n = 0; n < count; n++) {
+            List<GameItem> one;
+            try {
+                one = roll.apply(dropId);
+            } catch (RuntimeException invalidDrop) {
+                return List.of();
+            }
+            if (one == null || one.isEmpty() || one.stream().anyMatch(item ->
+                    item == null || item.getItemId() <= 0 || item.getCount() <= 0)) return List.of();
+            rewards.addAll(one);
+        }
+        return rewards;
     }
 }

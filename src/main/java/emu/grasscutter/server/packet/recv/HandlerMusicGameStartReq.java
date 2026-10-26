@@ -12,6 +12,7 @@ public class HandlerMusicGameStartReq extends PacketHandler {
     public void handle(GameSession session, byte[] header, byte[] payload) throws Exception {
         var req = MusicGameStartReqOuterClass.MusicGameStartReq.parseFrom(payload);
 
+        session.getMusicGamePlayTracker().start(req.getMusicBasicId(), req.getUgcGuid());
         session.send(new PacketMusicGameStartRsp(req.getMusicBasicId(), req.getUgcGuid()));
     }
 }

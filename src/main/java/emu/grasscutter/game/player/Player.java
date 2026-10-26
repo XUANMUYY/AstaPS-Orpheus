@@ -105,6 +105,36 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter @Setter private int currentRealmId;
     @Getter @Setter private transient boolean isInEditMode;
     @Getter @Setter private int widgetId;
+    // 协议消息以字节保存，避免旧存档缺少字段时改变默认值。
+    private String lunchBoxData;
+    private Map<Integer, Long> widgetBagLastUseTime;
+
+    public LunchBoxDataOuterClass.LunchBoxData getLunchBoxData() {
+        if (lunchBoxData == null || lunchBoxData.isEmpty()) {
+            return LunchBoxDataOuterClass.LunchBoxData.getDefaultInstance();
+        }
+        try {
+            return LunchBoxDataOuterClass.LunchBoxData.parseFrom(Base64.getDecoder().decode(lunchBoxData));
+        } catch (Exception e) {
+            Grasscutter.getLogger().debug("Invalid saved lunch box data for uid={}", getUid(), e);
+            return LunchBoxDataOuterClass.LunchBoxData.getDefaultInstance();
+        }
+    }
+
+    public void setLunchBoxData(LunchBoxDataOuterClass.LunchBoxData data) {
+        lunchBoxData = Base64.getEncoder().encodeToString(data.toByteArray());
+        save();
+    }
+
+    public long getWidgetBagLastUseTime(int materialId) {
+        return widgetBagLastUseTime == null ? 0L : widgetBagLastUseTime.getOrDefault(materialId, 0L);
+    }
+
+    public void recordWidgetBagUse(int materialId, long time) {
+        if (widgetBagLastUseTime == null) widgetBagLastUseTime = new HashMap<>();
+        widgetBagLastUseTime.put(materialId, time);
+        save();
+    }
     private Map<Integer, String> questAvatarNames = new HashMap<>();
 
     public Map<Integer, String> getQuestAvatarNames() {
@@ -122,6 +152,10 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter private Set<Integer> traceEffectList;
     @Getter private Set<Integer> costumeList;
     @Getter private Set<Integer> weaponSkinList;
+    // Missing in older player documents; access through the lazy getters below.
+    private Map<String, Set<Integer>> gcgUnlocks;
+    private Set<Integer> photographPoses;
+    private Set<Integer> unlockedProfileFrames;
     @Getter private Set<Integer> personalLineList;
     @Getter @Setter private Set<Integer> rewardedLevels;
     @Getter @Setter private Set<Integer> homeRewardedLevels;
@@ -155,6 +189,37 @@ public class Player implements PlayerHook, FieldFetch {
     private Map<Integer, Boolean> mapAreaStates;
     /** ScriptLib 死域开关，按场景与死域编号保存。 */
     private Map<String, Integer> deathZoneStatuses;
+    /** 当前各城市、各类型地脉营地；旧存档没有此字段时使用原有初始营地。 */
+    private Map<String, Integer> blossomCampIds;
+    /** 世界首领每周已领奖次数；北京时间周一 04:00 换周。 */
+    private Map<Integer, Integer> weeklyWorldBossClaims;
+    private int weeklyWorldBossWeek;
+
+    public int getBlossomCampId(int cityId, String type) {
+        return blossomCampIds == null ? 0 : blossomCampIds.getOrDefault(cityId + ":" + type, 0);
+    }
+
+    public void setBlossomCampId(int cityId, String type, int campId) {
+        if (blossomCampIds == null) blossomCampIds = new HashMap<>();
+        blossomCampIds.put(cityId + ":" + type, campId);
+        save();
+    }
+
+    public synchronized int getWeeklyWorldBossClaimCount(int groupId, int now) {
+        int week = emu.grasscutter.game.entity.gadget.WorldBossWeeklyClaims.weekStart(now);
+        return weeklyWorldBossWeek == week && weeklyWorldBossClaims != null
+                ? weeklyWorldBossClaims.getOrDefault(groupId, 0) : 0;
+    }
+
+    public synchronized void recordWeeklyWorldBossClaim(int groupId, int now) {
+        int week = emu.grasscutter.game.entity.gadget.WorldBossWeeklyClaims.weekStart(now);
+        if (weeklyWorldBossWeek != week || weeklyWorldBossClaims == null) {
+            weeklyWorldBossClaims = new HashMap<>();
+            weeklyWorldBossWeek = week;
+        }
+        weeklyWorldBossClaims.merge(groupId, 1, Integer::sum);
+        save();
+    }
 
     public int getDeathZoneStatus(int sceneId, int zoneId) {
         if (deathZoneStatuses == null) return 0;
@@ -282,6 +347,13 @@ public class Player implements PlayerHook, FieldFetch {
     private HashMap<String, MapMark> mapMarks;
     @Getter @Setter private int nextResinRefresh;
     @Getter @Setter private int resinBuyCount;
+    private WeeklyBossClaimState weeklyBossClaimState;
+
+    public synchronized WeeklyBossClaimState getWeeklyBossClaimState() {
+        if (weeklyBossClaimState == null) weeklyBossClaimState = new WeeklyBossClaimState();
+        return weeklyBossClaimState;
+    }
+
     @Getter @Setter private int lastDailyReset;
     @Getter private transient MpSettingType mpSetting = MpSettingType.MpSettingType_MP_SETTING_ENTER_AFTER_APPLY;
     @Getter private long playerGameTime = 540000;
@@ -1224,6 +1296,40 @@ public class Player implements PlayerHook, FieldFetch {
         return weaponSkinId <= 0 || this.getWeaponSkinList().contains(weaponSkinId);
     }
 
+    public Map<String, Set<Integer>> getGcgUnlocks() {
+        if (this.gcgUnlocks == null) this.gcgUnlocks = new HashMap<>();
+        return this.gcgUnlocks;
+    }
+
+    public boolean addGcgUnlock(String type, int id) {
+        if (type == null || type.isBlank() || id < 0) return false;
+        if (!getGcgUnlocks().computeIfAbsent(type, ignored -> new HashSet<>()).add(id)) return false;
+        this.save();
+        return true;
+    }
+
+    public Set<Integer> getPhotographPoses() {
+        if (this.photographPoses == null) this.photographPoses = new HashSet<>();
+        return this.photographPoses;
+    }
+
+    public Set<Integer> getUnlockedProfileFrames() {
+        if (this.unlockedProfileFrames == null) this.unlockedProfileFrames = new HashSet<>();
+        return this.unlockedProfileFrames;
+    }
+
+    public boolean addPhotographPose(int id) {
+        if (id <= 0 || !getPhotographPoses().add(id)) return false;
+        this.save();
+        return true;
+    }
+
+    public boolean addProfileFrame(int id) {
+        if (id <= 0 || !getUnlockedProfileFrames().add(id)) return false;
+        this.save();
+        return true;
+    }
+
     /** Unlocks one or more weapon skins (from ITEM_USE_ADD_WEAPON_SKIN materials). */
     public void addWeaponSkins(List<Integer> skinIds) {
         boolean changed = false;
@@ -1604,8 +1710,8 @@ public class Player implements PlayerHook, FieldFetch {
 
         int currentTime = Utils.getCurrentSeconds();
 
-        var currentDate = LocalDate.ofInstant(Instant.ofEpochSecond(currentTime), ZoneId.systemDefault());
-        var lastResetDate = LocalDate.ofInstant(Instant.ofEpochSecond(this.getLastDailyReset()), ZoneId.systemDefault());
+        var currentDate = GameDay.date(currentTime);
+        var lastResetDate = GameDay.date(this.getLastDailyReset());
 
         if (!currentDate.isAfter(lastResetDate)) {
             return;
@@ -1615,11 +1721,10 @@ public class Player implements PlayerHook, FieldFetch {
 
         this.getBattlePassManager().resetDailyMissions();
 
-        this.getBattlePassManager().triggerMission(WatcherTriggerType.TRIGGER_LOGIN);
-
-        if (currentDate.getDayOfWeek() == DayOfWeek.MONDAY) {
+        if (GameDay.crossedWeeklyReset(this.getLastDailyReset(), currentTime)) {
             this.getBattlePassManager().resetWeeklyMissions();
         }
+        this.getBattlePassManager().triggerMission(WatcherTriggerType.TRIGGER_LOGIN);
 
         if (this.dailyTaskManager != null) {
             this.dailyTaskManager.resetDailyTasksForNewDay();
@@ -1695,18 +1800,16 @@ public class Player implements PlayerHook, FieldFetch {
 
         runner.submit(this.getFriendsList()::loadFromDatabase);
         runner.submit(this.getMailHandler()::loadFromDatabase);
-        runner.submit(this.getQuestManager()::loadFromDatabase);
+        var questsLoad = runner.submit(this.getQuestManager()::loadFromDatabase);
 
-        runner.submit(this::loadBattlePassManager);
-        runner.submit(this::loadDailyTaskManager);
+        var battlePassLoad = runner.submit(this::loadBattlePassManager);
+        var dailyTasksLoad = runner.submit(this::loadDailyTaskManager);
 
         // With asyncLogin off this runs on the one thread that handles every player's packets.
         // Waiting on the loaded flags forever meant a loader that threw - its exception swallowed
         // by the pool - or a pool full of stuck tasks froze the whole server. Fail this one login
         // instead.
-        awaitLoad("avatars", avatarsLoad);
-        awaitLoad("inventory", inventoryLoad);
-        awaitLoad("achievements", achievementsLoad);
+        awaitLoginLoads(avatarsLoad, inventoryLoad, achievementsLoad, questsLoad, battlePassLoad, dailyTasksLoad);
 
         this.getPlayerProgress().setPlayer(this);
     }
@@ -1718,6 +1821,16 @@ public class Player implements PlayerHook, FieldFetch {
     }
 
     private static final long LOAD_TIMEOUT_SECONDS = 30;
+
+    void awaitLoginLoads(Future<?> avatarsLoad, Future<?> inventoryLoad, Future<?> achievementsLoad,
+            Future<?> questsLoad, Future<?> battlePassLoad, Future<?> dailyTasksLoad) {
+        awaitLoad("avatars", avatarsLoad);
+        awaitLoad("inventory", inventoryLoad);
+        awaitLoad("achievements", achievementsLoad);
+        awaitLoad("quests", questsLoad);
+        awaitLoad("battle pass", battlePassLoad);
+        awaitLoad("daily tasks", dailyTasksLoad);
+    }
 
     private void awaitLoad(String what, java.util.concurrent.Future<?> load) {
         try {
@@ -1737,6 +1850,7 @@ public class Player implements PlayerHook, FieldFetch {
     }
 
     public void onLogin() {
+        this.getProfile().updateLastActiveTime();
         try {
             PlayerDataMigrations.run(this, PlayerDataMigrations.DATABASE_BACKUP);
         } catch (Exception e) {
@@ -1923,6 +2037,7 @@ public class Player implements PlayerHook, FieldFetch {
                 this.getWorld().removePlayer(this);
             }
 
+            this.getProfile().updateLastActiveTime();
             this.getProfile().syncWithCharacter(this);
 
             this.getCoopRequests().clear();

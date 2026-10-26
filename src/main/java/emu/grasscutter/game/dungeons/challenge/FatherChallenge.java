@@ -20,6 +20,7 @@ public final class FatherChallenge extends WorldChallenge {
     private int successPoints;
     private int failPoints;
     private boolean started;
+    private boolean failOnWipe;
 
     private record Child(WorldChallenge challenge, int successWeight, int failWeight) {}
 
@@ -56,6 +57,14 @@ public final class FatherChallenge extends WorldChallenge {
 
     public int failPoints() {
         return failPoints;
+    }
+
+    public void setFailOnWipe(boolean failOnWipe) {
+        this.failOnWipe = failOnWipe;
+    }
+
+    public synchronized void onTeamWipe() {
+        if (failOnWipe) fail();
     }
 
     @Override

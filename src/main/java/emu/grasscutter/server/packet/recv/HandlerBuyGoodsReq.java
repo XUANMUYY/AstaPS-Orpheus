@@ -175,14 +175,7 @@ public class HandlerBuyGoodsReq extends PacketHandler {
             }
         }
 
-        List<ItemParamData> costs =
-                new ArrayList<>(
-                        sg.getCostItemList() != null
-                                ? sg.getCostItemList()
-                                : Collections.emptyList());
-        costs.add(new ItemParamData(202, sg.getScoin()));
-        costs.add(new ItemParamData(201, sg.getHcoin()));
-        costs.add(new ItemParamData(203, sg.getMcoin()));
+        List<ItemParamData> costs = sg.payableCosts();
         if (!player.getInventory().payItems(costs, buyCount)) {
             // 货币不够时回对应的「不足」错误码，客户端据此弹出结晶兑换；
             // 一律回 707 会被当成「商品已变更」，并把商城刷新掉（推断：官服在货币不足时回 624 / 625 / 655）

@@ -48,4 +48,14 @@ final class ScriptPoolMonsterTideServiceTest {
         assertTrue(ScriptPoolMonsterTideService.tagMatches(2, 2, true));
         assertFalse(ScriptPoolMonsterTideService.tagMatches(2, 4, true));
     }
+
+    @Test
+    void untaggedPoolMonsterUsesTaggedPointWithoutRelaxingExplicitTags() {
+        assertTrue(ScriptPoolMonsterTideService.matchesRequestedTag(LuaValue.NIL, 2, false));
+        assertTrue(ScriptPoolMonsterTideService.tagMatches(0, 2, true));
+        assertTrue(ScriptPoolMonsterTideService.matchesRequestedTag(LuaValue.valueOf(2), 2, false));
+        assertFalse(ScriptPoolMonsterTideService.matchesRequestedTag(LuaValue.valueOf(4), 2, false));
+        assertFalse(ScriptPoolMonsterTideService.matchesRequestedTag(LuaValue.valueOf(0), 2, false));
+        assertFalse(ScriptPoolMonsterTideService.matchesRequestedTag(LuaValue.valueOf(4), 2, true));
+    }
 }

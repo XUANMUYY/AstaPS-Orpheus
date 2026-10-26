@@ -7,6 +7,7 @@ import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.binout.ScenePointEntry;
 import emu.grasscutter.data.excels.OpenStateData;
 import emu.grasscutter.data.excels.OpenStateData.OpenStateCondType;
+import emu.grasscutter.game.entity.gadget.OfferingHelper;
 import emu.grasscutter.game.props.ActionReason;
 import emu.grasscutter.game.quest.enums.*;
 import emu.grasscutter.net.proto.RetcodeOuterClass.Retcode;
@@ -242,9 +243,12 @@ public final class PlayerProgressManager extends BasePlayerDataManager {
                         return false;
                     }
                 }
-                    // ToDo: Implement.
-                case OPEN_STATE_OFFERING_LEVEL, OPEN_STATE_CITY_REPUTATION_LEVEL -> {
-                    // Unsupported offering and reputation requirements must not auto-unlock.
+                case OPEN_STATE_OFFERING_LEVEL -> {
+                    if (!offeringLevelReached(
+                            condition, id -> OfferingHelper.getLevel(this.player, id))) return false;
+                }
+                case OPEN_STATE_CITY_REPUTATION_LEVEL -> {
+                    // 声望条件尚无可读取的等级，保持锁定。
                     return false;
                 }
             }
@@ -252,6 +256,13 @@ public final class PlayerProgressManager extends BasePlayerDataManager {
 
         // Done. If we didn't find any violations, all conditions are met.
         return true;
+    }
+
+    static boolean offeringLevelReached(
+            OpenStateData.OpenStateCond condition, java.util.function.IntUnaryOperator levelForId) {
+        return condition.getParam() > 0
+                && condition.getOfferingLevel() > 0
+                && levelForId.applyAsInt(condition.getParam()) >= condition.getOfferingLevel();
     }
 
     /**********

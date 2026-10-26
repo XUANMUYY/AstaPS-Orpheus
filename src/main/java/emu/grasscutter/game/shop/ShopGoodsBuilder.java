@@ -50,23 +50,10 @@ public final class ShopGoodsBuilder {
                         .setBoughtNum(bought)
                         .setNextRefreshTime(nextRefreshTime);
 
-        if (info.getCostItemList() != null) {
-            goods.addAllCostItemList(
-                    info.getCostItemList().stream()
-                            .map(
-                                    x ->
-                                            ItemParam.newBuilder()
-                                                    .setItemId(x.getId())
-                                                    .setCount(x.getCount())
-                                                    .build())
-                            .collect(Collectors.toList()));
-        }
-
-        // Mora, Primogems and Genesis Crystals as cost items: the currency fields are not placed in
-        // 7.1, cost_item_list is (idea from LunaGC_7.1.0).
-        addCurrencyCost(goods, 202, info.getScoin());
-        addCurrencyCost(goods, 201, info.getHcoin());
-        addCurrencyCost(goods, 203, info.getMcoin());
+        // The 7.1 currency fields are unplaced, so show exactly the costs BuyGoodsReq charges.
+        goods.addAllCostItemList(info.payableCosts().stream()
+                .map(x -> ItemParam.newBuilder().setItemId(x.getId()).setCount(x.getCount()).build())
+                .collect(Collectors.toList()));
         // pre_goods_id_list is unnamed (MEODDILKAAD) and unplaced in 7.1.
         if (info.getPreGoodsIdList() != null && !info.getPreGoodsIdList().isEmpty()) {
             goods.addAllMEODDILKAAD(info.getPreGoodsIdList());
@@ -75,8 +62,4 @@ public final class ShopGoodsBuilder {
         return goods;
     }
 
-    private static void addCurrencyCost(ShopGoods.Builder goods, int itemId, int count) {
-        if (count <= 0) return;
-        goods.addCostItemList(ItemParam.newBuilder().setItemId(itemId).setCount(count).build());
-    }
 }

@@ -27,7 +27,6 @@ public class BaseDungeonResult {
                         .setCloseTime(getCloseTime())
                         .setResult(success ? 1 : 0);
 
-        // TODO check
         if (dungeonData.getSettleShows() != null) {
             for (int i = 0; i < dungeonData.getSettleShows().size(); i++) {
                 var settle = dungeonData.getSettleShows().get(i);
@@ -42,14 +41,16 @@ public class BaseDungeonResult {
                                     .addParamList(settle.getId())
                                     .addParamList(dungeonStats.getKilledMonsters())
                                     .build();
+                            case SETTLE_SHOW_OPEN_CHEST_COUNT -> ParamListOuterClass.ParamList.newBuilder()
+                                    .addParamList(settle.getId())
+                                    .addParamList(dungeonStats.getOpenChestCount())
+                                    .build();
                             default -> ParamListOuterClass.ParamList.newBuilder()
                                     .addParamList(settle.getId())
                                     .build();
                         });
             }
         }
-
-        // TODO handle settle show
 
         onProto(builder);
 

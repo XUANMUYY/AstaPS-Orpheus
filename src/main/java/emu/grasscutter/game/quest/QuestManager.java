@@ -31,6 +31,7 @@ public final class QuestManager extends BasePlayerManager {
 
     private long lastHourCheck = 0;
     private long lastDayCheck = 0;
+    private long lastRefreshPolicyMinute = -1;
 
     // One thread, not four: quest events mutate shared quest state and racing them corrupted it.
     public static final ExecutorService eventExecutor =
@@ -375,6 +376,14 @@ public final class QuestManager extends BasePlayerManager {
         if (world == null) return;
 
         this.checkTimeVars();
+        long currentMinute = world.getTotalGameTimeMinutes();
+        if (currentMinute != lastRefreshPolicyMinute
+                && hasActiveContent(QuestContent.QUEST_CONTENT_TIME_VAR_PASS_REFRESH_POLICY)) {
+            lastRefreshPolicyMinute = currentMinute;
+            for (int mainQuestId : player.getActiveQuestTimers()) {
+                this.queueEvent(QuestContent.QUEST_CONTENT_TIME_VAR_PASS_REFRESH_POLICY, mainQuestId);
+            }
+        }
         // trigger game time tick for quests
         this.queueEvent(QuestContent.QUEST_CONTENT_GAME_TIME_TICK);
         // 离开范围按位置求值，只在有子任务等着它时每秒发一次。
@@ -798,6 +807,17 @@ public final class QuestManager extends BasePlayerManager {
                                             condition.getType(), condition.getParam()[0]);
                                     case QUEST_CONTENT_SHOP_SELL_OUT -> queueEvent(
                                             condition.getType(), condition.getParam()[0]);
+                                    case QUEST_CONTENT_MISC_RENAME_COMPLETE -> {
+                                        if (condition.getParam().length > 0
+                                                && player.getQuestAvatarNames().containsKey(condition.getParam()[0])) {
+                                            queueEvent(condition.getType(), condition.getParam()[0]);
+                                        }
+                                    }
+                                    case QUEST_CONTENT_TIME_VAR_PASS_REFRESH_POLICY -> {
+                                        if (condition.getParam().length > 0) {
+                                            queueEvent(condition.getType(), condition.getParam()[0]);
+                                        }
+                                    }
                                 }
                             }
                             // 状态型条件：开始时就身处目标场景也算满足；finish/failCond 都要求值。

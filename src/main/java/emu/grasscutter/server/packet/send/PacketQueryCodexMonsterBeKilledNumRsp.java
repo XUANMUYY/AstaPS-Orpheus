@@ -14,10 +14,8 @@ public class PacketQueryCodexMonsterBeKilledNumRsp extends BasePacket {
         codexList.forEach(
                 animal -> {
                     if (player.getCodex().getUnlockedAnimal().containsKey(animal)) {
-                        proto
-                                .addCodexIdList(animal);
-                                //.addBeKilledNumList(player.getCodex().getUnlockedAnimal().get(animal))
-                                //.addBeCapturedNumList(0);
+                        // 7.1 的两个计数字段仍是混淆名；确认击杀/捕获字段映射前只回 ID。
+                        proto.addCodexIdList(animal);
                     }
                 });
 

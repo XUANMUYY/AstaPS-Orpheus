@@ -85,6 +85,7 @@ public class GameHome {
         return GameHome.of()
                 .ownerUid(uid)
                 .level(1)
+                .craftedFurnitureIds(new HashSet<>())
                 .sceneMap(new ConcurrentHashMap<>())
                 .mainHouseMap(new ConcurrentHashMap<>())
                 .unlockedHomeBgmList(new HashSet<>())
@@ -269,6 +270,30 @@ public class GameHome {
             furnitureMakeSlotItemList = new ArrayList<>();
         }
         return furnitureMakeSlotItemList;
+    }
+
+    /**
+     * 旧档没有 craftedFurnitureIds：把当前持有和已摆放的家具当作「已首制」补进去。
+     * 买来或奖励得到的家具会被误记为已制作（少发一次首制经验），但从没拥有过的配方仍正常发放。
+     * 必须在本次制作的成品入包之前调用。
+     */
+    public void seedLegacyCraftHistory(Set<Integer> ownedFurnitureIds) {
+        if (craftedFurnitureIds != null) return;
+        craftedFurnitureIds = new HashSet<>(ownedFurnitureIds);
+        getSceneMap().values().forEach(scene -> collectPlacedFurniture(scene, craftedFurnitureIds));
+        if (getMainHouseMap() != null) {
+            getMainHouseMap().values().forEach(scene -> collectPlacedFurniture(scene, craftedFurnitureIds));
+        }
+    }
+
+    private static void collectPlacedFurniture(HomeSceneItem scene, Set<Integer> out) {
+        if (scene == null) return;
+        if (!scene.isRoom() && scene.getMainHouse() != null) out.add(scene.getMainHouse().getFurnitureId());
+        scene.getBlockItems().values().forEach(block -> {
+            block.reassignIfNull();
+            block.getDeployFurnitureList().forEach(item -> out.add(item.getFurnitureId()));
+            block.getPersistentFurnitureList().forEach(item -> out.add(item.getFurnitureId()));
+        });
     }
 
     public boolean markFurnitureCrafted(int furnitureId) {

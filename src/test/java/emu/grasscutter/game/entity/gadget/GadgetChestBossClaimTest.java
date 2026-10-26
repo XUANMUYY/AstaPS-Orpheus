@@ -107,6 +107,24 @@ final class GadgetChestBossClaimTest {
     }
 
     @Test
+    void newWolfFlowerRefusesClaimAfterWeeklyQuota() throws Exception {
+        flower.setGroupId(133002259);
+        flower.getMetaGadget().boss_chest.take_num = 1;
+        flower.getMetaGadget().boss_chest.resin = 60;
+        var week = Player.class.getDeclaredField("weeklyWorldBossWeek");
+        week.setAccessible(true);
+        week.setInt(a, WorldBossWeeklyClaims.weekStart(emu.grasscutter.utils.Utils.getCurrentSeconds()));
+        var claims = Player.class.getDeclaredField("weeklyWorldBossClaims");
+        claims.setAccessible(true);
+        claims.set(a, new HashMap<>(Map.of(133002259, 1)));
+        claim(a);
+        assertTrue(chest.grants.isEmpty());
+        assertEquals(emu.grasscutter.net.proto.RetcodeOuterClass.Retcode.RET_REWARD_HAS_TAKEN_VALUE,
+                emu.grasscutter.net.proto.GadgetInteractRspOuterClass.GadgetInteractRsp
+                        .parseFrom(a.sent.getLast().getData()).getRetcode());
+    }
+
+    @Test
     void failedBossRollDoesNotMarkTheFlowerClaimed() {
         chest.allowGrant = false;
         claim(a);

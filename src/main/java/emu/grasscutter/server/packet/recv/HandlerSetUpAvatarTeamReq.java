@@ -14,7 +14,7 @@ public class HandlerSetUpAvatarTeamReq extends PacketHandler {
 
         int teamId = (req.getTeamId() ^ 63709) - 19529;
 
-        // Bypass TeamManager.setupAvatarTeam (remote may still have get(team.size()) bug).
+        // 队伍锁校验由 TeamManager 统一执行。
         TeamSetupHelper.setupAvatarTeam(
                 session.getPlayer(), teamId, req.getAvatarTeamGuidListList());
     }

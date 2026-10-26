@@ -7,17 +7,20 @@ import emu.grasscutter.net.proto.TrialAvatarFirstPassDungeonNotifyOuterClass.Tri
 
 public class TrialAvatarDungeonResult extends BaseDungeonResult {
     int trialCharacterIndexId;
+    boolean firstPass;
 
     public TrialAvatarDungeonResult(
-            DungeonData dungeonData, DungeonEndStats dungeonStats, int trialCharacterIndexId) {
+            DungeonData dungeonData, DungeonEndStats dungeonStats, int trialCharacterIndexId,
+            boolean firstPass) {
         super(dungeonData, dungeonStats);
         this.trialCharacterIndexId = trialCharacterIndexId;
+        this.firstPass = firstPass;
     }
 
     @Override
     protected void onProto(DungeonSettleNotifyOuterClass.DungeonSettleNotify.Builder builder) {
-        if (dungeonStats.getDungeonResult()
-                == DungeonEndReason.COMPLETED) { // TODO check if its the first pass(?)
+        if (firstPass && trialCharacterIndexId > 0
+                && dungeonStats.getDungeonResult() == DungeonEndReason.COMPLETED) {
             builder.setTrialAvatarFirstPassDungeonNotify(
                     TrialAvatarFirstPassDungeonNotify.newBuilder()
                             .setTrialAvatarIndexId(trialCharacterIndexId));

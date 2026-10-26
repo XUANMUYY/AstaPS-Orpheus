@@ -40,6 +40,9 @@ public class PlayerProfile {
     @Nullable public Player getPlayer() {
         var player = Grasscutter.getGameServer().getPlayerByUid(this.getUid(), true);
         this.syncWithCharacter(player);
+        if (player != null) {
+            this.lastActiveTime = player.getProfile().getLastActiveTime();
+        }
         return player;
     }
 
@@ -70,6 +73,5 @@ public class PlayerProfile {
                         .orElse(
                                 FriendEnterHomeOptionOuterClass.FriendEnterHomeOption
                                         .FriendEnterHomeOption_REFUSE_VALUE);
-        this.updateLastActiveTime();
     }
 }

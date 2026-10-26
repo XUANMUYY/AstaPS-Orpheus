@@ -84,7 +84,16 @@ public final class ProfileUnlocks {
 
     public static List<Integer> frames(Player player) {
         ensureFramesLoaded();
-        return frames(frameIds, frameItems, owned(player).item());
+        return frames(frameIds, frameItems,
+                id -> player.getInventory().getItemCountById(id) > 0
+                        || player.getUnlockedProfileFrames().contains(frameForItem(id)));
+    }
+
+    private static int frameForItem(int itemId) {
+        for (var entry : frameItems.entrySet()) {
+            if (entry.getValue() == itemId) return entry.getKey();
+        }
+        return 0;
     }
 
     public static boolean isFrameId(int id) {

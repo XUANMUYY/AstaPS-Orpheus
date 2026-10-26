@@ -48,5 +48,8 @@ public class OpenStateData extends GameResource {
         private int param;
         @Getter
         private int param2;
+        @Getter
+        @SerializedName("DIEOFOGAIIN")
+        private int offeringLevel;
     }
 }

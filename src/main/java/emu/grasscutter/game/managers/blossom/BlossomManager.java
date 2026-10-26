@@ -369,6 +369,11 @@ public class BlossomManager {
     /** Entity unload is separate from activity completion and map-marker changes. */
     public void recycleGadgetEntity(List<GameEntity> entities) {
         for (var entity : entities) {
+            if (entity instanceof EntityGadget chest) {
+                synchronized (activeChests) {
+                    activeChests.removeIf(active -> active.getChest() == chest);
+                }
+            }
             if (!(entity instanceof EntityGadget gadget)
                     || BlossomType.valueOf(gadget.getGadgetId()) == null) continue;
             createdEntity.remove(gadget);
@@ -573,6 +578,35 @@ public class BlossomManager {
         }
     }
 
+    /** Restore Lua reward flowers after suite and GROUP_LOAD work, which cannot recreate them. */
+    public void restoreScriptedChests(SceneGroupInstance instance) {
+        var group = instance.getLuaGroup();
+        if (group == null || group.gadgets == null) return;
+        for (int configId : instance.getPendingScriptedBlossomChests()) {
+            if (instance.isScriptGadgetDestroyed(configId)) {
+                if (instance.removePendingScriptedBlossomChest(configId)) instance.save();
+                continue;
+            }
+            var definition = group.gadgets.get(configId);
+            if (definition == null || !definition.is_blossom_chest) {
+                Grasscutter.getLogger().warn(
+                        "Pending scripted blossom chest has no authored definition group={} config={}",
+                        group.id, configId);
+                continue;
+            }
+            var existing = scene.getEntityByConfigId(configId, group.id);
+            if (existing instanceof EntityGadget gadget) {
+                registerScriptedChest(group.id, gadget);
+                continue;
+            }
+            if (existing != null) continue;
+            var chest = scene.getScriptManager().createGadget(group.id, group.block_id, definition);
+            if (chest != null && registerScriptedChest(group.id, chest)) {
+                scene.getScriptManager().addEntity(chest);
+            }
+        }
+    }
+
     /** Called once the reward chest is fully claimed; ignores chests this manager doesn't own. */
     public void retireChest(EntityGadget chest) {
         synchronized (activeChests) {
@@ -581,11 +615,17 @@ public class BlossomManager {
                 var active = it.next();
                 if (active.getChest() == chest) {
                     it.remove();
+                    var instance = scene.getScriptManager().getGroupInstanceById(chest.getGroupId());
+                    if (instance != null
+                            && instance.removePendingScriptedBlossomChest(chest.getConfigId())) {
+                        instance.save();
+                    }
                     // Debug-spawned outcrops have no authored SpawnDataEntry. Never
                     // mark null as consumed, or later /spawn outcrops all get skipped.
                     var source = active.getGadget().getSpawnEntry();
                     if (source != null) {
-                        if (nativeCamps.advance(source, scene.getWorld().getHost().getLevel())) {
+                        var host = scene.getWorld().getHost();
+                        if (nativeCamps.advance(source, host.getLevel(), host)) {
                             activeSpawnCache = null;
                             activeSetRevision++;
                         } else {

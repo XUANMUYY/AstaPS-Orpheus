@@ -452,6 +452,9 @@ public final class OfferingHelper {
         }
 
         setLevel(player, offeringId, cur);
+        if (player.getProgressManager() != null) {
+            player.getProgressManager().tryUnlockOpenStates();
+        }
         // Do not stuff rewards into the Rsp item_list, which would pop an acquisition toast on level up.
         // The reward page handles claiming.
         sendOfferingRsp(player, offeringId, Retcode.RET_SUCC_VALUE, null, requestHeader, true);

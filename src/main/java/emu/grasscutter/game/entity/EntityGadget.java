@@ -76,6 +76,7 @@ public class EntityGadget extends EntityBaseGadget {
     @Getter @Setter private int ticksSinceChange;
 
     @Getter private boolean interactEnabled = true;
+    private boolean commissionDeathReported;
 
     public EntityGadget(Scene scene, int gadgetId, Position pos) {
         this(scene, gadgetId, pos, null, null);
@@ -428,9 +429,7 @@ public class EntityGadget extends EntityBaseGadget {
         if (this.getSpawnEntry() != null) {
             this.getScene().getDeadSpawnedEntities().add(getSpawnEntry());
         }
-        if (getScene().getChallenge() != null) {
-            getScene().getChallenge().onGadgetDeath(this);
-        }
+        for (var challenge : getScene().getActiveChallenges()) challenge.onGadgetDeath(this);
         getScene()
                 .getScriptManager()
                 .callEvent(
@@ -442,6 +441,12 @@ public class EntityGadget extends EntityBaseGadget {
             groupInstance.getDeadEntities().add(metaGadget.config_id);
 
         emu.grasscutter.game.entity.gadget.MeltableIceHelper.onShattered(this);
+        var host = this.getScene().getHost();
+        if (!commissionDeathReported && host != null && host.getDailyTaskManager() != null) {
+            commissionDeathReported = true;
+            host.getDailyTaskManager()
+                    .onGadgetDeath(this.getScene(), this.getGroupId(), this.getGadgetId());
+        }
     }
 
     /**
@@ -596,6 +601,7 @@ public class EntityGadget extends EntityBaseGadget {
                                                                                             configRoute.getRouteId())
                                                                                     .setParam3(I)
                                                                                     .setEventSource(this.getConfigId()));
+                                                            emitPlatformArrival(configRoute.getRouteId(), I);
                                                         }
                                                         if (liyuePlatform && points[I].getRotRoundLeaveDir() != null)
                                                             this.getRotation().set(points[I].getRotRoundLeaveDir());
@@ -683,6 +689,7 @@ public class EntityGadget extends EntityBaseGadget {
                                             run.config.getRouteId())
                                     .setParam3(index)
                                     .setEventSource(getConfigId()));
+            emitPlatformArrival(run.config.getRouteId(), index);
         }
         run.config.setStartIndex(index);
         position.set(run.points[index].getPos());
@@ -697,6 +704,14 @@ public class EntityGadget extends EntityBaseGadget {
             // Do not stop again at the zero-distance source point when resuming a stopped segment.
             stopPlatform();
         }
+    }
+
+    private void emitPlatformArrival(int routeId, int pointIndex) {
+        getScene().getScriptManager().callEvent(
+                new ScriptArgs(getGroupId(), EventType.EVENT_PLATFORM_ARRIVAL,
+                        getConfigId(), routeId)
+                        .setParam3(pointIndex)
+                        .setEventSource(getConfigId()));
     }
 
     /**

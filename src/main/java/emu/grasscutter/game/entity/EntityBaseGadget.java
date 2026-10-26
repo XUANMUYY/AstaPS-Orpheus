@@ -88,9 +88,8 @@ public abstract class EntityBaseGadget extends GameEntity {
                                 .setParam3((int) this.getFightProperty(FightProperty.FIGHT_PROP_CUR_HP))
                                 .setEventSource(getConfigId()));
 
-        var challenge = getScene().getChallenge();
-        if (challenge != null && this instanceof EntityGadget gadget) {
-            challenge.onGadgetDamage(gadget);
+        if (this instanceof EntityGadget gadget) {
+            for (var challenge : getScene().getActiveChallenges()) challenge.onGadgetDamage(gadget);
         }
     }
 

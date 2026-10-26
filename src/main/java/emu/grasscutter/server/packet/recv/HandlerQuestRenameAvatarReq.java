@@ -27,8 +27,11 @@ public final class HandlerQuestRenameAvatarReq extends PacketHandler {
         var player = session.getPlayer();
         // Inference: rename_id is the AvatarRenameInfo avatar_id key used for reconnect replay.
         player.getQuestAvatarNames().put(req.getRenameId(), name);
+        player.save();
         player.sendPacket(new PacketAvatarRenameInfoNotify(player.getQuestAvatarNames()));
         player.getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_AVATAR_RENAME_COMPLETE,
+                req.getRenameId());
+        player.getQuestManager().queueEvent(QuestContent.QUEST_CONTENT_MISC_RENAME_COMPLETE,
                 req.getRenameId());
     }
 }

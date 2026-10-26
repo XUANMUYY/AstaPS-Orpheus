@@ -19,6 +19,7 @@ import emu.grasscutter.utils.Utils;
 import it.unimi.dsi.fastutil.ints.*;
 import java.util.*;
 import java.util.function.IntFunction;
+import java.util.function.IntPredicate;
 import java.util.stream.Collectors;
 
 public class CombineManger extends BaseGameSystem {
@@ -45,8 +46,16 @@ public class CombineManger extends BaseGameSystem {
 
     /** Unlock all combine recipes for private server convenience. */
     public void onPlayerLogin(Player player) {
+        var drops = player.getServer().getDropSystem();
+        player.getUnlockedCombines().removeIf(id -> {
+            CombineData recipe = GameData.getCombineDataMap().get(id);
+            return recipe != null && recipe.getDropId() > 0
+                    && !drops.hasUsableDungeonRewardRoot(recipe.getDropId());
+        });
         for (CombineData data : GameData.getCombineDataMap().values()) {
-            player.getUnlockedCombines().add(data.getCombineId());
+            if (isUsableRecipe(data, drops::hasUsableDungeonRewardRoot)) {
+                player.getUnlockedCombines().add(data.getCombineId());
+            }
         }
         Grasscutter.getLogger()
                 .debug(
@@ -57,6 +66,8 @@ public class CombineManger extends BaseGameSystem {
     }
 
     public boolean unlockCombineDiagram(Player player, int combineId) {
+        if (!isUsableRecipe(GameData.getCombineDataMap().get(combineId),
+                player.getServer().getDropSystem()::hasUsableDungeonRewardRoot)) return false;
         if (!player.getUnlockedCombines().add(combineId)) {
             return false;
         }
@@ -80,6 +91,12 @@ public class CombineManger extends BaseGameSystem {
             return null;
         }
 
+        if (!isUsableRecipe(combineData,
+                player.getServer().getDropSystem()::hasUsableDungeonRewardRoot)) {
+            player.sendPacket(new PacketCombineRsp());
+            return null;
+        }
+
         if (combineData.getPlayerLevel() > player.getLevel()) {
             player.sendPacket(new PacketCombineRsp(Retcode.RET_PLAYER_LEVEL_LESS_THAN_VALUE));
             return null;
@@ -92,14 +109,6 @@ public class CombineManger extends BaseGameSystem {
         List<ItemParamData> material = buildMaterialCost(combineData);
         if (!player.getInventory().canPayItems(material, count)) {
             player.sendPacket(new PacketCombineRsp(Retcode.RET_ITEM_COMBINE_COUNT_NOT_ENOUGH_VALUE));
-            return null;
-        }
-
-        // 掉落型配方必须先确认资源可用，不能扣材料后发放 0 号物品。
-        if (combineData.getDropId() > 0
-                && !player.getServer().getDropSystem()
-                        .hasUsableDungeonRewardRoot(combineData.getDropId())) {
-            player.sendPacket(new PacketCombineRsp());
             return null;
         }
 
@@ -131,12 +140,22 @@ public class CombineManger extends BaseGameSystem {
                     .map(item -> new ItemParamData(item.getItemId(), item.getCount()))
                     .toList();
         } else {
-            if (!player.getInventory().payItems(material, count, ActionReason.Combine)) {
-                player.sendPacket(new PacketCombineRsp(Retcode.RET_ITEM_COMBINE_COUNT_NOT_ENOUGH_VALUE));
+            int resultCount;
+            try {
+                resultCount = Math.multiplyExact(combineData.getResultItemCount(), count);
+            } catch (ArithmeticException overflow) {
+                player.sendPacket(new PacketCombineRsp());
                 return null;
             }
-            int resultCount = combineData.getResultItemCount() * count;
-            player.getInventory().addItem(combineData.getResultItemId(), resultCount, ActionReason.Combine);
+            var admission = player.getInventory().addItems(
+                    List.of(new GameItem(combineData.getResultItemId(), resultCount)),
+                    ActionReason.Combine, InventoryAddPolicy.ALL_OR_NOTHING,
+                    () -> player.getInventory().payItems(material, count, ActionReason.Combine),
+                    () -> {});
+            if (!admission.allAccepted()) {
+                player.sendPacket(new PacketCombineRsp());
+                return null;
+            }
             resultItems = List.of(new ItemParamData(combineData.getResultItemId(), resultCount));
         }
         if (combineData.getScoinCost() > 0) {
@@ -230,11 +249,23 @@ public class CombineManger extends BaseGameSystem {
         if (data == null || data.getDropId() <= 0 || count <= 0) return List.of();
         List<GameItem> result = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            List<GameItem> one = roll.apply(data.getDropId());
-            if (one == null || one.isEmpty()) return List.of();
+            List<GameItem> one;
+            try {
+                one = roll.apply(data.getDropId());
+            } catch (RuntimeException invalidDrop) {
+                return List.of();
+            }
+            if (one == null || one.isEmpty() || one.stream().anyMatch(item ->
+                    item == null || item.getItemId() <= 0 || item.getCount() <= 0)) return List.of();
             result.addAll(one);
         }
         return result;
+    }
+
+    static boolean isUsableRecipe(CombineData data, IntPredicate hasDropRoot) {
+        return data != null && (data.getDropId() > 0
+                ? hasDropRoot.test(data.getDropId())
+                : data.getResultItemId() > 0 && data.getResultItemCount() > 0);
     }
 
     static boolean isValidDecomposeInput(
