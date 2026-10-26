@@ -1459,13 +1459,27 @@ public class Scene {
         }
 
         this.scriptManager.meetEntities(entities);
-        groups.stream()
-                .filter(g -> {
-                    var instance = scriptManager.getGroupInstanceById(g.id);
-                    return instance == null || !instance.isScriptGroupDead();
-                })
-                .forEach(g -> emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.groupLoad(
-                        scriptManager, new ScriptArgs(g.id, EventType.EVENT_GROUP_LOAD, g.id)));
+        for (var group : groups) {
+            var instance = scriptManager.getGroupInstanceById(group.id);
+            if (instance != null && instance.isScriptGroupDead()) continue;
+            var groupLoad = emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.groupLoad(
+                    scriptManager, new ScriptArgs(group.id, EventType.EVENT_GROUP_LOAD, group.id));
+            if (getSceneType() == SceneType.SCENE_WORLD && instance != null
+                    && !instance.getPendingScriptedBlossomChests().isEmpty()) {
+                // GROUP_LOAD runs on the script pool and may refresh the suite. Rebuild afterward.
+                java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    try {
+                        groupLoad.get();
+                        if (loadedGroups.contains(group)) blossomManager.restoreScriptedChests(instance);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } catch (java.util.concurrent.ExecutionException e) {
+                        Grasscutter.getLogger().warn(
+                                "Scripted blossom chest restore skipped group={}", group.id, e);
+                    }
+                });
+            }
+        }
 
         Grasscutter.getLogger().trace("Scene {} loaded {} group(s)", this.getId(), groups.size());
     }

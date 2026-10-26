@@ -590,12 +590,17 @@ public class ScriptLib {
         if (group == null || group.gadgets == null) return 1;
         var definition = group.gadgets.get(var2);
         if (definition == null || !definition.is_blossom_chest) return 1;
+        var instance = manager.getGroupInstanceById(targetGroupId);
+        if (instance == null) return 1;
         var scene = manager.getScene();
-        if (scene.getEntityByConfigId(var2, targetGroupId) != null) return 0;
-        var chest = manager.createGadget(targetGroupId, group.block_id, definition);
+        var existing = scene.getEntityByConfigId(var2, targetGroupId);
+        if (existing != null && !(existing instanceof EntityGadget)) return 1;
+        var chest = existing instanceof EntityGadget gadget
+                ? gadget : manager.createGadget(targetGroupId, group.block_id, definition);
         if (chest == null || scene.getBlossomManager() == null
                 || !scene.getBlossomManager().registerScriptedChest(targetGroupId, chest)) return 1;
-        manager.addEntity(chest);
+        if (existing == null) manager.addEntity(chest);
+        if (instance.addPendingScriptedBlossomChest(var2)) instance.save();
         return 0;
     }
 
