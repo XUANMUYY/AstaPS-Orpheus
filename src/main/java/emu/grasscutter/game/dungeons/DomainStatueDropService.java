@@ -121,8 +121,7 @@ public final class DomainStatueDropService {
                         dungeonData.getId(), groupId, costId, costCount, mode);
                 return false;
             }
-            weeklyBossId = WeeklyBossDropResolver.bossIdentity(
-                    preview == null ? null : preview.getAdvertisedItemIds());
+            weeklyBossId = WeeklyBossDropResolver.bossIdentity(dungeonData);
             weeklyQuote = weeklyState.quote(Instant.now(), weeklyBossId,
                     WeeklyBossClaimState.ORIGINAL_RESIN_COST);
             if (!weeklyQuote.allowed()) {

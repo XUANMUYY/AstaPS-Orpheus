@@ -1,5 +1,6 @@
 package emu.grasscutter.game.player;
 
+import dev.morphia.annotations.Entity;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -8,6 +9,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /** 玩家跨副本的周本领取记录。 */
+@Entity
 public final class WeeklyBossClaimState {
     // 7.1 ConstValueExcelConfigData: CONST_VALUE_WEEKLY_BOSS_RESIN_DISCOUNT_PARAM = [3, 0.5]。
     public static final int DISCOUNT_LIMIT = 3;

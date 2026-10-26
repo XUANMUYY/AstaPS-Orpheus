@@ -20,6 +20,33 @@ final class WeeklyBossDropResolver {
                 .min(Integer::compareTo).orElse(0);
     }
 
+    /**
+     * Lowest-difficulty rows (e.g. 103, 2020) advertise no talent material, so fall back to a
+     * sibling weekly-boss row in the same scene; without this those claims would be refused.
+     */
+    static int bossIdentity(emu.grasscutter.data.excels.dungeon.DungeonData data) {
+        if (data == null) return 0;
+        int own = bossIdentity(advertisedItems(data));
+        if (own > 0) return own;
+        var all = emu.grasscutter.data.GameData.getDungeonDataMap();
+        if (all == null) return 0;
+        return all.values().stream()
+                .filter(d -> d != null && d.getId() != data.getId() && d.getSceneId() == data.getSceneId()
+                        && d.getType() == data.getType() && d.getSubType() == data.getSubType())
+                .mapToInt(d -> bossIdentity(advertisedItems(d)))
+                .filter(id -> id > 0)
+                .min().orElse(0);
+    }
+
+    private static Set<Integer> advertisedItems(emu.grasscutter.data.excels.dungeon.DungeonData data) {
+        var preview = data.getRewardPreviewData();
+        if (preview == null && data.getPassRewardPreviewID() > 0) {
+            preview = emu.grasscutter.data.GameData.getRewardPreviewDataMap()
+                    .get(data.getPassRewardPreviewID());
+        }
+        return preview == null ? null : preview.getAdvertisedItemIds();
+    }
+
     static int matchRoot(
             Map<String, Integer> roots, Map<Integer, Set<Integer>> leaves,
             Set<Integer> advertisedItems) {
