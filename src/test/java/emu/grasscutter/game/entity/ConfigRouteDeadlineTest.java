@@ -226,7 +226,12 @@ class ConfigRouteDeadlineTest {
                 if (elapsed < 3000) assertEquals(1, f.scene.manager.events.size());
             }
             assertEquals(2, f.config.getStartIndex());
-            assertEquals(2, f.scene.manager.events.size());
+            assertEquals(3, f.scene.manager.events.size());
+            var arrival = f.scene.manager.events.get(2);
+            assertEquals(emu.grasscutter.scripts.constants.EventType.EVENT_PLATFORM_ARRIVAL, arrival.type);
+            assertEquals(174002, arrival.param1);
+            assertEquals(300300282, arrival.param2);
+            assertEquals(2, arrival.param3);
         }
     }
 
@@ -402,7 +407,7 @@ class ConfigRouteDeadlineTest {
         } finally {
             threads.shutdownNow();
         }
-        assertEquals(2, f.scene.manager.events.size());
+        assertEquals(3, f.scene.manager.events.size());
         assertEquals(2, f.config.getStartIndex());
     }
 }

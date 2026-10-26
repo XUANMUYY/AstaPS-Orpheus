@@ -594,6 +594,7 @@ public class EntityGadget extends EntityBaseGadget {
                                                                                             configRoute.getRouteId())
                                                                                     .setParam3(I)
                                                                                     .setEventSource(this.getConfigId()));
+                                                            emitPlatformArrival(configRoute.getRouteId(), I);
                                                         }
                                                         if (liyuePlatform && points[I].getRotRoundLeaveDir() != null)
                                                             this.getRotation().set(points[I].getRotRoundLeaveDir());
@@ -681,6 +682,7 @@ public class EntityGadget extends EntityBaseGadget {
                                             run.config.getRouteId())
                                     .setParam3(index)
                                     .setEventSource(getConfigId()));
+            emitPlatformArrival(run.config.getRouteId(), index);
         }
         run.config.setStartIndex(index);
         position.set(run.points[index].getPos());
@@ -695,6 +697,14 @@ public class EntityGadget extends EntityBaseGadget {
             // Do not stop again at the zero-distance source point when resuming a stopped segment.
             stopPlatform();
         }
+    }
+
+    private void emitPlatformArrival(int routeId, int pointIndex) {
+        getScene().getScriptManager().callEvent(
+                new ScriptArgs(getGroupId(), EventType.EVENT_PLATFORM_ARRIVAL,
+                        getConfigId(), routeId)
+                        .setParam3(pointIndex)
+                        .setEventSource(getConfigId()));
     }
 
     /**
