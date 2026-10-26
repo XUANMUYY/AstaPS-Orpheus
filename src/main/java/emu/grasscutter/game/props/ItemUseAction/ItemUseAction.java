@@ -11,15 +11,21 @@ public class ItemUseAction {
             case ITEM_USE_SET_OPEN_STATE -> new ItemUseSetOpenState(useParam);
             case ITEM_USE_CHECK_FORMAL_AVATAR -> new ItemUseCheckFormalAvatar(useParam);
             case ITEM_USE_GAIN_GCG_CARD_FACE, ITEM_USE_GAIN_GCG_CARD,
-                    ITEM_USE_GAIN_GCG_CARD_BACK, ITEM_USE_GAIN_GCG_CARD_FIELD,
-                    ITEM_USE_ADD_ALCHEMY_SIM_ITEM, ITEM_USE_ADD_GADGET_CHAIN_LEVEL,
+                    ITEM_USE_GAIN_GCG_CARD_BACK, ITEM_USE_GAIN_GCG_CARD_FIELD ->
+                    new ItemUseGainGcgUnlock(data.getUseOp(), useParam);
+            case ITEM_USE_UNLOCK_PHOTOGRAPH_POSE, ITEM_USE_UNLOCK_PROFILE_FRAME ->
+                    new ItemUseGainAppearanceUnlock(data.getUseOp(), useParam);
+            case ITEM_USE_ADD_WEAPON_SKIN -> new ItemUseGainWeaponSkin();
+            case ITEM_USE_ADD_ALCHEMY_SIM_ITEM, ITEM_USE_ADD_GADGET_CHAIN_LEVEL,
                     ITEM_USE_UPGRADE_ITEM, ITEM_USE_UNLOCK_ICE_CREATURE_GADGET,
                     ITEM_USE_ADD_AVATAR_EXTRA_PROPERTY, ITEM_USE_ADD_PHLOGISTON,
                     ITEM_USE_OPEN_RENAME_DIALOG, ITEM_USE_NOTIFY_UPGRADE_ITEM,
                     ITEM_USE_ADD_MAGNET_POWER, ITEM_USE_OPEN_DROP_EXTRA,
                     ITEM_USE_ADD_SNEZHNAYA_ENERGY,
                     ITEM_USE_ADD_SNEZHNAYA_ICE_CREATURE_MATERIAL,
-                    ITEM_USE_UNLOCK_NORMAL_BEYOND_BATTLE_PASS ->
+                    ITEM_USE_UNLOCK_NORMAL_BEYOND_BATTLE_PASS,
+                    ITEM_USE_GAIN_AVATAR_TALENT_MATERIAL,
+                    ITEM_USE_MUSIC_GAME_BOOK_UNLOCK_THEME ->
                     new ItemUseUnsupported(data.getUseOp());
                 // Uprade materials - no direct usage
             case ITEM_USE_ADD_EXP -> new ItemUseAddExp(useParam);
