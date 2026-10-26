@@ -14,11 +14,13 @@ import emu.grasscutter.game.inventory.Inventory;
 import emu.grasscutter.game.inventory.InventoryAddPolicy;
 import emu.grasscutter.game.inventory.InventoryGrantBuilder;
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.player.WeeklyBossClaimState;
 import emu.grasscutter.game.props.ActionReason;
 import emu.grasscutter.scripts.constants.EventType;
 import emu.grasscutter.scripts.data.ScriptArgs;
 import emu.grasscutter.server.packet.send.PacketGadgetAutoPickDropInfoNotify;
 import it.unimi.dsi.fastutil.ints.IntSet;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +41,20 @@ public final class DomainStatueDropService {
         if (player == null || dm == null) {
             return false;
         }
+        DungeonData data = dm.getDungeonData();
+        if (data != null && data.getType() == DungeonType.DUNGEON_BOSS
+                && data.getSubType() == DungeonSubType.DUNGEON_SUB_BOSS) {
+            WeeklyBossClaimState state = player.getWeeklyBossClaimState();
+            synchronized (state) {
+                return claimLocked(player, dm, mode, groupId, rewardRollTimes, state);
+            }
+        }
+        return claimLocked(player, dm, mode, groupId, rewardRollTimes, null);
+    }
+
+    private static boolean claimLocked(
+            Player player, DungeonManager dm, ClaimMode mode, int groupId, int rewardRollTimes,
+            WeeklyBossClaimState weeklyState) {
         if (mode == null) {
             mode = ClaimMode.NORMAL_1X;
         }
@@ -88,29 +104,41 @@ public final class DomainStatueDropService {
             return false;
         }
 
-        // 7.1 Boss Dungeon rows do not provide the 20-Resin daily-Domain cost.
-        // Do not invent a 20-Resin price for a weekly Boss. Until the real
-        // discount and cost source is bound, payable claims must fail closed.
+        // 7.1 Boss Dungeon rows omit cost; require a native 30/60 flower.
         int costId = dungeonData.getStatueCostID();
         int costCount = dungeonData.getStatueCostCount();
+        WeeklyBossClaimState.Quote weeklyQuote = null;
+        int weeklyBossId = 0;
         if (weeklyBoss) {
             int flowerCost = nativeBossFlowerCost(dm, groupId);
             if (flowerCost > 0) {
                 costId = 106;
                 costCount = flowerCost;
             }
-            if (mode != ClaimMode.NORMAL_1X
-                    || (emu.grasscutter.config.Configuration.GAME_OPTIONS.resinOptions.resinUsage
-                            && !validWeeklyBossPayment(mode, costId, costCount))) {
+            if (!validWeeklyBossPayment(mode, costId, costCount)) {
                 Grasscutter.getLogger().warn(
                         "StatueDrop abort: no source-backed weekly boss cost dungeon={} group={} cost={}/{} mode={}",
                         dungeonData.getId(), groupId, costId, costCount, mode);
                 return false;
             }
+            weeklyBossId = WeeklyBossDropResolver.bossIdentity(
+                    preview == null ? null : preview.getAdvertisedItemIds());
+            weeklyQuote = weeklyState.quote(Instant.now(), weeklyBossId,
+                    WeeklyBossClaimState.ORIGINAL_RESIN_COST);
+            if (!weeklyQuote.allowed()) {
+                Grasscutter.getLogger().warn(
+                        "StatueDrop abort: weekly limit uid={} dungeon={} boss={} reason={} total={}",
+                        player.getUid(), dungeonData.getId(), weeklyBossId,
+                        weeklyQuote.refusal(), weeklyState.getTotalClaims(Instant.now()));
+                return false;
+            }
+            costCount = weeklyQuote.cost();
         }
         final int payableCostId = costId;
         final int payableCostCount = costCount;
         final ClaimMode paymentMode = mode;
+        final WeeklyBossClaimState.Quote payableWeeklyQuote = weeklyQuote;
+        final int payableWeeklyBossId = weeklyBossId;
         int rollTimes = Math.max(1, rewardRollTimes);
         List<GameItem> rewards;
         try {
@@ -162,6 +190,7 @@ public final class DomainStatueDropService {
 
         boolean granted;
         Inventory inventory = player.getInventory();
+        final Instant[] authorizedAt = new Instant[1];
         try {
             granted = DomainDropSafety.commitOnce(
                     dm,
@@ -182,6 +211,15 @@ public final class DomainStatueDropService {
                                         ActionReason.DungeonStatueDrop,
                                         InventoryAddPolicy.ALL_OR_NOTHING,
                                         () -> {
+                                            if (payableWeeklyQuote != null) {
+                                                Instant now = Instant.now();
+                                                if (!payableWeeklyQuote.equals(weeklyState.quote(
+                                                        now, payableWeeklyBossId,
+                                                        WeeklyBossClaimState.ORIGINAL_RESIN_COST))) {
+                                                    return false;
+                                                }
+                                                authorizedAt[0] = now;
+                                            }
                                             if (!DomainClaimPaymentPreflight.canPay(
                                                     player, dungeonData, paymentMode,
                                                     payableCostId, payableCostCount)
@@ -202,6 +240,11 @@ public final class DomainStatueDropService {
                                             // A paid run remains unclaimable if inventory or
                                             // the journal fails after confirmation.
                                             confirmPayment.run();
+                                            if (payableWeeklyQuote != null) {
+                                                weeklyState.recordPaidClaim(authorizedAt[0],
+                                                        payableWeeklyBossId, payableWeeklyQuote);
+                                                player.save();
+                                            }
                                             journal.confirm(receiptKey);
                                         })
                                 .allAccepted();

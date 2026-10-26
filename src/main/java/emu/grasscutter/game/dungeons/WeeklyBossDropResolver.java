@@ -12,6 +12,14 @@ import java.util.stream.Collectors;
 final class WeeklyBossDropResolver {
     private WeeklyBossDropResolver() {}
 
+    /** Weekly difficulties and Azhdaha elemental variants share exclusive talent materials. */
+    static int bossIdentity(Set<Integer> advertisedItems) {
+        if (advertisedItems == null) return 0;
+        return advertisedItems.stream()
+                .filter(id -> id >= 113000 && id < 114000 && id != 113021)
+                .min(Integer::compareTo).orElse(0);
+    }
+
     static int matchRoot(
             Map<String, Integer> roots, Map<Integer, Set<Integer>> leaves,
             Set<Integer> advertisedItems) {
