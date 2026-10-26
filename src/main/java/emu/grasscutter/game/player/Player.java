@@ -105,6 +105,36 @@ public class Player implements PlayerHook, FieldFetch {
     @Getter @Setter private int currentRealmId;
     @Getter @Setter private transient boolean isInEditMode;
     @Getter @Setter private int widgetId;
+    // 协议消息以字节保存，避免旧存档缺少字段时改变默认值。
+    private String lunchBoxData;
+    private Map<Integer, Long> widgetBagLastUseTime;
+
+    public LunchBoxDataOuterClass.LunchBoxData getLunchBoxData() {
+        if (lunchBoxData == null || lunchBoxData.isEmpty()) {
+            return LunchBoxDataOuterClass.LunchBoxData.getDefaultInstance();
+        }
+        try {
+            return LunchBoxDataOuterClass.LunchBoxData.parseFrom(Base64.getDecoder().decode(lunchBoxData));
+        } catch (Exception e) {
+            Grasscutter.getLogger().debug("Invalid saved lunch box data for uid={}", getUid(), e);
+            return LunchBoxDataOuterClass.LunchBoxData.getDefaultInstance();
+        }
+    }
+
+    public void setLunchBoxData(LunchBoxDataOuterClass.LunchBoxData data) {
+        lunchBoxData = Base64.getEncoder().encodeToString(data.toByteArray());
+        save();
+    }
+
+    public long getWidgetBagLastUseTime(int materialId) {
+        return widgetBagLastUseTime == null ? 0L : widgetBagLastUseTime.getOrDefault(materialId, 0L);
+    }
+
+    public void recordWidgetBagUse(int materialId, long time) {
+        if (widgetBagLastUseTime == null) widgetBagLastUseTime = new HashMap<>();
+        widgetBagLastUseTime.put(materialId, time);
+        save();
+    }
     private Map<Integer, String> questAvatarNames = new HashMap<>();
 
     public Map<Integer, String> getQuestAvatarNames() {

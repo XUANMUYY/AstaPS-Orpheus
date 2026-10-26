@@ -57,4 +57,10 @@ public class PacketCreateVehicleRsp extends BasePacket {
 
         this.setData(proto.build());
     }
+
+    public PacketCreateVehicleRsp(int vehicleId, int retcode) {
+        super(PacketOpcodes.CreateVehicleRsp);
+        this.setData(CreateVehicleRsp.newBuilder().setVehicleId(vehicleId)
+                .setRetcode(retcode).build());
+    }
 }
