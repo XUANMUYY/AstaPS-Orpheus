@@ -48,4 +48,15 @@ public class PacketGadgetInteractRsp extends BasePacket {
 
         this.setData(proto);
     }
+
+    public PacketGadgetInteractRsp(EntityBaseGadget gadget, int retcode) {
+        super(PacketOpcodes.GadgetInteractRsp);
+        this.setData(GadgetInteractRsp.newBuilder()
+                .setGadgetEntityId(gadget.getId())
+                .setGadgetId(gadget.getGadgetId())
+                .setInteractType(InteractType.InteractType_INTERACT_OPEN_CHEST)
+                .setOpType(InterOpType.InterOpType_INTER_OP_FINISH)
+                .setRetcode(retcode)
+                .build());
+    }
 }

@@ -25,6 +25,7 @@ import emu.grasscutter.net.proto.GadgetInteractReqOuterClass;
 import emu.grasscutter.net.proto.InterOpTypeOuterClass;
 import emu.grasscutter.net.proto.InteractTypeOuterClass;
 import emu.grasscutter.net.proto.ResinCostTypeOuterClass;
+import emu.grasscutter.net.proto.RetcodeOuterClass;
 import emu.grasscutter.net.proto.SceneGadgetInfoOuterClass;
 import emu.grasscutter.net.proto.VisionTypeOuterClass;
 import emu.grasscutter.scripts.SceneScriptManager;
@@ -37,6 +38,7 @@ import emu.grasscutter.server.packet.send.PacketGadgetAutoPickDropInfoNotify;
 import emu.grasscutter.server.packet.send.PacketGadgetInteractRsp;
 import emu.grasscutter.server.packet.send.PacketSceneEntityAppearNotify;
 import emu.grasscutter.server.packet.send.PacketWorldChestOpenNotify;
+import emu.grasscutter.utils.Utils;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -98,7 +100,12 @@ public class GadgetChest extends GadgetContent {
         SceneGadget bossMeta = resolveChestMeta();
         if (bossMeta != null && bossMeta.boss_chest != null
                 && getGadget().getScene().getSceneType() != SceneType.SCENE_DUNGEON) {
-            if (finishIfAbandoned(player, bossMeta) || !canClaimBossFlower(player)) {
+            if (finishIfAbandoned(player, bossMeta)) return false;
+            if (weeklyClaimExhausted(player, bossMeta)) {
+                rejectWeeklyClaim(player);
+                return false;
+            }
+            if (!canClaimBossFlower(player)) {
                 return false;
             }
             if (req.getOpType() == InterOpTypeOuterClass.InterOpType.InterOpType_INTER_OP_START) {
@@ -116,7 +123,18 @@ public class GadgetChest extends GadgetContent {
             }
             boolean granted;
             try {
-                granted = grantWorldBossReward(player, bossMeta, cost);
+                if (WorldBossWeeklyClaims.limited(getGadget().getScene().getId(),
+                        getGadget().getGroupId(), bossMeta.boss_chest.take_num)) {
+                    synchronized (player) {
+                        if (weeklyClaimExhausted(player, bossMeta)) {
+                            rejectWeeklyClaim(player);
+                            return false;
+                        }
+                        granted = grantWorldBossReward(player, bossMeta, cost);
+                    }
+                } else {
+                    granted = grantWorldBossReward(player, bossMeta, cost);
+                }
             } catch (RuntimeException e) {
                 Grasscutter.getLogger().error(
                         "World boss reward failed group={} uid={} tag={}",
@@ -241,6 +259,20 @@ public class GadgetChest extends GadgetContent {
                 && !claimedBossUids.contains(player.getUid());
     }
 
+    private boolean weeklyClaimExhausted(Player player, SceneGadget meta) {
+        return WorldBossWeeklyClaims.limited(getGadget().getScene().getId(),
+                getGadget().getGroupId(), meta.boss_chest.take_num)
+                && player.getWeeklyWorldBossClaimCount(getGadget().getGroupId(),
+                        Utils.getCurrentSeconds()) >= meta.boss_chest.take_num;
+    }
+
+    private void rejectWeeklyClaim(Player player) {
+        Grasscutter.getLogger().debug("World boss weekly claim exhausted uid={} group={}",
+                player.getUid(), getGadget().getGroupId());
+        player.sendPacket(new PacketGadgetInteractRsp(getGadget(),
+                RetcodeOuterClass.Retcode.RET_REWARD_HAS_TAKEN_VALUE));
+    }
+
     /** A player who already claimed re-checks whether the others have left, without new loot. */
     private boolean finishIfAbandoned(Player player, SceneGadget meta) {
         if (getGadget().getState() == CHEST_OPENED_STATE
@@ -282,9 +314,9 @@ public class GadgetChest extends GadgetContent {
     private boolean finishIfAllClaimed(Player player, SceneGadget meta, boolean credit) {
         boolean allClaimed =
                 getGadget().getScene().getPlayers().stream()
-                        .map(Player::getUid)
-                        .filter(bossUids::contains)
-                        .allMatch(claimedBossUids::contains);
+                        .filter(p -> bossUids.contains(p.getUid()))
+                        .allMatch(p -> claimedBossUids.contains(p.getUid())
+                                || weeklyClaimExhausted(p, meta));
         if (allClaimed) {
             if (getGadget().getScene().getSceneType() == SceneType.SCENE_WORLD) {
                 getGadget().getScene().getBlossomManager().retireChest(getGadget());
@@ -380,6 +412,7 @@ public class GadgetChest extends GadgetContent {
                 emu.grasscutter.game.inventory.InventoryAddPolicy.ALL_OR_NOTHING,
                 () -> {
                     if (!canClaimBossFlower(player)
+                            || weeklyClaimExhausted(player, meta)
                             || (Configuration.GAME_OPTIONS.resinOptions.resinUsage
                                     && player.getProperty(PlayerProperty.PROP_PLAYER_RESIN) < resinCost)
                             || !journal.prepare(receipt, intended, debits)) {
@@ -397,6 +430,11 @@ public class GadgetChest extends GadgetContent {
                     // This is before inventory writes, and cannot be undone safely.
                     claimedBossUids.add(player.getUid());
                     journal.confirm(receipt);
+                    if (WorldBossWeeklyClaims.limited(getGadget().getScene().getId(),
+                            getGadget().getGroupId(), meta.boss_chest.take_num)) {
+                        player.recordWeeklyWorldBossClaim(getGadget().getGroupId(),
+                                Utils.getCurrentSeconds());
+                    }
                 });
         if (!result.allAccepted()) {
             Grasscutter.getLogger().warn(
@@ -540,7 +578,11 @@ public class GadgetChest extends GadgetContent {
                             .setResin(bossChest.resin)
                             .addAllQualifyUidList(uids)
                             .addAllRemainUidList(
-                                    uids.stream().filter(uid -> !claimedBossUids.contains(uid)).toList())
+                                    uids.stream().filter(uid -> !claimedBossUids.contains(uid)
+                                            && getGadget().getScene().getPlayers().stream()
+                                                    .filter(p -> p.getUid() == uid)
+                                                    .noneMatch(p -> weeklyClaimExhausted(p, sceneGadget)))
+                                            .toList())
                             .build());
         }
     }
