@@ -1,11 +1,14 @@
 package emu.grasscutter.server.packet.recv;
 
+import emu.grasscutter.Grasscutter;
+import emu.grasscutter.data.GameData;
 import emu.grasscutter.game.activity.musicgame.*;
 import emu.grasscutter.game.props.*;
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.MusicGameSettleReqOuterClass.MusicGameSettleReq;
 import emu.grasscutter.net.proto.RetcodeOuterClass;
 import emu.grasscutter.server.game.GameSession;
+import emu.grasscutter.server.game.MusicGamePlayTracker.SettleResult;
 import emu.grasscutter.server.packet.send.*;
 import lombok.val;
 
@@ -21,9 +24,31 @@ public class HandlerMusicGameSettleReq extends PacketHandler {
         val playerDataOpt =
                 activityManager.getPlayerActivityDataByActivityType(ActivityType.NEW_ACTIVITY_MUSIC_GAME);
         if (playerDataOpt.isEmpty()) {
+            Grasscutter.getLogger().debug("Music game settle rejected: activity data unavailable");
             session.send(
                     new PacketMusicGameSettleRsp(
                             RetcodeOuterClass.Retcode.RET_MUSIC_GAME_LEVEL_CONFIG_NOT_FOUND, req));
+            return;
+        }
+
+        if (req.getUgcGuid() == 0
+                && !GameData.getMusicGameBasicDataMap().containsKey(req.getMusicBasicId())) {
+            Grasscutter.getLogger().debug("Music game settle rejected: unknown musicBasicId={}",
+                    req.getMusicBasicId());
+            session.send(new PacketMusicGameSettleRsp(
+                    RetcodeOuterClass.Retcode.RET_MUSIC_GAME_LEVEL_CONFIG_NOT_FOUND, req));
+            return;
+        }
+
+        var settleResult = session.getMusicGamePlayTracker().settle(req.getMusicBasicId(), req.getUgcGuid());
+        if (settleResult != SettleResult.OK) {
+            Grasscutter.getLogger().debug("Music game settle rejected: {} (musicBasicId={}, ugcGuid={})",
+                    settleResult, req.getMusicBasicId(), req.getUgcGuid());
+            session.send(new PacketMusicGameSettleRsp(
+                    settleResult == SettleResult.NOT_STARTED
+                            ? RetcodeOuterClass.Retcode.RET_MUSIC_GAME_LEVEL_NOT_STARTED
+                            : RetcodeOuterClass.Retcode.RET_MUSIC_GAME_LEVEL_ID_NOT_MATCH,
+                    req));
             return;
         }
 
