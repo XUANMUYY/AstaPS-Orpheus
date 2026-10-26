@@ -190,7 +190,9 @@ public class Scene {
     }
 
     public Player getHost() {
-        return this.getWorld().getHost();
+        // 测试和尚未挂到世界的场景没有 World，调用方都按「没有房主」处理。
+        var world = this.getWorld();
+        return world == null ? null : world.getHost();
     }
 
     public GameEntity getEntityById(int id) {
