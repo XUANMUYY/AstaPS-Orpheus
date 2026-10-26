@@ -1,9 +1,11 @@
 package emu.grasscutter.server.packet.recv;
 
 import emu.grasscutter.game.player.Player;
+import emu.grasscutter.game.player.WidgetResourceIds;
 import emu.grasscutter.game.quest.enums.QuestContent;
 import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.*;
+import emu.grasscutter.net.proto.RetcodeOuterClass.Retcode;
 import emu.grasscutter.server.game.GameSession;
 import emu.grasscutter.server.packet.send.*;
 
@@ -29,6 +31,17 @@ public class HandlerSetWidgetSlotReq extends PacketHandler {
 
         // DETACH must clear the slot; previously widgetId was always overwritten with materialId.
         if (attach) {
+            if (!WidgetResourceIds.contains(req.getMaterialId())
+                    || !player.getInventory().hasItem(req.getMaterialId(), 1)) {
+                int retcode = !WidgetResourceIds.contains(req.getMaterialId())
+                        ? Retcode.RET_INVALID_WIDGET_MATERIAL_ID_VALUE
+                        : Retcode.RET_ITEM_NOT_EXIST_VALUE;
+                emu.grasscutter.Grasscutter.getLogger().debug(
+                        "SetWidgetSlotReq rejected uid={} materialId={} retcode={}",
+                        player.getUid(), req.getMaterialId(), retcode);
+                session.send(new PacketSetWidgetSlotRsp(req.getMaterialId(), retcode));
+                return;
+            }
             player.setWidgetId(req.getMaterialId());
         } else {
             player.setWidgetId(0);
