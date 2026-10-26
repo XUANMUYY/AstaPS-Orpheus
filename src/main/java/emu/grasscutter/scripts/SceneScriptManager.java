@@ -1344,8 +1344,8 @@ public class SceneScriptManager {
         // the SetGroupVariableValueByGroup in tower need the param to record the first stage time
         ongoingTriggers.add(trigger);
         try {
-            var activeAtEntry = trigger.currentGroup == null ? null
-                    : scene.getChallengeForGroup(trigger.currentGroup.id);
+            var activeAtEntry = trigger.currentGroup == null ? scene.getChallenge()
+                    : scene.findChallengeForGroup(trigger.currentGroup.id);
             if (activeAtEntry != null && params.source_eid != 0
                     && this.getRegionById(params.source_eid) != null) {
                 activeAtEntry.setSourceRegionEntityId(params.source_eid);
@@ -1357,8 +1357,8 @@ public class SceneScriptManager {
             var invocations = invocationsCounter.incrementAndGet();
             Grasscutter.getLogger().trace("Call Action Trigger {}", trigger.getAction());
 
-            var activeChallenge = trigger.currentGroup == null ? null
-                    : scene.getChallengeForGroup(trigger.currentGroup.id);
+            var activeChallenge = trigger.currentGroup == null ? scene.getChallenge()
+                    : scene.findChallengeForGroup(trigger.currentGroup.id);
             if (activeChallenge != null) {
                 activeChallenge.onGroupTriggerDeath(trigger);
             }

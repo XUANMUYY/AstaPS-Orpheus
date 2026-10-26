@@ -273,6 +273,10 @@ class ScriptLibChallengeTest {
             assertEquals(0, fixture.lib.StopChallenge(666, 0));
             assertFalse(second.inProgress());
             assertTrue(first.inProgress());
+            // 本组没有挑战时，别的组的 Lua 仍能停止场景主挑战
+            fixture.lib.setCurrentGroup(SceneGroup.of(133000001));
+            assertEquals(0, fixture.lib.StopChallenge(666, 0));
+            assertFalse(first.inProgress());
         } finally {
             if (previous == null) configs.remove(203); else configs.put(203, previous);
         }

@@ -88,6 +88,12 @@ public class Scene {
                 && challenge.getGroup().id == groupId ? challenge : null;
     }
 
+    /** 按组找挑战；本组没有时退回场景主挑战（别的组的 Lua 也会停止、挂接、修改它）。 */
+    public WorldChallenge findChallengeForGroup(int groupId) {
+        var grouped = getChallengeForGroup(groupId);
+        return grouped != null ? grouped : challenge;
+    }
+
     public List<WorldChallenge> getActiveChallenges() {
         var active = new ArrayList<WorldChallenge>();
         if (challenge != null && challenge.inProgress()) active.add(challenge);

@@ -420,7 +420,7 @@ public class ScriptLib {
     public int AttachChildChallenge(int fatherIndex, int childIndex, int childId, int[] params,
                                     LuaTable uidList, LuaTable weights) {
         var scene = getSceneScriptManager().getScene();
-        if (!(scene.getChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0)) instanceof FatherChallenge father)
+        if (!(scene.findChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0)) instanceof FatherChallenge father)
                 || father.getChallengeIndex() != fatherIndex || params == null
                 || params.length < 2 || params.length > 6 || weights == null) return 1;
         int successWeight = weights.get("success").optint(-1);
@@ -1197,7 +1197,7 @@ public class ScriptLib {
         var properties = FatherChallengeProperty.values();
         if (propertyTypeIndex < 0 || propertyTypeIndex >= properties.length) return 1;
         var challenge = getSceneScriptManager().getScene()
-                .getChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
+                .findChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
         return challenge instanceof FatherChallenge father && father.getChallengeIndex() == challengeId
                 && father.modify(properties[propertyTypeIndex], value) ? 0 : 1;
     }
@@ -1802,7 +1802,7 @@ public class ScriptLib {
 
     public int StartFatherChallenge(int index) {
         var challenge = getSceneScriptManager().getScene()
-                .getChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
+                .findChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
         if (!(challenge instanceof FatherChallenge father)
                 || father.getChallengeIndex() != index || father.inProgress()) return 1;
         father.start();
@@ -1851,7 +1851,7 @@ public class ScriptLib {
         if (LiyueCloudDungeonSupport.isTargetScene(scene) && var1 >= 100 && var1 <= 102)
             return LiyueCloudDungeonSupport.stopFireChallenge(scene, var1, var2);
         if (var2 != 0 && var2 != 1) return 1;
-        var challenge = scene.getChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
+        var challenge = scene.findChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
         if (challenge instanceof FatherChallenge father && father.inProgress()
                 && father.activeChild(var1) != null) challenge = father.activeChild(var1);
         if (challenge == null || !challenge.inProgress() || challenge.getChallengeIndex() != var1) return 1;
