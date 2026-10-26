@@ -343,6 +343,13 @@ public class Player implements PlayerHook, FieldFetch {
     private HashMap<String, MapMark> mapMarks;
     @Getter @Setter private int nextResinRefresh;
     @Getter @Setter private int resinBuyCount;
+    private WeeklyBossClaimState weeklyBossClaimState;
+
+    public synchronized WeeklyBossClaimState getWeeklyBossClaimState() {
+        if (weeklyBossClaimState == null) weeklyBossClaimState = new WeeklyBossClaimState();
+        return weeklyBossClaimState;
+    }
+
     @Getter @Setter private int lastDailyReset;
     @Getter private transient MpSettingType mpSetting = MpSettingType.MpSettingType_MP_SETTING_ENTER_AFTER_APPLY;
     @Getter private long playerGameTime = 540000;

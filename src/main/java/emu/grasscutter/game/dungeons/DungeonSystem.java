@@ -6,6 +6,8 @@ import emu.grasscutter.data.binout.ScenePointEntry;
 import emu.grasscutter.data.excels.dungeon.*;
 import emu.grasscutter.game.dungeons.fallback.MissingDomainFallbackManager;
 import emu.grasscutter.game.dungeons.handlers.DungeonBaseHandler;
+import emu.grasscutter.game.dungeons.enums.DungeonPlayType;
+import emu.grasscutter.game.dungeons.enums.DungeonType;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.tower.TowerAbyssFix;
 import emu.grasscutter.game.props.SceneType;
@@ -22,6 +24,8 @@ import emu.grasscutter.net.proto.Uint32PairOuterClass.Uint32Pair;
 public final class DungeonSystem extends BaseGameSystem {
     private static final BasicDungeonSettleListener basicDungeonSettleObserver =
             new BasicDungeonSettleListener();
+    private static final TrialAvatarDungeonSettleListener trialAvatarDungeonSettleObserver =
+            new TrialAvatarDungeonSettleListener();
     private final Int2ObjectMap<DungeonBaseHandler> passCondHandlers;
 
     public DungeonSystem(GameServer server) {
@@ -126,7 +130,7 @@ public final class DungeonSystem extends BaseGameSystem {
         }
         scene.setDungeonManager(new DungeonManager(scene, data));
         MissingDomainFallbackManager.install(scene, data);
-        scene.addDungeonSettleObserver(basicDungeonSettleObserver);
+        scene.addDungeonSettleObserver(settleListenerFor(data));
         if (DomainDungeonHelper.isDomainScene(scene)) {
             DomainDungeonHelper.onPlayerEnterDomain(player);
         }
@@ -301,7 +305,7 @@ public final class DungeonSystem extends BaseGameSystem {
                     restartedScene.addDungeonSettleObserver(new TowerDungeonSettleListener());
                 } else {
                     MissingDomainFallbackManager.install(restartedScene, dungeonData);
-                    restartedScene.addDungeonSettleObserver(basicDungeonSettleObserver);
+                    restartedScene.addDungeonSettleObserver(settleListenerFor(dungeonData));
                 }
             }
             if (isTower) {
@@ -316,6 +320,17 @@ public final class DungeonSystem extends BaseGameSystem {
                 "Dungeon restart uid={} dungeon={} scene={} restored={}/{}",
                 player.getUid(), dungeonData.getId(), sceneId, restored, participants.size());
         } // dungeonManager: same lock as DomainDropSafety.commitOnce
+    }
+
+    static DungeonSettleListener settleListenerFor(DungeonData data) {
+        return settleListenerFor(data.getType(), data.getPlayType());
+    }
+
+    static DungeonSettleListener settleListenerFor(DungeonType type, DungeonPlayType playType) {
+        return type == DungeonType.DUNGEON_ACTIVITY
+                        && playType == DungeonPlayType.DUNGEON_PLAY_TYPE_TRIAL_AVATAR
+                ? trialAvatarDungeonSettleObserver
+                : basicDungeonSettleObserver;
     }
 
 }

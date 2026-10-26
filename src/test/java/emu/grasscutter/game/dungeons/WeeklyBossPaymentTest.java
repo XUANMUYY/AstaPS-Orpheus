@@ -7,6 +7,15 @@ import org.junit.jupiter.api.Test;
 
 final class WeeklyBossPaymentTest {
     @Test
+    void variantPreviewsShareOneBossIdentity() {
+        assertEquals(113017, WeeklyBossDropResolver.bossIdentity(
+                java.util.Set.of(113017, 113018, 113019, 113021)));
+        assertEquals(113017, WeeklyBossDropResolver.bossIdentity(
+                java.util.Set.of(113019, 113017, 113021)));
+        assertEquals(0, WeeklyBossDropResolver.bossIdentity(java.util.Set.of(113021)));
+    }
+
+    @Test
     void onlyAcceptsExplicitNativeThirtyOrSixtyResinSingleClaims() {
         assertTrue(DomainStatueDropService.validWeeklyBossPayment(NORMAL_1X, 106, 30));
         assertTrue(DomainStatueDropService.validWeeklyBossPayment(NORMAL_1X, 106, 60));
