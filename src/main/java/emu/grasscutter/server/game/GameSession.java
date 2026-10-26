@@ -28,6 +28,7 @@ public class GameSession implements GameSessionManager.KcpChannel {
 
     // Session-scoped GM playback completions must not drive gameplay state machines.
     private final ManualCutsceneTracker manualCutscenes = new ManualCutsceneTracker();
+    @Getter private final MusicGamePlayTracker musicGamePlayTracker = new MusicGamePlayTracker();
 
     // 后台任务调整期间只回心跳：逐条推送的中间任务状态会让客户端当真，播起过场。
     // 调整结束后会话被强制关闭，客户端重新登录时以全量数据为准；新会话不继承这个标记。

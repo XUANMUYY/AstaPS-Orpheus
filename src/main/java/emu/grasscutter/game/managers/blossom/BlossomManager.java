@@ -624,7 +624,8 @@ public class BlossomManager {
                     // mark null as consumed, or later /spawn outcrops all get skipped.
                     var source = active.getGadget().getSpawnEntry();
                     if (source != null) {
-                        if (nativeCamps.advance(source, scene.getWorld().getHost().getLevel())) {
+                        var host = scene.getWorld().getHost();
+                        if (nativeCamps.advance(source, host.getLevel(), host)) {
                             activeSpawnCache = null;
                             activeSetRevision++;
                         } else {

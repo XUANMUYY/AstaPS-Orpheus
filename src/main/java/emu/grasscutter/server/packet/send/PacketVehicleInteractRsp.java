@@ -12,6 +12,7 @@ import emu.grasscutter.net.packet.*;
 import emu.grasscutter.net.proto.VehicleInteractRspOuterClass.VehicleInteractRsp;
 import emu.grasscutter.net.proto.VehicleInteractTypeOuterClass.VehicleInteractType;
 import emu.grasscutter.net.proto.VehicleMemberOuterClass.VehicleMember;
+import it.unimi.dsi.fastutil.ints.Int2FloatMap;
 import java.util.Locale;
 public class PacketVehicleInteractRsp extends BasePacket {
 
@@ -28,9 +29,8 @@ public class PacketVehicleInteractRsp extends BasePacket {
         // out of fillFightProps, and the Natlan Saurian mounts are flagged isInvincible there, so they
         // come out with CUR_HP at infinity. Overwriting both with a flat 1000 is what made a ridden
         // Saurian die to a single hit.
-        if (!(vehicle instanceof EntityVehicle mount) || !NatsaurusVehicleHelper.isNatsaurusMount(mount)) {
-            vehicle.setFightProperty(FightProperty.FIGHT_PROP_CUR_HP.getId(), 1000);
-            vehicle.setFightProperty(FightProperty.FIGHT_PROP_MAX_HP.getId(), 1000);
+        if (vehicle instanceof EntityVehicle mount && !NatsaurusVehicleHelper.isNatsaurusMount(mount)) {
+            initializeMissingDurability(vehicle.getFightProperties());
         }
         if (vehicle instanceof EntityVehicle) {
             proto.setEntityId(vehicle.getId());
@@ -83,6 +83,13 @@ public class PacketVehicleInteractRsp extends BasePacket {
             }
         }
         this.setData(proto.build());
+    }
+
+    static void initializeMissingDurability(Int2FloatMap properties) {
+        int maxId = FightProperty.FIGHT_PROP_MAX_HP.getId();
+        int currentId = FightProperty.FIGHT_PROP_CUR_HP.getId();
+        properties.putIfAbsent(maxId, 1000f);
+        properties.putIfAbsent(currentId, properties.get(maxId));
     }
 
     public PacketVehicleInteractRsp(

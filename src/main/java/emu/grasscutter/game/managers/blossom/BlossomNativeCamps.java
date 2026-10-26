@@ -5,6 +5,7 @@ import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.data.excels.BlossomCampData;
 import emu.grasscutter.data.excels.BlossomRefreshExcelConfigData;
+import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.world.Scene;
 import emu.grasscutter.game.world.SpawnDataEntry;
 import emu.grasscutter.game.world.SpawnDataEntry.SpawnGroupEntry;
@@ -22,7 +23,6 @@ final class BlossomNativeCamps {
     private record Source(int campId, int refreshId, SpawnDataEntry entry) {}
 
     private static final Gson GSON = new Gson();
-    private final Map<Key, Integer> activeIds = new HashMap<>();
     private final Map<String, Source> resolved = new HashMap<>();
     private final Map<SpawnDataEntry, Source> byEntry = new IdentityHashMap<>();
     private final Set<Integer> unresolvedGroups = new HashSet<>();
@@ -40,6 +40,7 @@ final class BlossomNativeCamps {
     }
 
     List<SpawnDataEntry> select(Scene scene, int rank, Collection<Integer> unlockedAreas) {
+        Player host = scene.getWorld().getHost();
         var rows = GameData.getBlossomCampDataMap();
         if (rows.isEmpty()) return List.of();
         var cities = GameData.getCityDataMap().values();
@@ -72,11 +73,12 @@ final class BlossomNativeCamps {
 
             Key key = new Key(city, kind);
             int initial = initialId(city, kind, eligible);
-            int campId = activeIds.computeIfAbsent(key, ignored -> initial);
+            int stored = host.getBlossomCampId(key.cityId(), key.kind().name());
+            int campId = stored == 0 ? initial : stored;
             BlossomCampData camp = rows.get(campId);
             if (camp == null || camp.getCityId() != city || camp.getLimitLevel() > rank) {
                 campId = initial;
-                activeIds.put(key, initial);
+                if (stored != 0) host.setBlossomCampId(key.cityId(), key.kind().name(), initial);
                 camp = rows.get(campId);
             }
             if (camp == null) continue;
@@ -145,7 +147,7 @@ final class BlossomNativeCamps {
         return source == null ? 0 : source.refreshId();
     }
 
-    boolean advance(SpawnDataEntry entry, int rank) {
+    boolean advance(SpawnDataEntry entry, int rank, Player host) {
         Source source = byEntry.get(entry);
         if (source == null) return false;
         var camp = GameData.getBlossomCampDataMap().get(source.campId());
@@ -173,7 +175,7 @@ final class BlossomNativeCamps {
             nextId = eligible.get(0).getId();
         }
         var kind = BlossomType.valueOf(entry.getGadgetId());
-        activeIds.put(new Key(camp.getCityId(), kind), nextId);
+        host.setBlossomCampId(camp.getCityId(), kind.name(), nextId);
         Grasscutter.getLogger().info("Ley-line original camp advanced city={} kind={} {} -> {}",
                 camp.getCityId(), kind, source.campId(), nextId);
         return true;

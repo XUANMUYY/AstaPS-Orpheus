@@ -67,6 +67,10 @@ public final class Mail {
         return ownerUid;
     }
 
+    public boolean isExpiredAt(long epochSeconds) {
+        return this.expireTime <= epochSeconds;
+    }
+
     public void setOwnerUid(int ownerUid) {
         this.ownerUid = ownerUid;
     }

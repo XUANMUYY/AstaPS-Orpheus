@@ -40,6 +40,13 @@ public class MusicGamePlayerData {
             return MusicGameRecord.of().musicId(musicGameBasicData.getId()).build();
         }
 
+        public boolean updateBest(MusicGameRecord result) {
+            boolean isNewRecord = result.maxScore > maxScore;
+            maxCombo = Math.max(result.maxCombo, maxCombo);
+            maxScore = Math.max(result.maxScore, maxScore);
+            return isNewRecord;
+        }
+
         public MusicGameRecordOuterClass.MusicGameRecord toProto() {
             return MusicGameRecordOuterClass.MusicGameRecord.newBuilder()
                     .setMaxCombo(maxCombo)

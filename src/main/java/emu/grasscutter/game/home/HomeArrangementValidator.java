@@ -2,6 +2,7 @@ package emu.grasscutter.game.home;
 
 import emu.grasscutter.data.GameData;
 import emu.grasscutter.game.inventory.ItemType;
+import emu.grasscutter.net.proto.RetcodeOuterClass.Retcode;
 import emu.grasscutter.net.proto.HomeBlockArrangementInfoOuterClass.HomeBlockArrangementInfo;
 import emu.grasscutter.net.proto.HomeSceneArrangementInfoOuterClass.HomeSceneArrangementInfo;
 import java.util.HashMap;
@@ -15,8 +16,13 @@ public final class HomeArrangementValidator {
 
     public static boolean isValid(HomeSceneItem scene, HomeSceneItem otherScene,
                                   HomeSceneArrangementInfo requested, IntUnaryOperator ownedCount) {
+        return validate(scene, otherScene, requested, ownedCount) == Retcode.RET_SUCC_VALUE;
+    }
+
+    public static int validate(HomeSceneItem scene, HomeSceneItem otherScene,
+                               HomeSceneArrangementInfo requested, IntUnaryOperator ownedCount) {
         if (scene == null || requested.getSceneId() != scene.getSceneId()) {
-            return false;
+            return Retcode.RET_HOME_CLIENT_PARAM_INVALID_VALUE;
         }
         var oldCounts = new HashMap<Integer, Integer>();
         addScene(oldCounts, scene);
@@ -29,12 +35,27 @@ public final class HomeArrangementValidator {
         for (var block : requested.getBlockArrangementInfoListList()) {
             if (!scene.getBlockItems().containsKey(block.getBlockId())
                     || !seenBlocks.add(block.getBlockId())) {
-                return false;
+                return Retcode.RET_HOME_CLIENT_PARAM_INVALID_VALUE;
             }
         }
         for (var entry : scene.getBlockItems().entrySet()) {
             var block = requested.getBlockArrangementInfoListList().stream()
                     .filter(value -> value.getBlockId() == entry.getKey()).findFirst();
+            int limit = GameData.getHomeWorldAreaComfortDataMap().values().stream()
+                    .filter(area -> area.getSceneID() == scene.getSceneId()
+                            && area.getAreaID() == entry.getKey())
+                    .mapToInt(area -> area.getHighLoadLimit()).findFirst().orElse(0);
+            // 主屋在协议中独立于块列表，资源表却有 cost；归入室外第 1 区域。
+            int oldHouse = !scene.isRoom() && entry.getKey() == 1
+                    ? scene.getMainHouse().getFurnitureId() : 0;
+            int requestedHouse = oldHouse != 0 && requested.hasMainHouse()
+                    ? requested.getMainHouse().getFurnitureId() : oldHouse;
+            int currentLoad = blockLoad(entry.getValue(), oldHouse);
+            int desiredLoad = block.isPresent() ? blockLoad(block.get(), requestedHouse)
+                    : blockLoad(entry.getValue(), requestedHouse);
+            if (limit > 0 && desiredLoad > Math.max(limit, currentLoad)) {
+                return Retcode.RET_HOME_FURNITURE_COST_LIMIT_VALUE;
+            }
             if (block.isPresent()) addBlock(desired, block.get());
             else addBlock(desired, entry.getValue());
         }
@@ -50,10 +71,37 @@ public final class HomeArrangementValidator {
             int owned = item == null || item.getItemType() != ItemType.ITEM_FURNITURE
                     ? 0 : ownedCount.applyAsInt(entry.getKey());
             if (!withinOwned(previous, entry.getValue(), owned)) {
-                return false;
+                return Retcode.RET_HOME_FURNITURE_COUNT_NOT_ENOUGH_VALUE;
             }
         }
-        return true;
+        return Retcode.RET_SUCC_VALUE;
+    }
+
+    private static int blockLoad(HomeBlockArrangementInfo block, int mainHouseId) {
+        var counts = new HashMap<Integer, Integer>();
+        addBlock(counts, block);
+        add(counts, mainHouseId);
+        return furnitureLoad(counts);
+    }
+
+    private static int blockLoad(HomeBlockItem block, int mainHouseId) {
+        var counts = new HashMap<Integer, Integer>();
+        addBlock(counts, block);
+        add(counts, mainHouseId);
+        return furnitureLoad(counts);
+    }
+
+    static int furnitureLoad(Map<Integer, Integer> counts) {
+        long load = 0;
+        for (var entry : counts.entrySet()) {
+            var item = GameData.getItemDataMap().get(entry.getKey());
+            if (item == null || item.getItemType() != ItemType.ITEM_FURNITURE) continue;
+            // 同款首件用 cost，后续用 discountCost；缺少折扣字段时保持原价。
+            int cost = Math.max(0, item.getCost());
+            int repeated = item.getDiscountCost() > 0 ? item.getDiscountCost() : cost;
+            load += cost + (long) (entry.getValue() - 1) * repeated;
+        }
+        return (int) Math.min(load, Integer.MAX_VALUE);
     }
 
     static boolean withinOwned(int previous, int requested, int owned) {

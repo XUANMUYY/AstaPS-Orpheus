@@ -56,15 +56,14 @@ public class MusicGameActivityHandler extends ActivityHandler {
     public boolean setMusicGameRecord(
             PlayerActivityData playerActivityData, MusicGamePlayerData.MusicGameRecord newRecord) {
         var musicGamePlayerData = getMusicGamePlayerData(playerActivityData);
-        var saveRecord = musicGamePlayerData.getMusicGameRecord().get(newRecord.getMusicId());
-
-        saveRecord.setMaxCombo(Math.max(newRecord.getMaxCombo(), saveRecord.getMaxCombo()));
-        saveRecord.setMaxScore(Math.max(newRecord.getMaxScore(), saveRecord.getMaxScore()));
+        var saveRecord = musicGamePlayerData.getMusicGameRecord().computeIfAbsent(
+                newRecord.getMusicId(), id -> MusicGamePlayerData.MusicGameRecord.of().musicId(id).build());
+        boolean isNewRecord = saveRecord.updateBest(newRecord);
 
         playerActivityData.setDetail(musicGamePlayerData);
         playerActivityData.save();
 
-        return newRecord.getMaxScore() > saveRecord.getMaxScore();
+        return isNewRecord;
     }
 
     public void setMusicGameCustomBeatmapRecord(
