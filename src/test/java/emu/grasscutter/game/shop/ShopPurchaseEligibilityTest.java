@@ -26,7 +26,7 @@ class ShopPurchaseEligibilityTest {
     }
 
     @Test
-    void supportsKnownPrerequisitesAndAllowsUnknownState() {
+    void supportsKnownPrerequisitesAndRejectsUnknownState() {
         ShopInfo goods = new ShopInfo();
         goods.setPrecondition("SHOP_PRECONDITION_SPECIFY");
         goods.setPreconditionParamList(List.of("1002009", ""));
@@ -36,7 +36,13 @@ class ShopPurchaseEligibilityTest {
         goods.setPreconditionParamList(List.of("302110,302111"));
         assertTrue(ShopPurchaseEligibility.canBuy(goods, 1, 0, 100, id -> false, id -> id == 302111));
         goods.setPrecondition("SHOP_PRECONDITION_GCG_LEVEL");
-        assertTrue(canBuy(goods, 1, 0, 100));
+        goods.setPreconditionParamList(List.of("5"));
+        assertFalse(canBuy(goods, 1, 0, 100));
+        goods.setPrecondition("SHOP_PRECONDITION_HISTORY_GOT_ANY_ITEM");
+        assertFalse(canBuy(goods, 1, 0, 100));
+        goods.setPrecondition(null);
+        goods.setRotateId(10201);
+        assertFalse(canBuy(goods, 1, 0, 100));
     }
 
     private static boolean canBuy(ShopInfo goods, int playerLevel, int homeLevel, int now) {

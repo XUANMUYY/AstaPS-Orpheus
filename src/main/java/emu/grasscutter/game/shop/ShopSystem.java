@@ -1,7 +1,6 @@
 package emu.grasscutter.game.shop;
 
-import static emu.grasscutter.config.Configuration.GAME_OPTIONS;
-
+import com.google.gson.JsonObject;
 import emu.grasscutter.Grasscutter;
 import emu.grasscutter.data.*;
 import emu.grasscutter.data.common.ItemParamData;
@@ -9,6 +8,8 @@ import emu.grasscutter.data.excels.ShopGoodsData;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.server.game.*;
 import emu.grasscutter.utils.Utils;
+import emu.grasscutter.utils.FileUtils;
+import emu.grasscutter.utils.JsonUtils;
 import it.unimi.dsi.fastutil.ints.*;
 import java.util.*;
 import lombok.Getter;
@@ -57,14 +58,23 @@ public class ShopSystem extends BaseGameSystem {
     private void loadShop() {
         getShopData().clear();
         try {
+            Map<Integer, JsonObject> pricing = new HashMap<>();
+            for (JsonObject row : JsonUtils.loadToList(
+                    FileUtils.getResourcePath("ExcelBinOutput/ShopGoodsExcelConfigData.json"),
+                    JsonObject.class)) {
+                if (row.has("rotateId") || row.has("originalPrice") || row.has("discountRate"))
+                    pricing.put(row.get("goodsId").getAsInt(), row);
+            }
             List<ShopTable> banners = DataLoader.loadList("Shop.json", ShopTable.class);
             if (banners.size() > 0) {
                 for (ShopTable shopTable : banners) {
                     shopTable.getItems().forEach(ShopInfo::removeVirtualCosts);
                     for (ShopInfo item : shopTable.getItems()) {
                         var excel = GameData.getShopGoodsDataMap().get(item.getGoodsId());
-                        if (excel != null && excel.getShopType() == shopTable.getShopId())
+                        if (excel != null && excel.getShopType() == shopTable.getShopId()) {
                             item.applyPrecondition(excel);
+                            applyPricingMetadata(item, pricing.get(item.getGoodsId()));
+                        }
                     }
                     getShopData().put(shopTable.getShopId(), shopTable.getItems());
                 }
@@ -73,26 +83,54 @@ public class ShopSystem extends BaseGameSystem {
                 Grasscutter.getLogger().error("Unable to load shop data. Shop data size is 0.");
             }
 
-            if (GAME_OPTIONS.enableShopItems) {
-                // Shop.json is the curated source and every one of its shops also exists in the
-                // excel data, so appending there would list those items twice. Fill only the
-                // shops it does not define.
-                GameData.getShopGoodsDataEntries()
-                        .forEach(
-                                (k, v) -> {
-                                    int shopId = k.intValue();
-                                    if (getShopData().containsKey(shopId)) return;
+            // Shop.json is the curated source. Fill only missing shop types with concrete,
+            // priced goods from Excel, regardless of the legacy enableShopItems switch.
+            GameData.getShopGoodsDataEntries()
+                    .forEach((k, v) -> {
+                        int shopId = k.intValue();
+                        if (getShopData().containsKey(shopId)) return;
 
-                                    var items = new ArrayList<ShopInfo>(v.size());
-                                    for (ShopGoodsData sgd : v) {
-                                        items.add(new ShopInfo(sgd));
-                                    }
-                                    getShopData().put(shopId, items);
-                                });
-            }
+                        var items = new ArrayList<ShopInfo>(v.size());
+                        for (ShopGoodsData sgd : v) {
+                            if (isSellableExcelGood(sgd)) {
+                                ShopInfo item = new ShopInfo(sgd);
+                                applyPricingMetadata(item, pricing.get(item.getGoodsId()));
+                                if (!item.hasUnresolvedRotation()) items.add(item);
+                            }
+                        }
+                        if (!items.isEmpty()) getShopData().put(shopId, items);
+                    });
         } catch (Exception e) {
+            getShopData().clear();
             Grasscutter.getLogger().error("Unable to load shop data.", e);
         }
+    }
+
+    static void applyPricingMetadata(ShopInfo item, JsonObject row) {
+        if (row == null) return;
+        if (row.has("rotateId")) item.setRotateId(row.get("rotateId").getAsInt());
+        if (row.has("originalPrice")) item.setOriginalPrice(row.get("originalPrice").getAsInt());
+        if (row.has("discountRate")) item.setDiscountRate(row.get("discountRate").getAsFloat());
+        // The current costItems already contain the discounted amount. rotateId requires a
+        // separate goods mapping; without that mapping neither item nor price can be trusted.
+    }
+
+    static boolean isSellableExcelGood(ShopGoodsData good) {
+        return isSellableExcelGood(good, id -> GameData.getItemDataMap().containsKey(id));
+    }
+
+    static boolean isSellableExcelGood(ShopGoodsData good, java.util.function.IntPredicate knownItem) {
+        if (good == null || good.getGoodsId() <= 0 || good.getItemId() <= 0
+                || good.getItemCount() <= 0 || good.getShopType() <= 0
+                || good.getCostScoin() < 0 || good.getCostHcoin() < 0
+                || good.getCostMcoin() < 0
+                || !knownItem.test(good.getItemId())) return false;
+        var costs = good.getCostItems();
+        if (costs != null && costs.stream().anyMatch(cost -> cost != null
+                && (cost.getId() < 0 || cost.getCount() < 0))) return false;
+        return good.getCostScoin() > 0 || good.getCostHcoin() > 0 || good.getCostMcoin() > 0
+                || costs != null && costs.stream().anyMatch(cost -> cost != null
+                        && cost.getId() > 0 && cost.getCount() > 0);
     }
 
     private void loadShopChest() {

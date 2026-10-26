@@ -21,7 +21,7 @@ public final class ShopPurchaseEligibility {
 
     public static boolean canBuy(ShopInfo goods, int playerLevel, int homeLevel, int now,
                                  IntPredicate boughtGoods, IntPredicate finishedQuest) {
-        if (now < goods.getBeginTime() || now > goods.getEndTime()
+        if (goods.hasUnresolvedRotation() || now < goods.getBeginTime() || now > goods.getEndTime()
                 || playerLevel < goods.getMinLevel()
                 || (goods.getMaxLevel() > 0 && playerLevel > goods.getMaxLevel())) return false;
 
@@ -39,8 +39,9 @@ public final class ShopPurchaseEligibility {
             case "SHOP_PRECONDITION_SPECIFY" -> !params.isEmpty() && params.stream().anyMatch(boughtGoods::test);
             case "SHOP_PRECONDITION_QUEST_FINISH", "SHOP_PRECONDITION_QUEST_FINISH_ANY" ->
                     !params.isEmpty() && params.stream().anyMatch(finishedQuest::test);
-            // 七圣等级、历史获得和活动状态目前没有可靠的服务端状态，暂放行，避免误拦正常购买。
-            default -> true;
+            // No persisted GCG level or other state is available here. A restricted good
+            // must stay closed until its condition can be verified server-side.
+            default -> false;
         };
     }
 }
