@@ -428,9 +428,7 @@ public class EntityGadget extends EntityBaseGadget {
         if (this.getSpawnEntry() != null) {
             this.getScene().getDeadSpawnedEntities().add(getSpawnEntry());
         }
-        if (getScene().getChallenge() != null) {
-            getScene().getChallenge().onGadgetDeath(this);
-        }
+        for (var challenge : getScene().getActiveChallenges()) challenge.onGadgetDeath(this);
         getScene()
                 .getScriptManager()
                 .callEvent(

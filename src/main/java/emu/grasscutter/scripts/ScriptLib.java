@@ -244,7 +244,9 @@ public class ScriptLib {
     private int startChallenge(int challengeId, int challengeIndex, int[] parameters) {
 
         var scene = getSceneScriptManager().getScene();
-        var existingChallenge = scene.getChallenge();
+        var group = getCurrentGroup().orElse(null);
+        if (group == null) return 1;
+        var existingChallenge = scene.getChallengeForGroup(group.id);
         if (existingChallenge != null && existingChallenge.inProgress()) {
             logger.warn("ActiveChallenge: tried to create challenge while one is already in progress");
             return 1;
@@ -290,7 +292,7 @@ public class ScriptLib {
             }
         }
 
-        var challenge = ChallengeFactory.getChallenge(challengeId, challengeIndex, parameters, scene, getCurrentGroup().get());
+        var challenge = ChallengeFactory.getChallenge(challengeId, challengeIndex, parameters, scene, group);
 
         if (challenge == null) {
             return 1;
@@ -303,7 +305,8 @@ public class ScriptLib {
             dungeonChallenge.setStage(getSceneScriptManager().getVariables(parameters[1]).getOrDefault("stage", -1) == 0);
         }
 
-        scene.setChallenge(challenge);
+        // 推断：不同组的场景挑战可并存；同组重复启动仍由前面的检查拒绝。
+        scene.addGroupChallenge(challenge);
         challenge.start();
         return 0;
     }
@@ -417,7 +420,7 @@ public class ScriptLib {
     public int AttachChildChallenge(int fatherIndex, int childIndex, int childId, int[] params,
                                     LuaTable uidList, LuaTable weights) {
         var scene = getSceneScriptManager().getScene();
-        if (!(scene.getChallenge() instanceof FatherChallenge father)
+        if (!(scene.getChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0)) instanceof FatherChallenge father)
                 || father.getChallengeIndex() != fatherIndex || params == null
                 || params.length < 2 || params.length > 6 || weights == null) return 1;
         int successWeight = weights.get("success").optint(-1);
@@ -618,14 +621,15 @@ public class ScriptLib {
         var scene = getSceneScriptManager().getScene();
         if (goals == null || duration <= 0 || goals.get("success").optint(0) <= 0
                 || goals.get("fail").optint(0) <= 0) return 1;
-        var existing = scene.getChallenge();
+        var existing = scene.getChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
         if (existing != null && existing.inProgress()) return 1;
         var challenge = ChallengeFactory.getChallenge(index, id,
                 new int[] {duration, goals.get("success").toint(), goals.get("fail").toint()},
                 scene, getCurrentGroup().orElse(null));
         if (!(challenge instanceof FatherChallenge father) || father.getGroup() == null) return 1;
+        father.setFailOnWipe(goals.get("fail_on_wipe").optboolean(false));
         father.setSourceRegionEntityId(currentChallengeSourceRegion(scene));
-        scene.setChallenge(father);
+        scene.addGroupChallenge(father);
         return 0;
     }
 
@@ -1187,7 +1191,8 @@ public class ScriptLib {
     public int ModifyFatherChallengeProperty(int challengeId, int propertyTypeIndex, int value) {
         var properties = FatherChallengeProperty.values();
         if (propertyTypeIndex < 0 || propertyTypeIndex >= properties.length) return 1;
-        var challenge = getSceneScriptManager().getScene().getChallenge();
+        var challenge = getSceneScriptManager().getScene()
+                .getChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
         return challenge instanceof FatherChallenge father && father.getChallengeIndex() == challengeId
                 && father.modify(properties[propertyTypeIndex], value) ? 0 : 1;
     }
@@ -1784,7 +1789,8 @@ public class ScriptLib {
     }
 
     public int StartFatherChallenge(int index) {
-        var challenge = getSceneScriptManager().getScene().getChallenge();
+        var challenge = getSceneScriptManager().getScene()
+                .getChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
         if (!(challenge instanceof FatherChallenge father)
                 || father.getChallengeIndex() != index || father.inProgress()) return 1;
         father.start();
@@ -1833,7 +1839,7 @@ public class ScriptLib {
         if (LiyueCloudDungeonSupport.isTargetScene(scene) && var1 >= 100 && var1 <= 102)
             return LiyueCloudDungeonSupport.stopFireChallenge(scene, var1, var2);
         if (var2 != 0 && var2 != 1) return 1;
-        var challenge = scene.getChallenge();
+        var challenge = scene.getChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
         if (challenge instanceof FatherChallenge father && father.inProgress()
                 && father.activeChild(var1) != null) challenge = father.activeChild(var1);
         if (challenge == null || !challenge.inProgress() || challenge.getChallengeIndex() != var1) return 1;

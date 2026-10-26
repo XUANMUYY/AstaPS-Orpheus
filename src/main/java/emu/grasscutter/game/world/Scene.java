@@ -77,6 +77,37 @@ public class Scene {
     @Getter @Setter private boolean dontDestroyWhenEmpty;
     @Getter private final SceneScriptManager scriptManager;
     @Getter @Setter private WorldChallenge challenge;
+    private Map<Integer, WorldChallenge> additionalGroupChallenges;
+
+    public WorldChallenge getChallengeForGroup(int groupId) {
+        if (additionalGroupChallenges != null) {
+            var grouped = additionalGroupChallenges.get(groupId);
+            if (grouped != null) return grouped;
+        }
+        return challenge != null && challenge.getGroup() != null
+                && challenge.getGroup().id == groupId ? challenge : null;
+    }
+
+    public List<WorldChallenge> getActiveChallenges() {
+        var active = new ArrayList<WorldChallenge>();
+        if (challenge != null && challenge.inProgress()) active.add(challenge);
+        if (additionalGroupChallenges != null) {
+            for (var grouped : additionalGroupChallenges.values()) {
+                if (grouped.inProgress() && grouped != challenge) active.add(grouped);
+            }
+        }
+        return active;
+    }
+
+    public void addGroupChallenge(WorldChallenge grouped) {
+        if (challenge == null || !challenge.inProgress()) {
+            challenge = grouped;
+            if (additionalGroupChallenges != null) additionalGroupChallenges.remove(grouped.getGroup().id);
+        } else {
+            if (additionalGroupChallenges == null) additionalGroupChallenges = new HashMap<>();
+            additionalGroupChallenges.put(grouped.getGroup().id, grouped);
+        }
+    }
     @Getter private List<DungeonSettleListener> dungeonSettleListeners;
     @Getter @Setter private int prevScene;
     @Getter @Setter private int prevScenePoint;
@@ -249,9 +280,8 @@ public class Scene {
 
     public synchronized void removePlayer(Player player) {
 
-        if (this.getChallenge() != null && this.getChallenge().inProgress()) {
-            player.sendPacket(new PacketDungeonChallengeFinishNotify(this.getChallenge()));
-        }
+        for (var activeChallenge : getActiveChallenges())
+            player.sendPacket(new PacketDungeonChallengeFinishNotify(activeChallenge));
 
         getPlayers().remove(player);
         this.playerEntryCallbacks.leave(player.getUid());
@@ -834,9 +864,7 @@ public class Scene {
         this.scriptManager.checkRegions();
         this.scriptManager.getSealBattleManager().onTick();
 
-        if (challenge != null) {
-            challenge.onCheckTimeOut();
-        }
+        for (var activeChallenge : getActiveChallenges()) activeChallenge.onCheckTimeOut();
 
         var sceneTime = getSceneTimeSeconds();
 

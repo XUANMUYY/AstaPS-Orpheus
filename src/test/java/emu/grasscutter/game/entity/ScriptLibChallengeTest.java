@@ -22,6 +22,40 @@ import org.luaj.vm2.lib.jse.CoerceJavaToLua;
 
 class ScriptLibChallengeTest {
     @Test
+    void fatherChallengeFailsOnTeamWipeOnlyWhenRequested() throws Exception {
+        var fixture = new ConfigRouteDeadlineTest.Fixture(200);
+        ConfigRouteDeadlineTest.field(fixture.scene, "players", List.of());
+        fixture.lib.setCurrentGroup(SceneGroup.of(111101094));
+        var config = new DungeonChallengeConfigData();
+        ConfigRouteDeadlineTest.field(config, "challengeType", ChallengeType.CHALLENGE_FATHER_SUCC_IN_TIME);
+        var configs = GameData.getDungeonChallengeConfigDataMap();
+        var previous = configs.put(9001, config);
+        try {
+            var goals = new LuaTable();
+            goals.set("success", 200);
+            goals.set("fail", 100);
+            goals.set("fail_on_wipe", LuaValue.TRUE);
+            assertEquals(0, fixture.lib.CreateFatherChallenge(100, 9001, 600, goals));
+            assertEquals(0, fixture.lib.StartFatherChallenge(100));
+            var father = assertInstanceOf(FatherChallenge.class, fixture.scene.getChallenge());
+            father.onTeamWipe();
+            assertFalse(father.inProgress());
+            assertTrue(fixture.scene.manager.events.stream().anyMatch(e ->
+                    e.type == emu.grasscutter.scripts.constants.EventType.EVENT_CHALLENGE_FAIL
+                            && "100".equals(e.source)));
+
+            goals.set("fail_on_wipe", LuaValue.FALSE);
+            assertEquals(0, fixture.lib.CreateFatherChallenge(101, 9001, 600, goals));
+            assertEquals(0, fixture.lib.StartFatherChallenge(101));
+            var other = assertInstanceOf(FatherChallenge.class, fixture.scene.getChallenge());
+            other.onTeamWipe();
+            assertTrue(other.inProgress());
+        } finally {
+            if (previous == null) configs.remove(9001); else configs.put(9001, previous);
+        }
+    }
+
+    @Test
     void fatherAndChildStartAndSettleFromGroupTrigger() throws Exception {
         var fixture = new ConfigRouteDeadlineTest.Fixture(200);
         ConfigRouteDeadlineTest.field(fixture.scene, "players", List.of());
@@ -216,6 +250,35 @@ class ScriptLibChallengeTest {
     }
 
     @Test
+    void challengesInDifferentSceneGroupsCanRunAndStopIndependently() throws Exception {
+        var fixture = new ConfigRouteDeadlineTest.Fixture(200);
+        ConfigRouteDeadlineTest.field(fixture.scene, "players", List.of());
+        var config = new DungeonChallengeConfigData();
+        ConfigRouteDeadlineTest.field(config, "challengeType", ChallengeType.CHALLENGE_TRIGGER2_AVOID_TRIGGER1);
+        var configs = GameData.getDungeonChallengeConfigDataMap();
+        var previous = configs.put(203, config);
+        try {
+            var conditions = new LuaTable();
+            int[] values = {26, 888, 8, 2, 999, 1};
+            for (int i = 0; i < values.length; i++) conditions.set(i + 1, LuaValue.valueOf(values[i]));
+            fixture.lib.setCurrentGroup(SceneGroup.of(133003521));
+            assertEquals(0, fixture.lib.StartChallenge(666, 203, conditions));
+            var first = fixture.scene.getChallengeForGroup(133003521);
+            fixture.lib.setCurrentGroup(SceneGroup.of(133001379));
+            assertEquals(0, fixture.lib.StartChallenge(666, 203, conditions));
+            var second = fixture.scene.getChallengeForGroup(133001379);
+            assertNotSame(first, second);
+            assertEquals(2, fixture.scene.getActiveChallenges().size());
+            assertEquals(1, fixture.lib.StartChallenge(666, 203, conditions));
+            assertEquals(0, fixture.lib.StopChallenge(666, 0));
+            assertFalse(second.inProgress());
+            assertTrue(first.inProgress());
+        } finally {
+            if (previous == null) configs.remove(203); else configs.put(203, previous);
+        }
+    }
+
+    @Test
     void startChallengeRejectsNonIntegerAndIncompleteConditions() throws Exception {
         var fixture = new ConfigRouteDeadlineTest.Fixture(200);
         var conditions = new LuaTable();
@@ -231,6 +294,7 @@ class ScriptLibChallengeTest {
         var fixture = new ConfigRouteDeadlineTest.Fixture(200);
         var challenge = new RecordingChallenge(fixture.scene, 666);
         fixture.scene.setChallenge(challenge);
+        fixture.lib.setCurrentGroup(SceneGroup.of(133001379));
         assertEquals(1, fixture.lib.StopChallenge(667, 1));
         assertEquals(1, fixture.lib.StopChallenge(666, 2));
         assertTrue(challenge.inProgress());
