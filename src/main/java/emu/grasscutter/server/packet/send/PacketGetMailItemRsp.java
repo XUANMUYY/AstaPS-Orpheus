@@ -6,6 +6,7 @@ import emu.grasscutter.game.mail.Mail;
 import emu.grasscutter.game.player.Player;
 import emu.grasscutter.game.props.ActionReason;
 import emu.grasscutter.net.packet.*;
+import emu.grasscutter.net.proto.RetcodeOuterClass.Retcode;
 import emu.grasscutter.net.proto.EquipParamOuterClass;
 import emu.grasscutter.net.proto.GetMailItemRspOuterClass.GetMailItemRsp;
 import java.util.*;
@@ -21,6 +22,16 @@ public class PacketGetMailItemRsp extends BasePacket {
         GetMailItemRsp.Builder proto = GetMailItemRsp.newBuilder();
 
         synchronized (player) {
+            long now = java.time.Instant.now().getEpochSecond();
+            for (int mailId : mailList) {
+                Mail message = player.getMail(mailId);
+                if (message == null || message.isExpiredAt(now)) {
+                    emu.grasscutter.Grasscutter.getLogger().debug("GetMailItemReq rejected: uid={}, mailIndex={}, reason={}", player.getUid(), mailId, message == null ? "missing" : "expired");
+                    proto.setRetcode(message == null ? Retcode.RET_MAIL_PARA_ERR_VALUE : Retcode.RET_MAIL_EXPIRED_VALUE);
+                    this.setData(proto.build());
+                    return;
+                }
+            }
             boolean modified = false;
             for (int mailId : mailList) {
                 Mail message = player.getMail(mailId);
