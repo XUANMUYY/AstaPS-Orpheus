@@ -22,7 +22,7 @@ public final class ExecLockAvatarTeam extends QuestExecHandler {
     public boolean execute(GameQuest quest, QuestData.QuestExecParam condition, String... params) {
         var id = parse(params);
         if (id == null) return false;
-        // The avatar ID is retained, but the quest resource does not establish a server-side roster rule.
+        // 锁期的换队和编队请求必须保留任务指定角色。
         quest.getOwner().getTeamManager().lockQuestAvatarTeam(id);
         return true;
     }
