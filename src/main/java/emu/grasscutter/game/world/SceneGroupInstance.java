@@ -26,6 +26,8 @@ public final class SceneGroupInstance {
     // Explicit Lua gadget removal must survive later group loads. Ordinary
     // combat kills retain their pre-existing oneoff/persistent spawn policy.
     private Set<Integer> scriptDestroyedGadgets = new HashSet<>();
+    // Lua-created reward flowers are outside every suite; keep unclaimed config IDs with the group.
+    private Set<Integer> pendingScriptedBlossomChests = new HashSet<>();
     // 重放补偿的套件和脚本创建机关在离开格子、重新登录后仍需恢复。
     private List<Integer> questAdjustSuites = new ArrayList<>();
     private Set<Integer> questAdjustGadgets = new HashSet<>();
@@ -117,6 +119,21 @@ public final class SceneGroupInstance {
         if (configId <= 0) return false;
         if (scriptDestroyedGadgets == null) scriptDestroyedGadgets = new HashSet<>();
         return scriptDestroyedGadgets.add(configId);
+    }
+
+    public synchronized Set<Integer> getPendingScriptedBlossomChests() {
+        if (pendingScriptedBlossomChests == null) pendingScriptedBlossomChests = new HashSet<>();
+        return Set.copyOf(pendingScriptedBlossomChests);
+    }
+
+    public synchronized boolean addPendingScriptedBlossomChest(int configId) {
+        if (configId <= 0 || isScriptGadgetDestroyed(configId)) return false;
+        if (pendingScriptedBlossomChests == null) pendingScriptedBlossomChests = new HashSet<>();
+        return pendingScriptedBlossomChests.add(configId);
+    }
+
+    public synchronized boolean removePendingScriptedBlossomChest(int configId) {
+        return pendingScriptedBlossomChests != null && pendingScriptedBlossomChests.remove(configId);
     }
 
     public List<Integer> getQuestAdjustSuites() {

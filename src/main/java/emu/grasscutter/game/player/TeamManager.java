@@ -1051,8 +1051,15 @@ public final class TeamManager extends BasePlayerDataManager {
     private void sendTeamDeathNotify(PlayerDieType dieType, int killerId) {
         var scene = this.getPlayer().getScene();
         var dungeon = scene != null ? scene.getDungeonManager() : null;
-        if (dungeon != null && !getActiveTeam().isEmpty()
-                && getActiveTeam().stream().allMatch(entity -> entity != null && entity.isDead())) {
+        boolean teamWiped = !getActiveTeam().isEmpty()
+                && getActiveTeam().stream().allMatch(entity -> entity != null && entity.isDead());
+        if (teamWiped && scene != null) {
+            for (var challenge : scene.getActiveChallenges()) {
+                if (challenge instanceof emu.grasscutter.game.dungeons.challenge.FatherChallenge father)
+                    father.onTeamWipe();
+            }
+        }
+        if (dungeon != null && teamWiped) {
             // 推断：reviveCount 是当前副本运行中该玩家剩余的复活次数。
             this.getPlayer().sendPacket(new PacketDungeonPlayerDieNotify(
                     dieType, killerId, dungeon.getDungeonData().getId(), 0,

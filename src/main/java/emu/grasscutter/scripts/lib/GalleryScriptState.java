@@ -1,5 +1,6 @@
 package emu.grasscutter.scripts.lib;
 
+import emu.grasscutter.game.world.Position;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -7,12 +8,33 @@ import java.util.Map;
 public final class GalleryScriptState {
     private final Map<Integer, Map<String, Integer>> scores = new HashMap<>();
     private final Map<Integer, Long> starts = new HashMap<>();
+    private final Map<Integer, Position> targetPositions = new HashMap<>();
 
     public synchronized boolean start(int galleryId, long startTime) {
         if (galleryId <= 0 || startTime <= 0) return false;
         scores.put(galleryId, new HashMap<>());
         starts.put(galleryId, startTime);
+        targetPositions.remove(galleryId);
         return true;
+    }
+
+    public synchronized boolean stop(int galleryId) {
+        if (galleryId <= 0) return false;
+        starts.remove(galleryId);
+        scores.remove(galleryId);
+        targetPositions.remove(galleryId);
+        return true;
+    }
+
+    public synchronized boolean setTargetPosition(int galleryId, Position position) {
+        if (!starts.containsKey(galleryId) || position == null) return false;
+        targetPositions.put(galleryId, new Position(position));
+        return true;
+    }
+
+    public synchronized Position getTargetPosition(int galleryId) {
+        var position = targetPositions.get(galleryId);
+        return position == null ? null : new Position(position);
     }
 
     public synchronized boolean isStarted(int galleryId) {

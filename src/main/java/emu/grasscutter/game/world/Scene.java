@@ -78,6 +78,43 @@ public class Scene {
     @Getter @Setter private boolean dontDestroyWhenEmpty;
     @Getter private final SceneScriptManager scriptManager;
     @Getter @Setter private WorldChallenge challenge;
+    private Map<Integer, WorldChallenge> additionalGroupChallenges;
+
+    public WorldChallenge getChallengeForGroup(int groupId) {
+        if (additionalGroupChallenges != null) {
+            var grouped = additionalGroupChallenges.get(groupId);
+            if (grouped != null) return grouped;
+        }
+        return challenge != null && challenge.getGroup() != null
+                && challenge.getGroup().id == groupId ? challenge : null;
+    }
+
+    /** 按组找挑战；本组没有时退回场景主挑战（别的组的 Lua 也会停止、挂接、修改它）。 */
+    public WorldChallenge findChallengeForGroup(int groupId) {
+        var grouped = getChallengeForGroup(groupId);
+        return grouped != null ? grouped : challenge;
+    }
+
+    public List<WorldChallenge> getActiveChallenges() {
+        var active = new ArrayList<WorldChallenge>();
+        if (challenge != null && challenge.inProgress()) active.add(challenge);
+        if (additionalGroupChallenges != null) {
+            for (var grouped : additionalGroupChallenges.values()) {
+                if (grouped.inProgress() && grouped != challenge) active.add(grouped);
+            }
+        }
+        return active;
+    }
+
+    public void addGroupChallenge(WorldChallenge grouped) {
+        if (challenge == null || !challenge.inProgress()) {
+            challenge = grouped;
+            if (additionalGroupChallenges != null) additionalGroupChallenges.remove(grouped.getGroup().id);
+        } else {
+            if (additionalGroupChallenges == null) additionalGroupChallenges = new HashMap<>();
+            additionalGroupChallenges.put(grouped.getGroup().id, grouped);
+        }
+    }
     @Getter private List<DungeonSettleListener> dungeonSettleListeners;
     @Getter @Setter private int prevScene;
     @Getter @Setter private int prevScenePoint;
@@ -267,9 +304,8 @@ public class Scene {
 
     public synchronized void removePlayer(Player player) {
 
-        if (this.getChallenge() != null && this.getChallenge().inProgress()) {
-            player.sendPacket(new PacketDungeonChallengeFinishNotify(this.getChallenge()));
-        }
+        for (var activeChallenge : getActiveChallenges())
+            player.sendPacket(new PacketDungeonChallengeFinishNotify(activeChallenge));
 
         getPlayers().remove(player);
         this.playerEntryCallbacks.leave(player.getUid());
@@ -852,9 +888,7 @@ public class Scene {
         this.scriptManager.checkRegions();
         this.scriptManager.getSealBattleManager().onTick();
 
-        if (challenge != null) {
-            challenge.onCheckTimeOut();
-        }
+        for (var activeChallenge : getActiveChallenges()) activeChallenge.onCheckTimeOut();
 
         var sceneTime = getSceneTimeSeconds();
 
@@ -1449,13 +1483,27 @@ public class Scene {
         }
 
         this.scriptManager.meetEntities(entities);
-        groups.stream()
-                .filter(g -> {
-                    var instance = scriptManager.getGroupInstanceById(g.id);
-                    return instance == null || !instance.isScriptGroupDead();
-                })
-                .forEach(g -> emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.groupLoad(
-                        scriptManager, new ScriptArgs(g.id, EventType.EVENT_GROUP_LOAD, g.id)));
+        for (var group : groups) {
+            var instance = scriptManager.getGroupInstanceById(group.id);
+            if (instance != null && instance.isScriptGroupDead()) continue;
+            var groupLoad = emu.grasscutter.game.dailytask.DailyTaskGroupLifecycle.groupLoad(
+                    scriptManager, new ScriptArgs(group.id, EventType.EVENT_GROUP_LOAD, group.id));
+            if (getSceneType() == SceneType.SCENE_WORLD && instance != null
+                    && !instance.getPendingScriptedBlossomChests().isEmpty()) {
+                // GROUP_LOAD runs on the script pool and may refresh the suite. Rebuild afterward.
+                java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    try {
+                        groupLoad.get();
+                        if (loadedGroups.contains(group)) blossomManager.restoreScriptedChests(instance);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } catch (java.util.concurrent.ExecutionException e) {
+                        Grasscutter.getLogger().warn(
+                                "Scripted blossom chest restore skipped group={}", group.id, e);
+                    }
+                });
+            }
+        }
 
         Grasscutter.getLogger().trace("Scene {} loaded {} group(s)", this.getId(), groups.size());
     }

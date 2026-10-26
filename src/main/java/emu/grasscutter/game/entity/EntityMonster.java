@@ -350,13 +350,12 @@ public class EntityMonster extends GameEntity {
                     "World boss death handling failed scene={} group={} cfg={} monster={}",
                     scene.getId(), getGroupId(), getConfigId(), getEntityTypeId(), t);
         }
-        var challenge = Optional.ofNullable(scene.getChallenge());
         var scriptManager = scene.getScriptManager();
 
         Optional.ofNullable(this.getSpawnEntry()).ifPresent(scene.getDeadSpawnedEntities()::add);
 
         // first set the challenge data
-        challenge.ifPresent(c -> c.onMonsterDeath(this));
+        for (var challenge : scene.getActiveChallenges()) challenge.onMonsterDeath(this);
 
         if (scriptManager.isInit() && this.getGroupId() > 0) {
             Optional.ofNullable(scriptManager.getScriptMonsterSpawnService())

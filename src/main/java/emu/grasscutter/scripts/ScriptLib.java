@@ -244,7 +244,9 @@ public class ScriptLib {
     private int startChallenge(int challengeId, int challengeIndex, int[] parameters) {
 
         var scene = getSceneScriptManager().getScene();
-        var existingChallenge = scene.getChallenge();
+        var group = getCurrentGroup().orElse(null);
+        if (group == null) return 1;
+        var existingChallenge = scene.getChallengeForGroup(group.id);
         if (existingChallenge != null && existingChallenge.inProgress()) {
             logger.warn("ActiveChallenge: tried to create challenge while one is already in progress");
             return 1;
@@ -290,7 +292,7 @@ public class ScriptLib {
             }
         }
 
-        var challenge = ChallengeFactory.getChallenge(challengeId, challengeIndex, parameters, scene, getCurrentGroup().get());
+        var challenge = ChallengeFactory.getChallenge(challengeId, challengeIndex, parameters, scene, group);
 
         if (challenge == null) {
             return 1;
@@ -303,7 +305,8 @@ public class ScriptLib {
             dungeonChallenge.setStage(getSceneScriptManager().getVariables(parameters[1]).getOrDefault("stage", -1) == 0);
         }
 
-        scene.setChallenge(challenge);
+        // 推断：不同组的场景挑战可并存；同组重复启动仍由前面的检查拒绝。
+        scene.addGroupChallenge(challenge);
         challenge.start();
         return 0;
     }
@@ -417,7 +420,7 @@ public class ScriptLib {
     public int AttachChildChallenge(int fatherIndex, int childIndex, int childId, int[] params,
                                     LuaTable uidList, LuaTable weights) {
         var scene = getSceneScriptManager().getScene();
-        if (!(scene.getChallenge() instanceof FatherChallenge father)
+        if (!(scene.findChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0)) instanceof FatherChallenge father)
                 || father.getChallengeIndex() != fatherIndex || params == null
                 || params.length < 2 || params.length > 6 || weights == null) return 1;
         int successWeight = weights.get("success").optint(-1);
@@ -587,12 +590,17 @@ public class ScriptLib {
         if (group == null || group.gadgets == null) return 1;
         var definition = group.gadgets.get(var2);
         if (definition == null || !definition.is_blossom_chest) return 1;
+        var instance = manager.getGroupInstanceById(targetGroupId);
+        if (instance == null) return 1;
         var scene = manager.getScene();
-        if (scene.getEntityByConfigId(var2, targetGroupId) != null) return 0;
-        var chest = manager.createGadget(targetGroupId, group.block_id, definition);
+        var existing = scene.getEntityByConfigId(var2, targetGroupId);
+        if (existing != null && !(existing instanceof EntityGadget)) return 1;
+        var chest = existing instanceof EntityGadget gadget
+                ? gadget : manager.createGadget(targetGroupId, group.block_id, definition);
         if (chest == null || scene.getBlossomManager() == null
                 || !scene.getBlossomManager().registerScriptedChest(targetGroupId, chest)) return 1;
-        manager.addEntity(chest);
+        if (existing == null) manager.addEntity(chest);
+        if (instance.addPendingScriptedBlossomChest(var2)) instance.save();
         return 0;
     }
 
@@ -618,14 +626,15 @@ public class ScriptLib {
         var scene = getSceneScriptManager().getScene();
         if (goals == null || duration <= 0 || goals.get("success").optint(0) <= 0
                 || goals.get("fail").optint(0) <= 0) return 1;
-        var existing = scene.getChallenge();
+        var existing = scene.getChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
         if (existing != null && existing.inProgress()) return 1;
         var challenge = ChallengeFactory.getChallenge(index, id,
                 new int[] {duration, goals.get("success").toint(), goals.get("fail").toint()},
                 scene, getCurrentGroup().orElse(null));
         if (!(challenge instanceof FatherChallenge father) || father.getGroup() == null) return 1;
+        father.setFailOnWipe(goals.get("fail_on_wipe").optboolean(false));
         father.setSourceRegionEntityId(currentChallengeSourceRegion(scene));
-        scene.setChallenge(father);
+        scene.addGroupChallenge(father);
         return 0;
     }
 
@@ -1187,7 +1196,8 @@ public class ScriptLib {
     public int ModifyFatherChallengeProperty(int challengeId, int propertyTypeIndex, int value) {
         var properties = FatherChallengeProperty.values();
         if (propertyTypeIndex < 0 || propertyTypeIndex >= properties.length) return 1;
-        var challenge = getSceneScriptManager().getScene().getChallenge();
+        var challenge = getSceneScriptManager().getScene()
+                .findChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
         return challenge instanceof FatherChallenge father && father.getChallengeIndex() == challengeId
                 && father.modify(properties[propertyTypeIndex], value) ? 0 : 1;
     }
@@ -1329,9 +1339,10 @@ public class ScriptLib {
     }
 
     public int RefreshHuntingClueGroup() {
-        logger.warn("[LUA] Call unimplemented RefreshHuntingClueGroup");
-
-        return 0;
+        // HuntingGroupInfo only identifies the clue type and region. Spawning also requires
+        // the active player's HuntingData selection, which is not available here yet.
+        logger.warn("[LUA] RefreshHuntingClueGroup cannot spawn clues without HuntingData");
+        return 1;
     }
 
     public int RemoveEntityByConfigId(int groupId, int entityType, int configId) {
@@ -1545,8 +1556,14 @@ public class ScriptLib {
     }
 
     public int SetHandballGalleryBallPosAndRot(int galleryId, LuaTable position, LuaTable rotation) {
-        logger.warn("[LUA] Call unimplemented SetHandballGalleryBallPosAndRot with {} {} {}", galleryId, printTable(position), printTable(rotation));
-
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || position == null
+                || !position.get("x").isnumber() || !position.get("y").isnumber() || !position.get("z").isnumber()
+                || !manager.getGalleryScriptState().setTargetPosition(galleryId, luaTablePosition(position))) {
+            logger.warn("[LUA] SetHandballGalleryBallPosAndRot: invalid target or inactive gallery {}", galleryId);
+            return -1;
+        }
+        // 推断：Lua 的位置是目标物距离提示的目标；7.1 通知字段未恢复前只保存服务端目标。
         return 0;
     }
 
@@ -1769,7 +1786,8 @@ public class ScriptLib {
     }
 
     public int StartFatherChallenge(int index) {
-        var challenge = getSceneScriptManager().getScene().getChallenge();
+        var challenge = getSceneScriptManager().getScene()
+                .findChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
         if (!(challenge instanceof FatherChallenge father)
                 || father.getChallengeIndex() != index || father.inProgress()) return 1;
         father.start();
@@ -1818,7 +1836,7 @@ public class ScriptLib {
         if (LiyueCloudDungeonSupport.isTargetScene(scene) && var1 >= 100 && var1 <= 102)
             return LiyueCloudDungeonSupport.stopFireChallenge(scene, var1, var2);
         if (var2 != 0 && var2 != 1) return 1;
-        var challenge = scene.getChallenge();
+        var challenge = scene.findChallengeForGroup(getCurrentGroup().map(g -> g.id).orElse(0));
         if (challenge instanceof FatherChallenge father && father.inProgress()
                 && father.activeChild(var1) != null) challenge = father.activeChild(var1);
         if (challenge == null || !challenge.inProgress() || challenge.getChallengeIndex() != var1) return 1;
@@ -1828,8 +1846,12 @@ public class ScriptLib {
     }
 
     public int StopGallery(int galleryId, boolean var2) {
-        logger.warn("[LUA] Call unimplemented StopGallery with {} {}", galleryId, var2);
-
+        var manager = sceneScriptManager.getIfExists();
+        if (manager == null || manager.getScene() == null || !manager.getGalleryScriptState().stop(galleryId)) {
+            logger.warn("[LUA] StopGallery: invalid scene or gallery id {}", galleryId);
+            return -1;
+        }
+        // 7.1 描述集缺少 GalleryStopNotify 具名消息；不能按未知字段发包。
         return 0;
     }
 

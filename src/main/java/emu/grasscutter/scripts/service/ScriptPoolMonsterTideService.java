@@ -93,9 +93,9 @@ public final class ScriptPoolMonsterTideService implements ScriptMonsterListener
                 LuaValue entry = monsters.get(j);
                 if (!entry.istable()) continue;
                 var monster = ScriptLoader.getSerializer().toObject(SceneMonster.class, entry);
-                int tag = entry.get("tag").optint(0);
-                if (monster != null && (requestedTag == 0
-                        || (matchTag ? (tag & requestedTag) != 0 : tag == requestedTag)))
+                LuaValue tagValue = entry.get("tag");
+                int tag = tagValue.optint(0);
+                if (monster != null && matchesRequestedTag(tagValue, requestedTag, matchTag))
                     entries.add(new PoolEntry(monster, tag));
             }
         }
@@ -168,6 +168,13 @@ public final class ScriptPoolMonsterTideService implements ScriptMonsterListener
 
     public static boolean tagMatches(int monsterTag, int pointTag, boolean matchTag) {
         return !matchTag || monsterTag == 0 || pointTag == 0 || (monsterTag & pointTag) != 0;
+    }
+
+    static boolean matchesRequestedTag(LuaValue tagValue, int requestedTag, boolean bitMatch) {
+        // 推断：池怪未写 tag 时由可用点位提供 tag；显式 tag 仍按请求精确或位匹配。
+        return tagValue.isnil() || requestedTag == 0
+                || (bitMatch ? (tagValue.toint() & requestedTag) != 0
+                             : tagValue.toint() == requestedTag);
     }
 
     public int groupId() { return group.id; }
